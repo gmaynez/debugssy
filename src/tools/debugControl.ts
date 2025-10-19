@@ -1,0 +1,146 @@
+import * as vscode from 'vscode';
+
+export interface DebugControlResult {
+    success: boolean;
+    message?: string;
+    error?: string;
+}
+
+export class DebugControlTools {
+    private activeSession: vscode.DebugSession | undefined;
+
+    constructor() {
+        vscode.debug.onDidStartDebugSession((session) => {
+            this.activeSession = session;
+        });
+
+        vscode.debug.onDidTerminateDebugSession(() => {
+            this.activeSession = undefined;
+        });
+    }
+
+    async startDebugging(args: {
+        workspaceFolder?: string;
+        configuration?: any;
+        name?: string;
+    }): Promise<DebugControlResult> {
+        try {
+            const workspaceFolders = vscode.workspace.workspaceFolders;
+            if (!workspaceFolders || workspaceFolders.length === 0) {
+                return {
+                    success: false,
+                    error: 'No workspace folder open'
+                };
+            }
+
+            // Select workspace folder
+            let folder = workspaceFolders[0];
+            if (args.workspaceFolder) {
+                const found = workspaceFolders.find(
+                    (f) => f.name === args.workspaceFolder || f.uri.fsPath === args.workspaceFolder
+                );
+                if (found) {
+                    folder = found;
+                }
+            }
+
+            // Use provided configuration or try to find one
+            let config = args.configuration;
+            if (!config && args.name) {
+                const configs = vscode.workspace.getConfiguration('launch', folder.uri).get<any[]>('configurations', []);
+                config = configs.find((c) => c.name === args.name);
+            }
+
+            if (!config) {
+                return {
+                    success: false,
+                    error: 'No debug configuration provided or found'
+                };
+            }
+
+            const success = await vscode.debug.startDebugging(folder, config);
+            return {
+                success,
+                message: success ? 'Debug session started' : 'Failed to start debug session'
+            };
+        } catch (error: any) {
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    async stopDebugging(): Promise<DebugControlResult> {
+        try {
+            if (!this.activeSession) {
+                return {
+                    success: false,
+                    error: 'No active debug session'
+                };
+            }
+
+            await vscode.debug.stopDebugging(this.activeSession);
+            return {
+                success: true,
+                message: 'Debug session stopped'
+            };
+        } catch (error: any) {
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    async continueExecution(): Promise<DebugControlResult> {
+        return this.executeCommand('workbench.action.debug.continue', 'Execution continued');
+    }
+
+    async stepOver(): Promise<DebugControlResult> {
+        return this.executeCommand('workbench.action.debug.stepOver', 'Stepped over');
+    }
+
+    async stepInto(): Promise<DebugControlResult> {
+        return this.executeCommand('workbench.action.debug.stepInto', 'Stepped into');
+    }
+
+    async stepOut(): Promise<DebugControlResult> {
+        return this.executeCommand('workbench.action.debug.stepOut', 'Stepped out');
+    }
+
+    async pause(): Promise<DebugControlResult> {
+        return this.executeCommand('workbench.action.debug.pause', 'Execution paused');
+    }
+
+    async restart(): Promise<DebugControlResult> {
+        return this.executeCommand('workbench.action.debug.restart', 'Debug session restarted');
+    }
+
+    private async executeCommand(command: string, successMessage: string): Promise<DebugControlResult> {
+        try {
+            if (!this.activeSession) {
+                return {
+                    success: false,
+                    error: 'No active debug session'
+                };
+            }
+
+            await vscode.commands.executeCommand(command);
+            return {
+                success: true,
+                message: successMessage
+            };
+        } catch (error: any) {
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    getActiveSession(): vscode.DebugSession | undefined {
+        return this.activeSession;
+    }
+}
+

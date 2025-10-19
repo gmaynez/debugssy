@@ -1,0 +1,71 @@
+{
+  "name": "debugsy",
+  "displayName": "Debugsy",
+  "description": "MCP server for VS Code debugging with tools for breakpoints, debug control, and variable inspection",
+  "version": "0.1.0",
+  "publisher": "debugsy",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Debuggers",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Debugsy",
+      "properties": {
+        "debugsy.mcp.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable the MCP server for debugging tools"
+        },
+        "debugsy.mcp.port": {
+          "type": "number",
+          "default": 3000,
+          "description": "Port for the MCP server to listen on (localhost only)"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "debugsy.startServer",
+        "title": "Debugsy: Start Server"
+      },
+      {
+        "command": "debugsy.stopServer",
+        "title": "Debugsy: Stop Server"
+      },
+      {
+        "command": "debugsy.restartServer",
+        "title": "Debugsy: Restart Server"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.x",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "typescript": "^5.3.2",
+    "@vscode/vsce": "^2.22.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "express": "^4.18.2"
+  }
+}
