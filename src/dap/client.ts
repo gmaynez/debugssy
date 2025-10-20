@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { DEFAULT_THREAD_ID } from '../constants';
 
 export interface StackFrame {
     id: number;
@@ -122,7 +123,7 @@ export class DAPClient {
     async getStackTrace(session: vscode.DebugSession): Promise<StackFrame[]> {
         try {
             const response = await session.customRequest('stackTrace', {
-                threadId: 1 // Simplified: assume thread 1
+                threadId: DEFAULT_THREAD_ID
             });
             if (response?.stackFrames) {
                 this.stackFrames = response.stackFrames;

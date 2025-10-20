@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { DAPClient } from '../dap/client';
 import { ConfigManager } from '../config';
+import { DEFAULT_BREAKPOINT_TIMEOUT_MS } from '../constants';
 
 export interface InspectionResult {
     success: boolean;
@@ -95,26 +96,33 @@ export class InspectionTools {
             }
 
             // Use provided timeout, fallback to config, then default
-            const defaultTimeout = this.configManager?.getConfig().waitForBreakpointTimeout || 10000;
+            const defaultTimeout = this.configManager?.getConfig().waitForBreakpointTimeout || DEFAULT_BREAKPOINT_TIMEOUT_MS;
             const timeout = args.timeout || defaultTimeout;
 
             // Wait for the next paused state
-            const result = await Promise.race([
-                new Promise<InspectionResult>((resolve) => {
-                    const disposable = this.dapClient.onStateChange((state) => {
-                        if (state === 'paused') {
-                            disposable.dispose();
-                            // Get the current state info
-                            this.getDebugState().then(resolve);
-                        }
-                    });
-                }),
-                new Promise<InspectionResult>((_, reject) => {
-                    setTimeout(() => reject(new Error(`Timeout waiting for breakpoint after ${timeout}ms`)), timeout);
-                })
-            ]);
+            let disposable: vscode.Disposable | undefined;
+            try {
+                const result = await Promise.race([
+                    new Promise<InspectionResult>((resolve) => {
+                        disposable = this.dapClient.onStateChange((state) => {
+                            if (state === 'paused') {
+                                // Get the current state info
+                                this.getDebugState().then(resolve);
+                            }
+                        });
+                    }),
+                    new Promise<InspectionResult>((_, reject) => {
+                        setTimeout(() => reject(new Error(`Timeout waiting for breakpoint after ${timeout}ms`)), timeout);
+                    })
+                ]);
 
-            return result;
+                return result;
+            } finally {
+                // Always clean up the disposable, whether we succeeded or timed out
+                if (disposable) {
+                    disposable.dispose();
+                }
+            }
         } catch (error: any) {
             return {
                 success: false,

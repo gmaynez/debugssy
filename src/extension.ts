@@ -2,38 +2,93 @@ import * as vscode from 'vscode';
 import { ConfigManager } from './config';
 import { MCPServer } from './mcpServer';
 import { DAPClient } from './dap/client';
-import { createToolRegistry } from './tools';
+import { createToolRegistry, ToolRegistry } from './tools';
 
-let mcpServer: MCPServer | undefined;
-let configManager: ConfigManager;
-let dapClient: DAPClient;
+/**
+ * Encapsulates all extension state and dependencies to avoid module-level mutable state.
+ * This improves testability and makes dependencies explicit.
+ */
+class ExtensionContext {
+    private mcpServer: MCPServer | undefined;
+    private readonly configManager: ConfigManager;
+    private readonly dapClient: DAPClient;
+    private readonly toolRegistry: ToolRegistry;
+
+    constructor() {
+        this.configManager = new ConfigManager();
+        this.dapClient = new DAPClient();
+        this.toolRegistry = createToolRegistry(this.dapClient, this.configManager);
+    }
+
+    getConfigManager(): ConfigManager {
+        return this.configManager;
+    }
+
+    getDAPClient(): DAPClient {
+        return this.dapClient;
+    }
+
+    getToolRegistry(): ToolRegistry {
+        return this.toolRegistry;
+    }
+
+    getMCPServer(): MCPServer | undefined {
+        return this.mcpServer;
+    }
+
+    async startMCPServer(port: number): Promise<void> {
+        try {
+            this.mcpServer = new MCPServer(port, this.toolRegistry, this.configManager);
+            await this.mcpServer.start();
+        } catch (error: any) {
+            vscode.window.showErrorMessage(`Failed to start MCP Server: ${error.message}`);
+            this.mcpServer = undefined;
+        }
+    }
+
+    async stopMCPServer(): Promise<void> {
+        if (this.mcpServer) {
+            await this.mcpServer.stop();
+            this.mcpServer = undefined;
+            vscode.window.showInformationMessage('Debugssy MCP Server stopped');
+        }
+    }
+
+    async dispose(): Promise<void> {
+        if (this.mcpServer) {
+            await this.mcpServer.stop();
+        }
+        this.dapClient.dispose();
+        this.configManager.dispose();
+    }
+}
+
+let extensionContext: ExtensionContext | undefined;
 
 export async function activate(context: vscode.ExtensionContext) {
     console.log('Debugssy extension is now active');
 
-    // Initialize configuration manager
-    configManager = new ConfigManager();
-
-    // Initialize DAP client
-    dapClient = new DAPClient();
-
-    // Create tool registry
-    const toolRegistry = createToolRegistry(dapClient, configManager);
+    // Initialize extension context
+    extensionContext = new ExtensionContext();
+    const configManager = extensionContext.getConfigManager();
+    const dapClient = extensionContext.getDAPClient();
 
     // Start MCP server if enabled
     const config = configManager.getConfig();
     if (config.enabled) {
-        await startMCPServer(config.port, toolRegistry);
+        await extensionContext.startMCPServer(config.port);
     }
 
     // Watch for configuration changes
     let previousConfig = config;
     context.subscriptions.push(
         configManager.onConfigChange(async (newConfig) => {
+            const mcpServer = extensionContext!.getMCPServer();
+            
             if (newConfig.enabled && !mcpServer) {
-                await startMCPServer(newConfig.port, toolRegistry);
+                await extensionContext!.startMCPServer(newConfig.port);
             } else if (!newConfig.enabled && mcpServer) {
-                await stopMCPServer();
+                await extensionContext!.stopMCPServer();
             } else if (mcpServer && newConfig.port !== previousConfig.port) {
                 await mcpServer.updatePort(newConfig.port);
                 vscode.window.showInformationMessage(
@@ -77,19 +132,22 @@ export async function activate(context: vscode.ExtensionContext) {
     // Register commands for manual control
     context.subscriptions.push(
         vscode.commands.registerCommand('debugssy.startServer', async () => {
+            const mcpServer = extensionContext!.getMCPServer();
             const config = configManager.getConfig();
+            
             if (mcpServer) {
                 vscode.window.showInformationMessage('MCP Server is already running');
             } else {
-                await startMCPServer(config.port, toolRegistry);
+                await extensionContext!.startMCPServer(config.port);
             }
         })
     );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('debugssy.stopServer', async () => {
+            const mcpServer = extensionContext!.getMCPServer();
             if (mcpServer) {
-                await stopMCPServer();
+                await extensionContext!.stopMCPServer();
             } else {
                 vscode.window.showInformationMessage('MCP Server is not running');
             }
@@ -98,42 +156,21 @@ export async function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('debugssy.restartServer', async () => {
-            if (mcpServer) {
-                await stopMCPServer();
-            }
+            const mcpServer = extensionContext!.getMCPServer();
             const config = configManager.getConfig();
-            await startMCPServer(config.port, toolRegistry);
+            
+            if (mcpServer) {
+                await extensionContext!.stopMCPServer();
+            }
+            await extensionContext!.startMCPServer(config.port);
         })
     );
 }
 
-async function startMCPServer(port: number, toolRegistry: any): Promise<void> {
-    try {
-        mcpServer = new MCPServer(port, toolRegistry, configManager);
-        await mcpServer.start();
-    } catch (error: any) {
-        vscode.window.showErrorMessage(`Failed to start MCP Server: ${error.message}`);
-        mcpServer = undefined;
-    }
-}
-
-async function stopMCPServer(): Promise<void> {
-    if (mcpServer) {
-        await mcpServer.stop();
-        mcpServer = undefined;
-        vscode.window.showInformationMessage('Debugssy MCP Server stopped');
-    }
-}
-
 export async function deactivate() {
-    if (mcpServer) {
-        await mcpServer.stop();
-    }
-    if (dapClient) {
-        dapClient.dispose();
-    }
-    if (configManager) {
-        configManager.dispose();
+    if (extensionContext) {
+        await extensionContext.dispose();
+        extensionContext = undefined;
     }
 }
 

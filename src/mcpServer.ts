@@ -7,6 +7,44 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { CallToolRequestSchema, ListToolsRequestSchema, ListPromptsRequestSchema, GetPromptRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { ToolRegistry } from './tools';
 import { ConfigManager } from './config';
+import {
+    MCP_SERVER_READY_DELAY_MS,
+    SUPPORTED_MCP_PROTOCOL_VERSIONS,
+    CURRENT_MCP_PROTOCOL_VERSION
+} from './constants';
+
+// Tool argument interfaces
+interface SetBreakpointArgs {
+    filePath: string;
+    line: number;
+    condition?: string;
+    hitCondition?: string;
+    logMessage?: string;
+}
+
+interface RemoveBreakpointArgs {
+    filePath: string;
+    line: number;
+}
+
+interface ToggleBreakpointArgs {
+    filePath: string;
+    line: number;
+}
+
+interface GetVariablesArgs {
+    scope?: string;
+    frameId?: number;
+}
+
+interface EvaluateExpressionArgs {
+    expression: string;
+    frameId?: number;
+}
+
+interface WaitForBreakpointArgs {
+    timeout?: number;
+}
 
 export class MCPServer {
     private app: express.Application;
@@ -341,16 +379,22 @@ export class MCPServer {
 
                     // Breakpoints
                     case 'set_breakpoint':
-                        result = await this.toolRegistry.breakpoints.setBreakpoint(args as any || {});
+                        result = await this.toolRegistry.breakpoints.setBreakpoint(
+                            args as unknown as SetBreakpointArgs
+                        );
                         break;
                     case 'remove_breakpoint':
-                        result = await this.toolRegistry.breakpoints.removeBreakpoint(args as any || {});
+                        result = await this.toolRegistry.breakpoints.removeBreakpoint(
+                            args as unknown as RemoveBreakpointArgs
+                        );
                         break;
                     case 'list_breakpoints':
                         result = await this.toolRegistry.breakpoints.listBreakpoints();
                         break;
                     case 'toggle_breakpoint':
-                        result = await this.toolRegistry.breakpoints.toggleBreakpoint(args as any || {});
+                        result = await this.toolRegistry.breakpoints.toggleBreakpoint(
+                            args as unknown as ToggleBreakpointArgs
+                        );
                         break;
                     case 'remove_all_breakpoints':
                         result = await this.toolRegistry.breakpoints.removeAllBreakpoints();
@@ -358,13 +402,17 @@ export class MCPServer {
 
                     // Inspection
                     case 'get_variables':
-                        result = await this.toolRegistry.inspection.getVariables(args as any || {});
+                        result = await this.toolRegistry.inspection.getVariables(
+                            args as unknown as GetVariablesArgs
+                        );
                         break;
                     case 'get_call_stack':
                         result = await this.toolRegistry.inspection.getCallStack();
                         break;
                     case 'evaluate_expression':
-                        result = await this.toolRegistry.inspection.evaluateExpression(args as any || {});
+                        result = await this.toolRegistry.inspection.evaluateExpression(
+                            args as unknown as EvaluateExpressionArgs
+                        );
                         break;
                     case 'get_threads':
                         result = await this.toolRegistry.inspection.getThreads();
@@ -374,8 +422,9 @@ export class MCPServer {
                         break;
                     case 'wait_for_breakpoint': {
                         const automationLevel = this.configManager.getConfig().automationLevel;
+                        const waitArgs = args as unknown as WaitForBreakpointArgs;
                         result = await this.toolRegistry.inspection.waitForBreakpoint({
-                            timeout: (args as any)?.timeout,
+                            timeout: waitArgs?.timeout,
                             automationLevel
                         });
                         break;
@@ -648,14 +697,13 @@ export class MCPServer {
             
             // MCP Protocol Version validation (MCP spec 2025-06-18)
             // Clients MUST include MCP-Protocol-Version header
-            // For backwards compatibility, assume 2025-03-26 if not present
+            // For backwards compatibility, assume FALLBACK_MCP_PROTOCOL_VERSION if not present
             const protocolVersion = req.headers['mcp-protocol-version'] as string;
-            const supportedVersions = ['2025-03-26', '2025-06-18'];
             
-            if (protocolVersion && !supportedVersions.includes(protocolVersion)) {
+            if (protocolVersion && !SUPPORTED_MCP_PROTOCOL_VERSIONS.includes(protocolVersion as any)) {
                 console.warn(`Rejected request with unsupported protocol version: ${protocolVersion}`);
                 res.status(400).json({ 
-                    error: `Bad Request: Unsupported MCP protocol version '${protocolVersion}'. Supported versions: ${supportedVersions.join(', ')}` 
+                    error: `Bad Request: Unsupported MCP protocol version '${protocolVersion}'. Supported versions: ${SUPPORTED_MCP_PROTOCOL_VERSIONS.join(', ')}` 
                 });
                 return;
             }
@@ -692,8 +740,8 @@ export class MCPServer {
                 version: '0.1.0',
                 transportInitialized: !!this.transport,
                 transport: 'streamable-http',
-                protocolVersion: '2025-06-18',
-                supportedProtocolVersions: ['2025-03-26', '2025-06-18']
+                protocolVersion: CURRENT_MCP_PROTOCOL_VERSION,
+                supportedProtocolVersions: SUPPORTED_MCP_PROTOCOL_VERSIONS
             });
         });
     }
@@ -718,7 +766,7 @@ export class MCPServer {
                     
                     // Small delay to ensure transport is fully ready to accept connections
                     // This prevents race conditions when connecting immediately after startup notification
-                    await new Promise(r => setTimeout(r, 100));
+                    await new Promise(r => setTimeout(r, MCP_SERVER_READY_DELAY_MS));
                     
                     // Only show notification if not in silent mode (e.g., during initial startup)
                     if (!options?.silent) {

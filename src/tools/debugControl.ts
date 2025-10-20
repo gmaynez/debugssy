@@ -104,69 +104,66 @@ export class DebugControlTools {
     }
 
     async continueExecution(): Promise<DebugControlResult> {
-        const automationLevel = this.configManager?.getConfig().automationLevel || 'assisted';
-        if (automationLevel === 'assisted') {
-            return {
-                success: true,
-                message: 'Assisted mode: Please click Continue in VS Code debugger UI when ready to proceed.'
-            };
-        }
-        return this.executeCommand('workbench.action.debug.continue', 'Execution continued');
+        return this.executeCommandWithAutomationCheck(
+            'workbench.action.debug.continue',
+            'Execution continued',
+            'Please click Continue in VS Code debugger UI when ready to proceed.'
+        );
     }
 
     async stepOver(): Promise<DebugControlResult> {
-        const automationLevel = this.configManager?.getConfig().automationLevel || 'assisted';
-        if (automationLevel === 'assisted') {
-            return {
-                success: true,
-                message: 'Assisted mode: Please click Step Over in VS Code debugger UI.'
-            };
-        }
-        return this.executeCommand('workbench.action.debug.stepOver', 'Stepped over');
+        return this.executeCommandWithAutomationCheck(
+            'workbench.action.debug.stepOver',
+            'Stepped over',
+            'Please click Step Over in VS Code debugger UI.'
+        );
     }
 
     async stepInto(): Promise<DebugControlResult> {
-        const automationLevel = this.configManager?.getConfig().automationLevel || 'assisted';
-        if (automationLevel === 'assisted') {
-            return {
-                success: true,
-                message: 'Assisted mode: Please click Step Into in VS Code debugger UI.'
-            };
-        }
-        return this.executeCommand('workbench.action.debug.stepInto', 'Stepped into');
+        return this.executeCommandWithAutomationCheck(
+            'workbench.action.debug.stepInto',
+            'Stepped into',
+            'Please click Step Into in VS Code debugger UI.'
+        );
     }
 
     async stepOut(): Promise<DebugControlResult> {
-        const automationLevel = this.configManager?.getConfig().automationLevel || 'assisted';
-        if (automationLevel === 'assisted') {
-            return {
-                success: true,
-                message: 'Assisted mode: Please click Step Out in VS Code debugger UI.'
-            };
-        }
-        return this.executeCommand('workbench.action.debug.stepOut', 'Stepped out');
+        return this.executeCommandWithAutomationCheck(
+            'workbench.action.debug.stepOut',
+            'Stepped out',
+            'Please click Step Out in VS Code debugger UI.'
+        );
     }
 
     async pause(): Promise<DebugControlResult> {
-        const automationLevel = this.configManager?.getConfig().automationLevel || 'assisted';
-        if (automationLevel === 'assisted') {
-            return {
-                success: true,
-                message: 'Assisted mode: Please click Pause in VS Code debugger UI.'
-            };
-        }
-        return this.executeCommand('workbench.action.debug.pause', 'Execution paused');
+        return this.executeCommandWithAutomationCheck(
+            'workbench.action.debug.pause',
+            'Execution paused',
+            'Please click Pause in VS Code debugger UI.'
+        );
     }
 
     async restart(): Promise<DebugControlResult> {
+        return this.executeCommandWithAutomationCheck(
+            'workbench.action.debug.restart',
+            'Debug session restarted',
+            'Please click Restart in VS Code debugger UI.'
+        );
+    }
+
+    private async executeCommandWithAutomationCheck(
+        command: string,
+        successMessage: string,
+        assistedMessage: string
+    ): Promise<DebugControlResult> {
         const automationLevel = this.configManager?.getConfig().automationLevel || 'assisted';
         if (automationLevel === 'assisted') {
             return {
                 success: true,
-                message: 'Assisted mode: Please click Restart in VS Code debugger UI.'
+                message: `Assisted mode: ${assistedMessage}`
             };
         }
-        return this.executeCommand('workbench.action.debug.restart', 'Debug session restarted');
+        return this.executeCommand(command, successMessage);
     }
 
     private async executeCommand(command: string, successMessage: string): Promise<DebugControlResult> {
