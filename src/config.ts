@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 export interface DebugConfiguration {
     enabled: boolean;
     port: number;
+    automationLevel: 'assisted' | 'full';
 }
 
 export class ConfigManager {
@@ -22,7 +23,8 @@ export class ConfigManager {
         const config = vscode.workspace.getConfiguration(ConfigManager.CONFIG_SECTION);
         return {
             enabled: config.get<boolean>('mcp.enabled', true),
-            port: config.get<number>('mcp.port', 3000)
+            port: config.get<number>('mcp.port', 3000),
+            automationLevel: config.get<'assisted' | 'full'>('automationLevel', 'assisted')
         };
     }
 

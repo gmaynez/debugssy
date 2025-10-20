@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { ConfigManager } from '../config';
 
 export interface DebugControlResult {
     success: boolean;
@@ -9,7 +10,7 @@ export interface DebugControlResult {
 export class DebugControlTools {
     private activeSession: vscode.DebugSession | undefined;
 
-    constructor() {
+    constructor(private configManager?: ConfigManager) {
         vscode.debug.onDidStartDebugSession((session) => {
             this.activeSession = session;
         });
@@ -25,6 +26,15 @@ export class DebugControlTools {
         name?: string;
     }): Promise<DebugControlResult> {
         try {
+            // Check automation level
+            const automationLevel = this.configManager?.getConfig().automationLevel || 'assisted';
+            if (automationLevel === 'assisted') {
+                return {
+                    success: false,
+                    error: 'Cannot start debugging in assisted mode. Please start debugging manually using VS Code UI, or switch to full automation mode.'
+                };
+            }
+
             const workspaceFolders = vscode.workspace.workspaceFolders;
             if (!workspaceFolders || workspaceFolders.length === 0) {
                 return {
@@ -94,26 +104,68 @@ export class DebugControlTools {
     }
 
     async continueExecution(): Promise<DebugControlResult> {
+        const automationLevel = this.configManager?.getConfig().automationLevel || 'assisted';
+        if (automationLevel === 'assisted') {
+            return {
+                success: true,
+                message: 'Assisted mode: Please click Continue in VS Code debugger UI when ready to proceed.'
+            };
+        }
         return this.executeCommand('workbench.action.debug.continue', 'Execution continued');
     }
 
     async stepOver(): Promise<DebugControlResult> {
+        const automationLevel = this.configManager?.getConfig().automationLevel || 'assisted';
+        if (automationLevel === 'assisted') {
+            return {
+                success: true,
+                message: 'Assisted mode: Please click Step Over in VS Code debugger UI.'
+            };
+        }
         return this.executeCommand('workbench.action.debug.stepOver', 'Stepped over');
     }
 
     async stepInto(): Promise<DebugControlResult> {
+        const automationLevel = this.configManager?.getConfig().automationLevel || 'assisted';
+        if (automationLevel === 'assisted') {
+            return {
+                success: true,
+                message: 'Assisted mode: Please click Step Into in VS Code debugger UI.'
+            };
+        }
         return this.executeCommand('workbench.action.debug.stepInto', 'Stepped into');
     }
 
     async stepOut(): Promise<DebugControlResult> {
+        const automationLevel = this.configManager?.getConfig().automationLevel || 'assisted';
+        if (automationLevel === 'assisted') {
+            return {
+                success: true,
+                message: 'Assisted mode: Please click Step Out in VS Code debugger UI.'
+            };
+        }
         return this.executeCommand('workbench.action.debug.stepOut', 'Stepped out');
     }
 
     async pause(): Promise<DebugControlResult> {
+        const automationLevel = this.configManager?.getConfig().automationLevel || 'assisted';
+        if (automationLevel === 'assisted') {
+            return {
+                success: true,
+                message: 'Assisted mode: Please click Pause in VS Code debugger UI.'
+            };
+        }
         return this.executeCommand('workbench.action.debug.pause', 'Execution paused');
     }
 
     async restart(): Promise<DebugControlResult> {
+        const automationLevel = this.configManager?.getConfig().automationLevel || 'assisted';
+        if (automationLevel === 'assisted') {
+            return {
+                success: true,
+                message: 'Assisted mode: Please click Restart in VS Code debugger UI.'
+            };
+        }
         return this.executeCommand('workbench.action.debug.restart', 'Debug session restarted');
     }
 

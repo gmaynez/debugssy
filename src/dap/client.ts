@@ -24,11 +24,26 @@ export interface Scope {
     expensive: boolean;
 }
 
+export type ExecutionState = 'not_started' | 'running' | 'paused' | 'terminated';
+
+export interface StoppedInfo {
+    threadId: number;
+    reason: string;
+    description?: string;
+    text?: string;
+    allThreadsStopped?: boolean;
+    hitBreakpointIds?: number[];
+}
+
 export class DAPClient {
     private currentFrameId: number | undefined;
     private stackFrames: StackFrame[] = [];
     private variableCache: Map<number, Variable[]> = new Map();
     private scopeCache: Map<number, Scope[]> = new Map();
+    private executionState: ExecutionState = 'not_started';
+    private stoppedInfo: StoppedInfo | undefined;
+    private stateChangeEmitter = new vscode.EventEmitter<ExecutionState>();
+    public readonly onStateChange = this.stateChangeEmitter.event;
 
     constructor() {
         // Register debug adapter tracker to intercept DAP messages
@@ -74,6 +89,31 @@ export class DAPClient {
                         const variablesReference = message.request_seq; // Approximation
                         this.variableCache.set(variablesReference, message.body.variables);
                     }
+                    break;
+            }
+        } else if (message.type === 'event') {
+            switch (message.event) {
+                case 'stopped':
+                    this.executionState = 'paused';
+                    this.stoppedInfo = {
+                        threadId: message.body?.threadId,
+                        reason: message.body?.reason || 'unknown',
+                        description: message.body?.description,
+                        text: message.body?.text,
+                        allThreadsStopped: message.body?.allThreadsStopped,
+                        hitBreakpointIds: message.body?.hitBreakpointIds
+                    };
+                    this.stateChangeEmitter.fire('paused');
+                    break;
+                case 'continued':
+                    this.executionState = 'running';
+                    this.stoppedInfo = undefined;
+                    this.stateChangeEmitter.fire('running');
+                    break;
+                case 'terminated':
+                    this.executionState = 'terminated';
+                    this.stoppedInfo = undefined;
+                    this.stateChangeEmitter.fire('terminated');
                     break;
             }
         }
@@ -145,11 +185,29 @@ export class DAPClient {
         return this.currentFrameId;
     }
 
+    getExecutionState(): ExecutionState {
+        return this.executionState;
+    }
+
+    getStoppedInfo(): StoppedInfo | undefined {
+        return this.stoppedInfo;
+    }
+
+    isReadyForEvaluation(): boolean {
+        return this.executionState === 'paused' && this.stoppedInfo !== undefined;
+    }
+
     reset(): void {
         this.currentFrameId = undefined;
         this.stackFrames = [];
         this.variableCache.clear();
         this.scopeCache.clear();
+        this.executionState = 'not_started';
+        this.stoppedInfo = undefined;
+    }
+
+    dispose(): void {
+        this.stateChangeEmitter.dispose();
     }
 }
 

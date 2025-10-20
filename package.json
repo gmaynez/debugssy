@@ -28,6 +28,16 @@
           "type": "number",
           "default": 3000,
           "description": "Port for the MCP server to listen on (localhost only)"
+        },
+        "debugsy.automationLevel": {
+          "type": "string",
+          "enum": ["assisted", "full"],
+          "default": "assisted",
+          "description": "Control automation level: 'assisted' (user controls flow, AI assists) or 'full' (AI has full control)",
+          "enumDescriptions": [
+            "Assisted mode: AI can set breakpoints and inspect, but user controls execution flow via VS Code UI",
+            "Full mode: AI has complete control over debugging session including starting, stopping, and stepping"
+          ]
         }
       }
     },

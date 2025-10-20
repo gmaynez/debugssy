@@ -22,13 +22,53 @@ Configure the MCP server through VS Code settings:
 
 - `debugsy.mcp.enabled` (default: `true`): Enable/disable the MCP server
 - `debugsy.mcp.port` (default: `3000`): Port for the MCP server (localhost only)
+- `debugsy.automationLevel` (default: `assisted`): Control AI automation level
+  - `assisted`: AI can set breakpoints and inspect variables, but user controls execution flow via VS Code UI (safer, recommended)
+  - `full`: AI has complete control over debugging including starting sessions, stepping, and continuing execution
+
+## Automation Levels
+
+Debugsy supports two automation levels to balance AI assistance with user control:
+
+### Assisted Mode (Default)
+In **assisted mode**, the AI agent can:
+- ✅ Set, remove, and manage breakpoints
+- ✅ Inspect variables, evaluate expressions, and read call stacks
+- ✅ Query debug state (is execution paused? where?)
+- ✅ Stop debugging sessions (safety escape hatch)
+
+But the user must:
+- 🔵 Start debugging sessions manually via VS Code
+- 🔵 Control execution flow (continue, step, pause) using VS Code debugger UI
+
+This mode provides maximum safety and control, ideal for:
+- Senior engineers who want to maintain situational awareness
+- Learning and understanding code behavior step-by-step
+- Production or critical debugging scenarios
+
+### Full Automation Mode
+In **full mode**, the AI agent has complete control:
+- ✅ Everything from assisted mode
+- ✅ Start debugging sessions programmatically
+- ✅ Control execution flow (continue, step over/into/out, pause, restart)
+- ✅ Wait for breakpoint hits with timeout
+
+This mode is ideal for:
+- Rapid iteration and exploration
+- AI-driven "vibe coding" workflows
+- Automated testing and validation scenarios
+- Experienced users comfortable with AI autonomy
 
 ## Available MCP Tools
 
 ### Debug Control Tools
 
+**Note:** In **assisted mode**, flow control tools (`continue`, `step_*`, `pause`, `restart`) will return a message asking the user to use VS Code UI. Only in **full mode** do these tools execute automatically.
+
 #### `start_debugging`
 Start a debugging session with a configuration from `launch.json` or a custom configuration.
+
+**Automation:** Full mode only (returns error in assisted mode)
 
 **Parameters:**
 - `workspaceFolder` (optional): Name or path of workspace folder
@@ -45,23 +85,37 @@ Start a debugging session with a configuration from `launch.json` or a custom co
 #### `stop_debugging`
 Stop the current debugging session.
 
+**Automation:** Available in all modes (safety escape hatch)
+
 #### `continue`
 Continue execution from a breakpoint.
+
+**Automation:** Full mode executes; assisted mode returns guidance message
 
 #### `step_over`
 Step over the current line.
 
+**Automation:** Full mode executes; assisted mode returns guidance message
+
 #### `step_into`
 Step into a function call.
+
+**Automation:** Full mode executes; assisted mode returns guidance message
 
 #### `step_out`
 Step out of the current function.
 
+**Automation:** Full mode executes; assisted mode returns guidance message
+
 #### `pause`
 Pause execution.
 
+**Automation:** Full mode executes; assisted mode returns guidance message
+
 #### `restart`
 Restart the current debug session.
+
+**Automation:** Full mode executes; assisted mode returns guidance message
 
 ### Breakpoint Tools
 
@@ -203,6 +257,123 @@ Evaluate an expression in the current debug context.
 #### `get_threads`
 Get all threads in the current debug session.
 
+#### `get_debug_state`
+Get the current debug session state including execution status and location information.
+
+**Automation:** Available in all modes
+
+**Returns:**
+```json
+{
+  "success": true,
+  "data": {
+    "hasActiveSession": true,
+    "sessionName": "Launch Program",
+    "sessionType": "node",
+    "executionState": "paused",
+    "stoppedInfo": {
+      "reason": "breakpoint",
+      "description": "Paused on breakpoint",
+      "threadId": 1,
+      "allThreadsStopped": true,
+      "hitBreakpointIds": [1]
+    },
+    "currentLocation": {
+      "file": "/path/to/file.js",
+      "line": 42,
+      "column": 5,
+      "functionName": "myFunction"
+    }
+  }
+}
+```
+
+**Execution States:**
+- `not_started`: No debug session active or hasn't started yet
+- `running`: Debug session active and executing
+- `paused`: Execution paused (at breakpoint, after step, etc.)
+- `terminated`: Debug session ended
+
+**Use Case:** Call this before `evaluate_expression` or `get_variables` to ensure execution is paused and ready for inspection.
+
+#### `wait_for_breakpoint`
+Wait for execution to pause at a breakpoint. Blocks until the next breakpoint is hit or timeout occurs.
+
+**Automation:** Full mode only (returns error in assisted mode)
+
+**Parameters:**
+- `timeout` (optional): Timeout in milliseconds (default: 10000)
+
+**Returns:** Same as `get_debug_state` when breakpoint is hit
+
+**Example workflow (full mode):**
+```
+1. set_breakpoint at line 42
+2. continue
+3. wait_for_breakpoint (blocks until hit)
+4. evaluate_expression "myVar"
+5. get_variables
+```
+
+## Usage Examples
+
+### Assisted Mode Workflow (Default)
+
+In assisted mode, the AI helps you set up debugging but you maintain control:
+
+```
+AI: "I'll set a breakpoint at line 42 where the calculation happens"
+AI: set_breakpoint(filePath: "app.js", line: 42)
+
+AI: "Please start debugging using VS Code (F5) and click Continue when you're ready"
+
+[User starts debugging and clicks Continue in VS Code UI]
+[Execution pauses at breakpoint]
+
+AI: get_debug_state()
+→ Returns: { executionState: "paused", currentLocation: "app.js:42" }
+
+AI: "Now I can inspect the values"
+AI: get_variables()
+→ Returns: { x: 10, y: 20, result: undefined }
+
+AI: evaluate_expression("x + y")
+→ Returns: { result: "30" }
+
+AI: "The values look correct. Please click Continue to proceed."
+```
+
+### Full Automation Mode Workflow
+
+In full mode, the AI controls the entire debugging session:
+
+```
+AI: "I'll debug this function automatically"
+AI: set_breakpoint(filePath: "app.js", line: 42)
+AI: start_debugging(name: "Launch Program")
+AI: wait_for_breakpoint(timeout: 5000)
+→ Blocks until breakpoint hit
+→ Returns: { executionState: "paused", currentLocation: "app.js:42" }
+
+AI: get_variables()
+→ Returns: { x: 10, y: 20 }
+
+AI: evaluate_expression("x + y")
+→ Returns: { result: "30" }
+
+AI: "Found the issue. Setting another breakpoint to verify the fix."
+AI: set_breakpoint(filePath: "app.js", line: 55)
+AI: continue()
+AI: wait_for_breakpoint()
+→ Execution continues and pauses at line 55
+
+AI: evaluate_expression("finalResult")
+→ Returns: { result: "30" }
+
+AI: "Verification complete. Stopping debug session."
+AI: stop_debugging()
+```
+
 ## MCP Server Endpoints
 
 - **MCP Endpoint**: `http://localhost:3000/mcp` (Streamable HTTP transport)
@@ -299,6 +470,8 @@ The extension provides the following VS Code commands:
 - Watch expressions are not directly accessible via VS Code API (use `evaluate_expression` instead)
 - The extension currently assumes thread ID 1 for some DAP operations
 - Session management is simplified for single-threaded debugging scenarios
+- In assisted mode, AI cannot detect when user manually clicks continue/step (use `get_debug_state` to poll current state)
+- `wait_for_breakpoint` requires the debug session to already be running (call after `continue` in full mode)
 
 ## Contributing
 

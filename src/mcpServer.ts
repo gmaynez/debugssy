@@ -5,6 +5,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { ToolRegistry } from './tools';
+import { ConfigManager } from './config';
 
 export class MCPServer {
     private app: express.Application;
@@ -14,7 +15,8 @@ export class MCPServer {
 
     constructor(
         private port: number,
-        private toolRegistry: ToolRegistry
+        private toolRegistry: ToolRegistry,
+        private configManager: ConfigManager
     ) {
         this.app = express();
         this.app.use(express.json());
@@ -252,6 +254,27 @@ export class MCPServer {
                             type: 'object',
                             properties: {}
                         }
+                    },
+                    {
+                        name: 'get_debug_state',
+                        description: 'Get current debug session state including execution state (running/paused), current location if paused, and reason for stopping',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {}
+                        }
+                    },
+                    {
+                        name: 'wait_for_breakpoint',
+                        description: 'Wait for execution to pause at a breakpoint (full automation mode only). Blocks until next breakpoint is hit or timeout occurs.',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                timeout: {
+                                    type: 'number',
+                                    description: 'Timeout in milliseconds (default: 10000)'
+                                }
+                            }
+                        }
                     }
                 ]
             };
@@ -321,6 +344,17 @@ export class MCPServer {
                     case 'get_threads':
                         result = await this.toolRegistry.inspection.getThreads();
                         break;
+                    case 'get_debug_state':
+                        result = await this.toolRegistry.inspection.getDebugState();
+                        break;
+                    case 'wait_for_breakpoint': {
+                        const automationLevel = this.configManager.getConfig().automationLevel;
+                        result = await this.toolRegistry.inspection.waitForBreakpoint({
+                            timeout: (args as any)?.timeout,
+                            automationLevel
+                        });
+                        break;
+                    }
 
                     default:
                         throw new Error(`Unknown tool: ${name}`);

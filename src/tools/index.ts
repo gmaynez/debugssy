@@ -2,6 +2,7 @@ import { DebugControlTools } from './debugControl';
 import { BreakpointTools } from './breakpoints';
 import { InspectionTools } from './inspection';
 import { DAPClient } from '../dap/client';
+import { ConfigManager } from '../config';
 
 export interface ToolRegistry {
     debugControl: DebugControlTools;
@@ -9,9 +10,9 @@ export interface ToolRegistry {
     inspection: InspectionTools;
 }
 
-export function createToolRegistry(dapClient: DAPClient): ToolRegistry {
+export function createToolRegistry(dapClient: DAPClient, configManager: ConfigManager): ToolRegistry {
     return {
-        debugControl: new DebugControlTools(),
+        debugControl: new DebugControlTools(configManager),
         breakpoints: new BreakpointTools(),
         inspection: new InspectionTools(dapClient)
     };

@@ -10,6 +10,113 @@ export interface InspectionResult {
 export class InspectionTools {
     constructor(private dapClient: DAPClient) {}
 
+    async getDebugState(): Promise<InspectionResult> {
+        try {
+            const session = vscode.debug.activeDebugSession;
+            const executionState = this.dapClient.getExecutionState();
+            const stoppedInfo = this.dapClient.getStoppedInfo();
+
+            if (!session) {
+                return {
+                    success: true,
+                    data: {
+                        hasActiveSession: false,
+                        executionState: 'not_started'
+                    }
+                };
+            }
+
+            const result: any = {
+                hasActiveSession: true,
+                sessionName: session.name,
+                sessionType: session.type,
+                executionState
+            };
+
+            // If paused, include location and reason information
+            if (executionState === 'paused' && stoppedInfo) {
+                // Try to get current stack frame for location
+                const stackFrames = await this.dapClient.getStackTrace(session);
+                const currentFrame = stackFrames[0];
+
+                result.stoppedInfo = {
+                    reason: stoppedInfo.reason,
+                    description: stoppedInfo.description,
+                    threadId: stoppedInfo.threadId,
+                    allThreadsStopped: stoppedInfo.allThreadsStopped
+                };
+
+                if (currentFrame) {
+                    result.currentLocation = {
+                        file: currentFrame.source?.path || currentFrame.source?.name,
+                        line: currentFrame.line,
+                        column: currentFrame.column,
+                        functionName: currentFrame.name
+                    };
+                }
+
+                if (stoppedInfo.hitBreakpointIds && stoppedInfo.hitBreakpointIds.length > 0) {
+                    result.stoppedInfo.hitBreakpointIds = stoppedInfo.hitBreakpointIds;
+                }
+            }
+
+            return {
+                success: true,
+                data: result
+            };
+        } catch (error: any) {
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    async waitForBreakpoint(args: { timeout?: number; automationLevel: 'assisted' | 'full' }): Promise<InspectionResult> {
+        try {
+            // Check automation level
+            if (args.automationLevel !== 'full') {
+                return {
+                    success: false,
+                    error: 'wait_for_breakpoint is only available in full automation mode'
+                };
+            }
+
+            const session = vscode.debug.activeDebugSession;
+            if (!session) {
+                return {
+                    success: false,
+                    error: 'No active debug session'
+                };
+            }
+
+            const timeout = args.timeout || 10000;
+
+            // Wait for the next paused state
+            const result = await Promise.race([
+                new Promise<InspectionResult>((resolve) => {
+                    const disposable = this.dapClient.onStateChange((state) => {
+                        if (state === 'paused') {
+                            disposable.dispose();
+                            // Get the current state info
+                            this.getDebugState().then(resolve);
+                        }
+                    });
+                }),
+                new Promise<InspectionResult>((_, reject) => {
+                    setTimeout(() => reject(new Error(`Timeout waiting for breakpoint after ${timeout}ms`)), timeout);
+                })
+            ]);
+
+            return result;
+        } catch (error: any) {
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
     async getVariables(args: { scope?: string; frameId?: number }): Promise<InspectionResult> {
         try {
             const session = vscode.debug.activeDebugSession;

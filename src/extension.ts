@@ -18,7 +18,7 @@ export async function activate(context: vscode.ExtensionContext) {
     dapClient = new DAPClient();
 
     // Create tool registry
-    const toolRegistry = createToolRegistry(dapClient);
+    const toolRegistry = createToolRegistry(dapClient, configManager);
 
     // Start MCP server if enabled
     const config = configManager.getConfig();
@@ -43,6 +43,8 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.debug.onDidStartDebugSession((session) => {
             console.log('Debug session started:', session.name);
+            // Note: execution state will be set to 'running' by DAP 'continued' event
+            // or 'paused' by DAP 'stopped' event
         })
     );
 
@@ -96,7 +98,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 async function startMCPServer(port: number, toolRegistry: any): Promise<void> {
     try {
-        mcpServer = new MCPServer(port, toolRegistry);
+        mcpServer = new MCPServer(port, toolRegistry, configManager);
         await mcpServer.start();
     } catch (error: any) {
         vscode.window.showErrorMessage(`Failed to start MCP Server: ${error.message}`);
@@ -115,6 +117,9 @@ async function stopMCPServer(): Promise<void> {
 export async function deactivate() {
     if (mcpServer) {
         await mcpServer.stop();
+    }
+    if (dapClient) {
+        dapClient.dispose();
     }
     if (configManager) {
         configManager.dispose();
