@@ -61,21 +61,22 @@ this.httpServer = this.app.listen(this.port, 'localhost', () => {
 **Specification Requirements**:
 - Session ID **SHOULD** be globally unique and cryptographically secure
 - Session ID **MUST** only contain visible ASCII characters (0x21 to 0x7E)
+- Generated session IDs **SHOULD** use secure random number generators (per [Security Best Practices 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices#session-hijacking))
 
 **Implementation**:
 ```typescript
+import { randomUUID } from 'crypto';
+
 sessionIdGenerator: () => {
-    const timestamp = Date.now().toString(36);
-    const randomPart = Math.random().toString(36).substring(2, 15);
-    const randomPart2 = Math.random().toString(36).substring(2, 15);
-    return `session-${timestamp}-${randomPart}${randomPart2}`;
+    return `mcp-session-${randomUUID()}`;
 }
 ```
 
 The generated session IDs:
-- Are globally unique through timestamp + random components
+- Are globally unique using cryptographically secure UUIDs (via `crypto.randomUUID()`)
 - Contain only alphanumeric characters and hyphens (all visible ASCII)
-- Are sufficiently random for security
+- Use secure random number generation as required by the specification
+- Format: `mcp-session-<uuid>` (e.g., `mcp-session-123e4567-e89b-12d3-a456-426614174000`)
 
 ### ✅ Session Lifecycle
 The `StreamableHTTPServerTransport` from the MCP SDK handles:
@@ -109,6 +110,60 @@ if (protocolVersion && !supportedVersions.includes(protocolVersion)) {
 - ✅ Returns **400 Bad Request** for invalid/unsupported protocol versions
 - ✅ Assumes **2025-03-26** if header is missing (backwards compatibility per spec)
 - ✅ Supports both **2025-03-26** and **2025-06-18**
+
+## Security Best Practices (2025-06-18)
+
+This section addresses the security considerations outlined in the [MCP Security Best Practices 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices).
+
+### ✅ Session Hijacking Prevention
+
+**Specification Requirements**:
+- MCP servers **MUST** use secure, non-deterministic session IDs
+- Generated session IDs **SHOULD** use secure random number generators
+- Session IDs **SHOULD** be bound to user-specific information
+- MCP servers that implement authorization **MUST** verify all inbound requests
+- MCP Servers **MUST NOT** use sessions for authentication
+
+**Implementation**:
+```typescript
+// Cryptographically secure session ID generation
+sessionIdGenerator: () => {
+    return `mcp-session-${randomUUID()}`;  // Uses crypto.randomUUID()
+}
+```
+
+**Status**: ✅ **Compliant**
+- Uses `crypto.randomUUID()` for cryptographically secure, non-deterministic session IDs
+- Session IDs are globally unique and unpredictable
+- Sessions are managed by the MCP SDK's `StreamableHTTPServerTransport`
+- Session IDs cannot be guessed or enumerated by attackers
+
+**Note on User Binding**: 
+- Currently not implemented as this is a local-only VS Code extension without multi-user scenarios
+- The MCP SDK handles session validation (returns 400 for missing session IDs, 404 for expired sessions)
+- Sessions are NOT used for authentication (no OAuth/authorization flow in current implementation)
+
+### N/A Confused Deputy Problem
+
+**Specification Context**: The "Confused Deputy" problem applies to MCP proxy servers that forward requests to third-party APIs using static OAuth client IDs.
+
+**Status**: ⚪ **Not Applicable**
+- Debugsy is not an MCP proxy server
+- Does not integrate with third-party APIs requiring OAuth
+- Does not forward authentication tokens to external services
+- Operates exclusively within the local VS Code environment
+
+### N/A Token Passthrough
+
+**Specification Context**: "Token passthrough" is an anti-pattern where an MCP server accepts tokens from clients without validating they were issued to the MCP server.
+
+**Status**: ⚪ **Not Applicable**
+- Debugsy does not implement OAuth or token-based authorization
+- Does not accept or forward access tokens
+- Operates in a trusted local environment (VS Code extension)
+- Security is enforced through localhost binding and origin validation
+
+**Note**: If authorization were to be added in the future, the implementation **MUST** follow the MCP Authorization specification and **MUST NOT** accept tokens not explicitly issued for the MCP server.
 
 ## Message Format
 
@@ -184,6 +239,10 @@ To verify compliance, you should test:
 | **Localhost Binding** | ✅ SHOULD | Binds to localhost interface |
 | **Protocol Version Header** | ✅ MUST | **NEW in 2025-06-18**: Validates MCP-Protocol-Version header |
 | **Session Management** | ✅ MUST | Delegated to MCP SDK |
+| **Cryptographically Secure Session IDs** | ✅ SHOULD | **NEW in 2025-06-18**: Uses crypto.randomUUID() |
+| **Session Hijacking Prevention** | ✅ MUST | Secure, non-deterministic session IDs |
+| **Confused Deputy Protection** | ⚪ N/A | Not an MCP proxy server |
+| **Token Passthrough Prevention** | ⚪ N/A | No OAuth/token authorization |
 | **JSON-RPC UTF-8** | ✅ MUST | Express handles encoding |
 | **HTTP Method Support** | ✅ MUST | POST, GET, DELETE supported |
 | **Proper Status Codes** | ✅ MUST | 200, 202, 400, 403, 404, 405, 500 |
@@ -201,6 +260,7 @@ While the current implementation follows all MUST requirements and most SHOULD r
 ## References
 
 - [MCP Specification 2025-06-18 - Transports](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)
+- [MCP Specification 2025-06-18 - Security Best Practices](https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices)
 - [MCP Specification 2025-03-26 - Transports](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports) (backwards compatibility)
 - [MCP SDK Documentation](https://github.com/modelcontextprotocol/sdk)
 - [JSON-RPC 2.0 Specification](https://www.jsonrpc.org/specification)

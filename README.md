@@ -13,7 +13,7 @@ A VS Code extension that provides debugging capabilities through a Model Context
 
 ## Security
 
-Debugssy follows [MCP specification 2025-03-26](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#session-management) security best practices:
+Debugssy follows [MCP specification 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) security best practices (with backwards compatibility for 2025-03-26):
 
 - **Localhost Only**: Server binds exclusively to `localhost` (127.0.0.1), preventing external network access
 - **Origin Validation**: All requests are validated to ensure they originate from localhost, protecting against DNS rebinding attacks

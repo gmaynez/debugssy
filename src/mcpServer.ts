@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import express from 'express';
 import { Server as HTTPServer } from 'http';
+import { randomUUID } from 'crypto';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
@@ -497,13 +498,11 @@ export class MCPServer {
     async start(): Promise<void> {
         // Initialize transport before starting HTTP server
         this.transport = new StreamableHTTPServerTransport({
-            // Generate cryptographically secure session IDs
-            // Must contain only visible ASCII characters (0x21 to 0x7E)
+            // Generate cryptographically secure session IDs using crypto.randomUUID()
+            // Per MCP Security Best Practices 2025-06-18: "Generated session IDs (e.g., UUIDs) SHOULD use secure random number generators"
+            // Session IDs must contain only visible ASCII characters (0x21 to 0x7E)
             sessionIdGenerator: () => {
-                const timestamp = Date.now().toString(36);
-                const randomPart = Math.random().toString(36).substring(2, 15);
-                const randomPart2 = Math.random().toString(36).substring(2, 15);
-                return `session-${timestamp}-${randomPart}${randomPart2}`;
+                return `mcp-session-${randomUUID()}`;
             }
         });
         await this.mcpServer.connect(this.transport);
