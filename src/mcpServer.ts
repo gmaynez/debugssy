@@ -511,11 +511,17 @@ export class MCPServer {
 
         return new Promise((resolve, reject) => {
             try {
-                this.httpServer = this.app.listen(this.port, 'localhost', () => {
+                this.httpServer = this.app.listen(this.port, 'localhost', async () => {
                     console.log(`MCP Server listening on http://localhost:${this.port}/mcp`);
+                    
+                    // Small delay to ensure transport is fully ready to accept connections
+                    // This prevents race conditions when connecting immediately after startup notification
+                    await new Promise(r => setTimeout(r, 100));
+                    
                     vscode.window.showInformationMessage(
                         `Debugsy MCP Server started on port ${this.port}`
                     );
+                    console.log('MCP Server fully ready to accept connections');
                     resolve();
                 });
 
