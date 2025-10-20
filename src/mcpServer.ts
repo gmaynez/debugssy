@@ -11,7 +11,7 @@ export class MCPServer {
     private app: express.Application;
     private httpServer: HTTPServer | undefined;
     private mcpServer: Server;
-    private transports: Map<string, StreamableHTTPServerTransport> = new Map();
+    private transport: StreamableHTTPServerTransport | undefined;
 
     constructor(
         private port: number,
@@ -19,7 +19,8 @@ export class MCPServer {
         private configManager: ConfigManager
     ) {
         this.app = express();
-        this.app.use(express.json());
+        // Note: Do NOT use express.json() middleware as it consumes the request stream
+        // StreamableHTTPServerTransport needs to read the raw stream
 
         this.mcpServer = new Server(
             {
@@ -386,31 +387,21 @@ export class MCPServer {
     }
 
     private setupHTTPRoutes(): void {
-        // Main MCP endpoint
+        // Main MCP endpoint - StreamableHTTPServerTransport handles sessions internally
         this.app.all('/mcp', async (req, res) => {
             try {
-                const sessionId = (req.query.sessionId as string) || this.generateSessionId();
-                
-                let transport = this.transports.get(sessionId);
-                
-                if (!transport) {
-                    transport = new StreamableHTTPServerTransport({
-                        sessionIdGenerator: () => sessionId
+                // Create transport on first request and reuse it
+                if (!this.transport) {
+                    this.transport = new StreamableHTTPServerTransport({
+                        sessionIdGenerator: () => `session-${Date.now()}-${Math.random().toString(36).substring(7)}`
                     });
-                    
-                    this.transports.set(sessionId, transport);
-                    
-                    // Handle transport close
-                    res.on('close', () => {
-                        this.transports.delete(sessionId);
-                    });
-                    
-                    // Connect the MCP server to this transport
-                    await this.mcpServer.connect(transport);
+                    await this.mcpServer.connect(this.transport);
+                    console.log('MCP transport initialized');
                 }
                 
-                // Handle the HTTP request
-                await transport.handleRequest(req, res);
+                // Let the transport handle the request - it manages sessions internally
+                await this.transport.handleRequest(req, res);
+                
             } catch (error: any) {
                 console.error('Error handling MCP request:', error);
                 if (!res.headersSent) {
@@ -425,13 +416,9 @@ export class MCPServer {
                 status: 'ok',
                 server: 'debugsy-mcp',
                 version: '0.1.0',
-                activeSessions: this.transports.size
+                transportInitialized: !!this.transport
             });
         });
-    }
-
-    private generateSessionId(): string {
-        return `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     }
 
     async start(): Promise<void> {
@@ -460,11 +447,11 @@ export class MCPServer {
     }
 
     async stop(): Promise<void> {
-        // Close all transports
-        for (const transport of this.transports.values()) {
-            await transport.close();
+        // Close transport
+        if (this.transport) {
+            await this.transport.close();
+            this.transport = undefined;
         }
-        this.transports.clear();
 
         // Close HTTP server
         if (this.httpServer) {
