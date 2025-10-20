@@ -39,6 +39,10 @@ Configure the MCP server through VS Code settings:
   - `full`: AI has complete control over debugging including starting sessions, stepping, and continuing execution
 - `debugsy.waitForBreakpointTimeout` (default: `10000`): Default timeout in milliseconds for wait_for_breakpoint tool (1s to 5min). Can be overridden per-call.
 
+### MCP Client Configuration (Claude Desktop, etc.)
+
+For MCP clients that support tool allowlists, see the **[MCP Allowlist Recommendations](#mcp-allowlist-recommendations)** section below for guidance on which tools are safe to auto-approve.
+
 ## Automation Levels
 
 Debugsy supports two automation levels to balance AI assistance with user control:
@@ -433,6 +437,124 @@ const result = await client.callTool({
   }
 });
 ```
+
+## MCP Allowlist Recommendations
+
+When using Debugsy with MCP clients that support tool allowlists (like Claude Desktop), you can configure which tools should be automatically approved without requiring user confirmation for each call.
+
+> **📋 Quick Start:** See [ALLOWLIST_GUIDE.md](./ALLOWLIST_GUIDE.md) for copy-paste configuration examples!
+
+### ✅ Safe Tools (Recommended for Allowlist)
+
+These tools are **read-only** and have no side effects. They're safe to add to your allowlist:
+
+#### Inspection Tools (Always Safe)
+- **`debugsy:get_debug_state`** - Query current debug session state and execution status
+- **`debugsy:get_variables`** - Read variable values from current stack frame
+- **`debugsy:get_call_stack`** - Read the current call stack
+- **`debugsy:get_threads`** - List all threads in the debug session
+- **`debugsy:list_breakpoints`** - List all breakpoints in the workspace
+- **`debugsy:wait_for_breakpoint`** - Wait for execution to pause (passive operation, full mode only)
+
+**Why these are safe:** These tools only read debugging state without modifying anything. They cannot alter your code execution, change breakpoints, or affect your debugging session.
+
+**Example allowlist configuration** (e.g., in Claude Desktop's `claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "debugsy": {
+      "url": "http://localhost:3000/mcp",
+      "allowlist": [
+        "debugsy:get_debug_state",
+        "debugsy:get_variables",
+        "debugsy:get_call_stack",
+        "debugsy:get_threads",
+        "debugsy:list_breakpoints",
+        "debugsy:wait_for_breakpoint"
+      ]
+    }
+  }
+}
+```
+
+### ⚠️ Write Tools (Require User Approval)
+
+These tools modify state or control execution. They should **NOT** be allowlisted:
+
+#### Breakpoint Management
+- **`debugsy:set_breakpoint`** - Creates a new breakpoint
+- **`debugsy:remove_breakpoint`** - Removes a breakpoint
+- **`debugsy:toggle_breakpoint`** - Enables/disables a breakpoint
+- **`debugsy:remove_all_breakpoints`** - Removes all breakpoints
+
+#### Debug Control (Full Mode)
+- **`debugsy:start_debugging`** - Starts a debug session
+- **`debugsy:stop_debugging`** - Stops the current debug session
+- **`debugsy:continue`** - Resumes execution
+- **`debugsy:step_over`** - Steps over current line
+- **`debugsy:step_into`** - Steps into function
+- **`debugsy:step_out`** - Steps out of function
+- **`debugsy:pause`** - Pauses execution
+- **`debugsy:restart`** - Restarts debug session
+
+#### Expression Evaluation
+- **`debugsy:evaluate_expression`** - Evaluates code (can have side effects)
+
+**Why approval is needed:** These tools can modify your debugging environment, change execution flow, or execute arbitrary code. You should review each call to ensure it aligns with your intent.
+
+### Workflow Recommendations
+
+#### For Read-Only Analysis (Safest)
+If you're only having the AI analyze your code without making changes:
+```json
+"allowlist": [
+  "debugsy:get_debug_state",
+  "debugsy:get_variables",
+  "debugsy:get_call_stack",
+  "debugsy:list_breakpoints"
+]
+```
+
+#### For Active Debugging with Breakpoints
+If you want the AI to set breakpoints but maintain control over execution:
+```json
+"allowlist": [
+  "debugsy:get_debug_state",
+  "debugsy:get_variables",
+  "debugsy:get_call_stack",
+  "debugsy:get_threads",
+  "debugsy:list_breakpoints"
+]
+```
+Then manually approve `set_breakpoint` calls as needed.
+
+#### For Full Automation (Advanced)
+If you're in full automation mode and trust the AI completely, you might allowlist more tools, but this is **not recommended** for production debugging:
+```json
+"allowlist": [
+  "debugsy:get_debug_state",
+  "debugsy:get_variables",
+  "debugsy:get_call_stack",
+  "debugsy:get_threads",
+  "debugsy:list_breakpoints",
+  "debugsy:wait_for_breakpoint",
+  "debugsy:set_breakpoint",
+  "debugsy:continue"
+]
+```
+
+### Security Note
+
+The read-only inspection tools are safe to allowlist because:
+1. They cannot modify your code or debugging state
+2. They cannot execute arbitrary code
+3. They only read information that's already visible in VS Code's debugger UI
+4. They respect VS Code's security model and permissions
+
+Even with these tools allowlisted, you maintain complete control through:
+- Automation level settings (assisted vs full mode)
+- Manual approval of write operations
+- VS Code's built-in debugging safeguards
 
 ## Commands
 
