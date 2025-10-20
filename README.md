@@ -47,16 +47,23 @@ For MCP clients that support tool allowlists, see the **[MCP Allowlist Recommend
 
 Debugsy supports two automation levels to balance AI assistance with user control:
 
+**Important:** The MCP server dynamically exposes different tools based on your current automation level. This prevents AI agents from attempting to call tools that would be blocked, providing a better user experience. Tools like `start_debugging` and `wait_for_breakpoint` are only exposed in full automation mode.
+
 ### Assisted Mode (Default)
 In **assisted mode**, the AI agent can:
 - ✅ Set, remove, and manage breakpoints
 - ✅ Inspect variables, evaluate expressions, and read call stacks
 - ✅ Query debug state (is execution paused? where?)
 - ✅ Stop debugging sessions (safety escape hatch)
+- ✅ Call execution control tools (`continue`, `step_*`, etc.) which return friendly prompts like "Please click Continue in VS Code debugger UI"
 
 But the user must:
 - 🔵 Start debugging sessions manually via VS Code
-- 🔵 Control execution flow (continue, step, pause) using VS Code debugger UI
+- 🔵 Control execution flow by clicking buttons in VS Code debugger UI
+
+**Tools NOT exposed in assisted mode:**
+- ❌ `start_debugging` - Must start manually
+- ❌ `wait_for_breakpoint` - Requires automation to be useful
 
 This mode provides maximum safety and control, ideal for:
 - Senior engineers who want to maintain situational awareness
@@ -66,9 +73,13 @@ This mode provides maximum safety and control, ideal for:
 ### Full Automation Mode
 In **full mode**, the AI agent has complete control:
 - ✅ Everything from assisted mode
-- ✅ Start debugging sessions programmatically
-- ✅ Control execution flow (continue, step over/into/out, pause, restart)
-- ✅ Wait for breakpoint hits with timeout
+- ✅ Start debugging sessions programmatically (`start_debugging`)
+- ✅ Control execution flow automatically (continue, step over/into/out, pause, restart)
+- ✅ Wait for breakpoint hits with timeout (`wait_for_breakpoint`)
+
+**Additional tools exposed in full mode:**
+- ✅ `start_debugging` - Programmatically start debug sessions
+- ✅ `wait_for_breakpoint` - Block until execution pauses
 
 This mode is ideal for:
 - Rapid iteration and exploration
@@ -83,7 +94,7 @@ This mode is ideal for:
 **Note:** In **assisted mode**, flow control tools (`continue`, `step_*`, `pause`, `restart`) will return a message asking the user to use VS Code UI. Only in **full mode** do these tools execute automatically.
 
 #### `start_debugging`
-Start a debugging session with a configuration from `launch.json` or a custom configuration.
+**[Full automation mode only]** Start a debugging session with a configuration from `launch.json` or a custom configuration.
 
 **Automation:** Full mode only (returns error in assisted mode)
 
@@ -314,9 +325,9 @@ Get the current debug session state including execution status and location info
 **Use Case:** Call this before `evaluate_expression` or `get_variables` to ensure execution is paused and ready for inspection.
 
 #### `wait_for_breakpoint`
-Wait for execution to pause at a breakpoint. Blocks until the next breakpoint is hit or timeout occurs.
+**[Full automation mode only]** Wait for execution to pause at a breakpoint. Blocks until the next breakpoint is hit or timeout occurs.
 
-**Automation:** Full mode only (returns error in assisted mode)
+**Automation:** Full mode only (not exposed to AI agents in assisted mode)
 
 **Parameters:**
 - `timeout` (optional): Timeout in milliseconds. If not provided, uses `debugsy.waitForBreakpointTimeout` setting (default: 10000ms)

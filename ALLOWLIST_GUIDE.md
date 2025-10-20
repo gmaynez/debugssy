@@ -2,16 +2,28 @@
 
 This guide helps you configure which Debugsy tools should be automatically approved in your MCP client (like Claude Desktop) without requiring confirmation for each call.
 
+## How Tool Availability Works
+
+**Important:** Debugsy dynamically exposes different tools based on your automation mode:
+
+- **Assisted Mode** (default): AI sees read-only tools, breakpoint management, and tools that prompt you to use VS Code UI for execution control. The `start_debugging` and `wait_for_breakpoint` tools are NOT available.
+  
+- **Full Automation Mode**: AI sees all tools and can automatically control debugging execution. The `start_debugging` and `wait_for_breakpoint` tools become available.
+
+This prevents the AI from attempting to call tools that would be blocked by your automation mode, improving the user experience.
+
 ## TL;DR - Safe Tools to Allowlist
 
-These **6 read-only tools** are safe to allowlist:
+These **5 read-only tools** are safe to allowlist in **both modes**:
 
 1. `debugsy:get_debug_state` - Query debug session state
 2. `debugsy:get_variables` - Read variable values  
 3. `debugsy:get_call_stack` - Read call stack
 4. `debugsy:get_threads` - List threads
 5. `debugsy:list_breakpoints` - List breakpoints
-6. `debugsy:wait_for_breakpoint` - Wait for execution to pause (full mode)
+
+**Full automation mode only:**
+- `debugsy:wait_for_breakpoint` - Wait for execution to pause (only visible in full mode)
 
 ## Configuration Examples
 
@@ -38,7 +50,7 @@ Add to your `claude_desktop_config.json`:
 
 **Use case:** AI can analyze your debugging state but cannot modify anything. Perfect for code review and understanding execution flow.
 
-#### Recommended Configuration (Active Debugging)
+#### Recommended Configuration (Assisted Mode)
 ```json
 {
   "mcpServers": {
@@ -50,16 +62,19 @@ Add to your `claude_desktop_config.json`:
         "debugsy:get_call_stack",
         "debugsy:get_threads",
         "debugsy:list_breakpoints",
-        "debugsy:wait_for_breakpoint"
+        "debugsy:continue",
+        "debugsy:step_over",
+        "debugsy:step_into",
+        "debugsy:step_out"
       ]
     }
   }
 }
 ```
 
-**Use case:** AI can inspect your debugging session comprehensively. You'll still approve each breakpoint and execution control operation manually. **Recommended for most users.**
+**Use case:** AI can inspect your debugging session and guide you through execution. AI will prompt you to click buttons in VS Code UI (e.g., "Please click Continue"). You manually start debugging and retain full control. **Recommended for most users.**
 
-#### Advanced Configuration (Semi-Automated)
+#### Advanced Configuration (Full Automation Mode)
 ```json
 {
   "mcpServers": {
@@ -72,26 +87,35 @@ Add to your `claude_desktop_config.json`:
         "debugsy:get_threads",
         "debugsy:list_breakpoints",
         "debugsy:wait_for_breakpoint",
+        "debugsy:start_debugging",
         "debugsy:set_breakpoint",
-        "debugsy:continue"
+        "debugsy:continue",
+        "debugsy:step_over",
+        "debugsy:step_into"
       ]
     }
   }
 }
 ```
 
-**Use case:** AI can set breakpoints and continue execution automatically. **Only recommended for full automation mode and experienced users.** Not suitable for production debugging.
+**Prerequisites:** Set `"debugsy.automationLevel": "full"` in VS Code settings.
+
+**Use case:** AI can start debugging, set breakpoints, and control execution automatically. **Only recommended for full automation mode and experienced users.** Not suitable for production debugging.
 
 ## Tool Categories
 
-### ✅ Safe (Read-Only)
+### ✅ Safe (Read-Only) - Available in Both Modes
 These tools NEVER modify state:
 - `debugsy:get_debug_state`
 - `debugsy:get_variables`
 - `debugsy:get_call_stack`
 - `debugsy:get_threads`
 - `debugsy:list_breakpoints`
-- `debugsy:wait_for_breakpoint`
+
+### 🔵 Full Automation Only
+These tools are only exposed when `automationLevel` is set to `"full"`:
+- `debugsy:start_debugging` - Start a debug session programmatically
+- `debugsy:wait_for_breakpoint` - Block until execution pauses
 
 ### ⚠️ Breakpoint Management (Write)
 These tools modify breakpoints:
@@ -100,16 +124,19 @@ These tools modify breakpoints:
 - `debugsy:toggle_breakpoint`
 - `debugsy:remove_all_breakpoints`
 
-### 🔴 Execution Control (Full Mode Only)
-These tools control program execution:
-- `debugsy:start_debugging`
-- `debugsy:stop_debugging`
-- `debugsy:continue`
-- `debugsy:step_over`
-- `debugsy:step_into`
-- `debugsy:step_out`
-- `debugsy:pause`
-- `debugsy:restart`
+### 🔴 Execution Control - Mode-Aware Behavior
+These tools control program execution and behave differently based on mode:
+
+**In Assisted Mode** (default): These tools return friendly messages prompting you to use VS Code UI:
+- `debugsy:stop_debugging` - Stops the session
+- `debugsy:continue` - Prompts "Please click Continue in VS Code debugger UI"
+- `debugsy:step_over` - Prompts "Please click Step Over in VS Code debugger UI"
+- `debugsy:step_into` - Prompts "Please click Step Into in VS Code debugger UI"
+- `debugsy:step_out` - Prompts "Please click Step Out in VS Code debugger UI"
+- `debugsy:pause` - Prompts "Please click Pause in VS Code debugger UI"
+- `debugsy:restart` - Prompts "Please click Restart in VS Code debugger UI"
+
+**In Full Automation Mode**: These tools directly execute the corresponding commands automatically.
 
 ### ⚠️ Code Execution (Potential Side Effects)
 This tool can execute arbitrary code:
@@ -117,7 +144,7 @@ This tool can execute arbitrary code:
 
 ## Why These Tools Are Safe
 
-The 6 recommended allowlist tools are safe because they:
+The 5 recommended read-only tools are safe because they:
 
 1. **Cannot modify your code** - They only read existing state
 2. **Cannot change execution flow** - They don't start/stop/step through code
