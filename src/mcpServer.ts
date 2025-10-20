@@ -34,7 +34,7 @@ export class MCPServer {
     constructor(
         private port: number,
         toolRegistry: ToolRegistry,
-        private configManager: ConfigManager
+        configManager: ConfigManager
     ) {
         this.currentAutomationLevel = configManager.getConfig().automationLevel;
         this.app = express();
@@ -147,7 +147,7 @@ export class MCPServer {
         });
 
         // Health check endpoint
-        this.app.get('/health', (req, res) => {
+        this.app.get('/health', (_req, res) => {
             res.json({
                 status: 'ok',
                 server: 'debugssy-mcp',

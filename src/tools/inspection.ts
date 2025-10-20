@@ -143,7 +143,7 @@ export class InspectionTools {
 
             // Get stack trace first
             const stackFrames = await this.dapClient.getStackTrace(session);
-            if (stackFrames.length === 0) {
+            if (stackFrames.length === 0 || !stackFrames[0]) {
                 return {
                     success: false,
                     error: 'No stack frames available'

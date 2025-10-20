@@ -74,7 +74,7 @@ export class DAPClient {
                 case 'stackTrace':
                     if (message.success && message.body?.stackFrames) {
                         this.stackFrames = message.body.stackFrames;
-                        if (this.stackFrames.length > 0) {
+                        if (this.stackFrames.length > 0 && this.stackFrames[0]) {
                             this.currentFrameId = this.stackFrames[0].id;
                         }
                     }

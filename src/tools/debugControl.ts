@@ -45,6 +45,13 @@ export class DebugControlTools {
 
             // Select workspace folder
             let folder = workspaceFolders[0];
+            if (!folder) {
+                return {
+                    success: false,
+                    error: 'No workspace folder available'
+                };
+            }
+            
             if (args.workspaceFolder) {
                 const found = workspaceFolders.find(
                     (f) => f.name === args.workspaceFolder || f.uri.fsPath === args.workspaceFolder
