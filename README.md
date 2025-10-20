@@ -9,6 +9,18 @@ A VS Code extension that provides debugging capabilities through a Model Context
 - **Breakpoint Management**: Set, remove, list, and toggle breakpoints programmatically
 - **Variable Inspection**: Read variables, evaluate expressions, and inspect call stacks
 - **DAP Integration**: Direct access to Debug Adapter Protocol for detailed debugger state
+- **Security**: Origin validation and localhost-only binding to prevent attacks
+
+## Security
+
+Debugsy follows [MCP specification 2025-03-26](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#session-management) security best practices:
+
+- **Localhost Only**: Server binds exclusively to `localhost` (127.0.0.1), preventing external network access
+- **Origin Validation**: All requests are validated to ensure they originate from localhost, protecting against DNS rebinding attacks
+- **Session Management**: Cryptographically secure session IDs with proper lifecycle management
+- **No Remote Access**: The server cannot be accessed from other machines on your network
+
+For detailed compliance information, see [MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md).
 
 ## Installation
 

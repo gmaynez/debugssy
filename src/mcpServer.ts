@@ -387,19 +387,66 @@ export class MCPServer {
     }
 
     private setupHTTPRoutes(): void {
+        // Security: Validate Origin header to prevent DNS rebinding attacks
+        // This is a MUST according to MCP specification
+        this.app.use('/mcp', (req, res, next) => {
+            const origin = req.headers.origin;
+            
+            // Allow requests with no origin (e.g., from non-browser clients like Claude Desktop)
+            // or from localhost origins only
+            if (origin) {
+                try {
+                    const url = new URL(origin);
+                    const isLocalhost = 
+                        url.hostname === 'localhost' || 
+                        url.hostname === '127.0.0.1' ||
+                        url.hostname === '[::1]';
+                    
+                    if (!isLocalhost) {
+                        console.warn(`Rejected request from non-localhost origin: ${origin}`);
+                        res.status(403).json({ 
+                            error: 'Forbidden: Invalid origin. Only localhost origins are allowed.' 
+                        });
+                        return;
+                    }
+                } catch (e) {
+                    console.warn(`Rejected request with invalid origin: ${origin}`);
+                    res.status(403).json({ 
+                        error: 'Forbidden: Invalid origin format.' 
+                    });
+                    return;
+                }
+            }
+            
+            next();
+        });
+
         // Main MCP endpoint - StreamableHTTPServerTransport handles sessions internally
         this.app.all('/mcp', async (req, res) => {
             try {
                 // Create transport on first request and reuse it
+                // The transport manages multiple sessions internally
                 if (!this.transport) {
                     this.transport = new StreamableHTTPServerTransport({
-                        sessionIdGenerator: () => `session-${Date.now()}-${Math.random().toString(36).substring(7)}`
+                        // Generate cryptographically secure session IDs
+                        // Must contain only visible ASCII characters (0x21 to 0x7E)
+                        sessionIdGenerator: () => {
+                            const timestamp = Date.now().toString(36);
+                            const randomPart = Math.random().toString(36).substring(2, 15);
+                            const randomPart2 = Math.random().toString(36).substring(2, 15);
+                            return `session-${timestamp}-${randomPart}${randomPart2}`;
+                        }
                     });
                     await this.mcpServer.connect(this.transport);
                     console.log('MCP transport initialized');
                 }
                 
                 // Let the transport handle the request - it manages sessions internally
+                // The transport will:
+                // - Send Mcp-Session-Id header on initialization responses
+                // - Expect Mcp-Session-Id header on subsequent requests
+                // - Return 404 for expired sessions
+                // - Handle DELETE requests for session termination
                 await this.transport.handleRequest(req, res);
                 
             } catch (error: any) {
@@ -416,7 +463,9 @@ export class MCPServer {
                 status: 'ok',
                 server: 'debugsy-mcp',
                 version: '0.1.0',
-                transportInitialized: !!this.transport
+                transportInitialized: !!this.transport,
+                transport: 'streamable-http',
+                protocolVersion: '2025-03-26'
             });
         });
     }
