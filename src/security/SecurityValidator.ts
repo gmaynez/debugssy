@@ -32,7 +32,7 @@ export class SecurityValidator {
                     });
                     return false;
                 }
-            } catch (e) {
+            } catch (_e) {
                 console.warn(`Rejected request with invalid origin: ${origin}`);
                 res.status(403).json({ 
                     error: 'Forbidden: Invalid origin format.' 

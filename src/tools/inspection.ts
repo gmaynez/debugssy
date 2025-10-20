@@ -254,20 +254,13 @@ export class InspectionTools {
     }
 
     async getWatches(): Promise<InspectionResult> {
-        try {
-            // VS Code doesn't expose watch expressions via API directly
-            // We would need to track them separately or access internal state
-            // For now, return a message indicating this limitation
-            return {
-                success: false,
-                error: 'Watch expressions are not directly accessible via VS Code API. Use evaluate_expression instead.'
-            };
-        } catch (error: any) {
-            return {
-                success: false,
-                error: error.message
-            };
-        }
+        // VS Code doesn't expose watch expressions via API directly
+        // We would need to track them separately or access internal state
+        // For now, return a message indicating this limitation
+        return {
+            success: false,
+            error: 'Watch expressions are not directly accessible via VS Code API. Use evaluate_expression instead.'
+        };
     }
 
     async getThreads(): Promise<InspectionResult> {

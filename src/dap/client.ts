@@ -49,9 +49,9 @@ export class DAPClient {
     constructor() {
         // Register debug adapter tracker to intercept DAP messages
         vscode.debug.registerDebugAdapterTrackerFactory('*', {
-            createDebugAdapterTracker: (session: vscode.DebugSession) => {
+            createDebugAdapterTracker: (_session: vscode.DebugSession) => {
                 return {
-                    onWillReceiveMessage: (message: any) => {
+                    onWillReceiveMessage: (_message: any) => {
                         // Can inspect outgoing messages if needed
                     },
                     onDidSendMessage: (message: any) => {
@@ -60,7 +60,7 @@ export class DAPClient {
                     onError: (error: Error) => {
                         console.error('DAP Error:', error);
                     },
-                    onExit: (code: number | undefined, signal: string | undefined) => {
+                    onExit: (_code: number | undefined, _signal: string | undefined) => {
                         this.reset();
                     }
                 };
