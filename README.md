@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="./assets/debugssy_logo.png" alt="Debugssy Logo" width="300" height="300">
+</div>
+
 # Debugssy
 
 A VS Code extension that provides debugging capabilities through a Model Context Protocol (MCP) server. Control VS Code's debugger remotely via MCP tools for breakpoint management, debug control, and variable inspection.
@@ -749,4 +753,3 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 ## License
 
 Apache 2.0
-
