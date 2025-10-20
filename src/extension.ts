@@ -27,15 +27,26 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     // Watch for configuration changes
+    let previousConfig = config;
     context.subscriptions.push(
         configManager.onConfigChange(async (newConfig) => {
             if (newConfig.enabled && !mcpServer) {
                 await startMCPServer(newConfig.port, toolRegistry);
             } else if (!newConfig.enabled && mcpServer) {
                 await stopMCPServer();
-            } else if (mcpServer && newConfig.port !== config.port) {
+            } else if (mcpServer && newConfig.port !== previousConfig.port) {
                 await mcpServer.updatePort(newConfig.port);
+                vscode.window.showInformationMessage(
+                    `Debugssy: MCP server restarted on port ${newConfig.port}`
+                );
+            } else if (mcpServer && newConfig.automationLevel !== previousConfig.automationLevel) {
+                // Automation level changed - restart server with single consolidated notification
+                await mcpServer.handleAutomationLevelChange(newConfig.automationLevel);
+                vscode.window.showInformationMessage(
+                    `Debugssy: Automation mode changed to '${newConfig.automationLevel}'. MCP server restarted on port ${newConfig.port}.`
+                );
             }
+            previousConfig = newConfig;
         })
     );
 

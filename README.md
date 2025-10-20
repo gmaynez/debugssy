@@ -39,6 +39,26 @@ Configure the MCP server through VS Code settings:
   - `full`: AI has complete control over debugging including starting sessions, stepping, and continuing execution
 - `debugssy.waitForBreakpointTimeout` (default: `10000`): Default timeout in milliseconds for wait_for_breakpoint tool (1s to 5min). Can be overridden per-call.
 
+### Live Configuration Changes
+
+**Automation Mode Changes:** When you change the `debugssy.automationLevel` setting in VS Code, the MCP server automatically detects the change and restarts to reflect the new tool set. You'll see notifications like:
+
+```
+Debugssy: Automation mode changed to 'full'. Restarting MCP server...
+Debugssy: MCP server restarted with 'full' automation mode. MCP clients should reconnect.
+```
+
+**What happens during the restart:**
+1. The server detects the automation level change
+2. All active MCP client connections are gracefully closed
+3. The server restarts with the new tool configuration
+4. MCP clients should automatically reconnect (most MCP clients handle this transparently)
+5. The new tool list (with or without `start_debugging`/`wait_for_breakpoint`) becomes available
+
+**Note:** Active debug sessions in VS Code are NOT affected by this restart - only the MCP server connection is restarted.
+
+**Port Changes:** Similarly, when you change `debugssy.mcp.port`, the server restarts on the new port.
+
 ### MCP Client Configuration (Claude Desktop, etc.)
 
 For MCP clients that support tool allowlists, see the **[MCP Allowlist Recommendations](#mcp-allowlist-recommendations)** section below for guidance on which tools are safe to auto-approve.

@@ -155,9 +155,30 @@ You can configure the extension in VS Code settings:
 ```json
 {
   "debugssy.mcp.enabled": true,
-  "debugssy.mcp.port": 3000
+  "debugssy.mcp.port": 3000,
+  "debugssy.automationLevel": "assisted",
+  "debugssy.waitForBreakpointTimeout": 10000
 }
 ```
+
+### Configuration Options
+
+- **`debugssy.mcp.enabled`**: Enable or disable the MCP server
+- **`debugssy.mcp.port`**: Port for the MCP server (default: 3000)
+- **`debugssy.automationLevel`**: Control AI automation level
+  - `assisted` (default): AI assists but user controls execution flow
+  - `full`: AI has complete control over debugging
+- **`debugssy.waitForBreakpointTimeout`**: Default timeout for wait_for_breakpoint (default: 10000ms)
+
+### Live Configuration Updates
+
+When you change settings in VS Code (File → Preferences → Settings → search for "debugssy"):
+
+- **Changing automation level**: The MCP server automatically restarts to expose the correct tool set. You'll see notifications confirming the change. MCP clients should reconnect automatically.
+- **Changing port**: The server restarts on the new port.
+- **Enabling/disabling**: The server starts or stops accordingly.
+
+These changes take effect immediately without requiring a VS Code reload.
 
 ## Commands
 

@@ -11,18 +11,26 @@ import { ConfigManager } from './config';
 export class MCPServer {
     private app: express.Application;
     private httpServer: HTTPServer | undefined;
-    private mcpServer: Server;
+    private mcpServer!: Server; // Initialized in initializeMCPServer(), called from constructor
     private transport: StreamableHTTPServerTransport | undefined;
+    private currentAutomationLevel: 'assisted' | 'full';
 
     constructor(
         private port: number,
         private toolRegistry: ToolRegistry,
         private configManager: ConfigManager
     ) {
+        this.currentAutomationLevel = configManager.getConfig().automationLevel;
         this.app = express();
         // Note: Do NOT use express.json() middleware as it consumes the request stream
         // StreamableHTTPServerTransport needs to read the raw stream
 
+        this.initializeMCPServer();
+        this.setupHTTPRoutes();
+    }
+
+    private initializeMCPServer(): void {
+        // Create a fresh MCP Server instance
         this.mcpServer = new Server(
             {
                 name: 'debugssy',
@@ -36,7 +44,6 @@ export class MCPServer {
         );
 
         this.setupToolHandlers();
-        this.setupHTTPRoutes();
     }
 
     private setupToolHandlers(): void {
@@ -495,7 +502,7 @@ export class MCPServer {
         });
     }
 
-    async start(): Promise<void> {
+    async start(options?: { silent?: boolean }): Promise<void> {
         // Initialize transport before starting HTTP server
         this.transport = new StreamableHTTPServerTransport({
             // Generate cryptographically secure session IDs using crypto.randomUUID()
@@ -517,9 +524,12 @@ export class MCPServer {
                     // This prevents race conditions when connecting immediately after startup notification
                     await new Promise(r => setTimeout(r, 100));
                     
-                    vscode.window.showInformationMessage(
-                        `Debugssy MCP Server started on port ${this.port}`
-                    );
+                    // Only show notification if not in silent mode (e.g., during initial startup)
+                    if (!options?.silent) {
+                        vscode.window.showInformationMessage(
+                            `Debugssy MCP Server started on port ${this.port}`
+                        );
+                    }
                     console.log('MCP Server fully ready to accept connections');
                     resolve();
                 });
@@ -539,11 +549,15 @@ export class MCPServer {
     }
 
     async stop(): Promise<void> {
-        // Close transport
+        // Close MCP Server and transport
         if (this.transport) {
             await this.transport.close();
             this.transport = undefined;
         }
+        
+        // Note: We don't call mcpServer.close() here because the MCP SDK Server
+        // doesn't have a close method. Instead, we recreate the instance on restart
+        // via initializeMCPServer() to ensure clean state.
 
         // Close HTTP server
         if (this.httpServer) {
@@ -559,7 +573,23 @@ export class MCPServer {
     async updatePort(newPort: number): Promise<void> {
         await this.stop();
         this.port = newPort;
-        await this.start();
+        this.initializeMCPServer(); // Recreate MCP Server instance with fresh state
+        await this.start({ silent: true }); // Silent mode - caller will show notification
+    }
+
+    getCurrentAutomationLevel(): 'assisted' | 'full' {
+        return this.currentAutomationLevel;
+    }
+
+    async handleAutomationLevelChange(newLevel: 'assisted' | 'full'): Promise<void> {
+        console.log(`Automation level changed from '${this.currentAutomationLevel}' to '${newLevel}'`);
+        this.currentAutomationLevel = newLevel;
+        
+        // Restart the server with a fresh MCP Server instance to ensure clean state
+        // This prevents "Server not initialized" errors from stale connections
+        await this.stop();
+        this.initializeMCPServer(); // Recreate MCP Server instance with fresh state
+        await this.start({ silent: true }); // Silent mode - caller will show consolidated notification
     }
 }
 
