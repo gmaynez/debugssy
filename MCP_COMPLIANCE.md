@@ -1,6 +1,6 @@
 # MCP Specification Compliance
 
-This document outlines how Debugsy follows the [MCP Specification 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) best practices.
+This document outlines how Debugssy follows the [MCP Specification 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) best practices.
 
 **Note**: This implementation supports both protocol versions 2025-03-26 and 2025-06-18 for backwards compatibility.
 

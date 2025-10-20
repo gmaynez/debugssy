@@ -1,6 +1,6 @@
-# Getting Started with Debugsy
+# Getting Started with Debugssy
 
-This guide will help you get up and running with the Debugsy VS Code extension.
+This guide will help you get up and running with the Debugssy VS Code extension.
 
 ## Development Setup
 
@@ -13,7 +13,7 @@ This guide will help you get up and running with the Debugsy VS Code extension.
 
 1. **Clone and Install Dependencies**
    ```bash
-   cd debugsy
+   cd debugssy
    npm install
    ```
 
@@ -25,7 +25,7 @@ This guide will help you get up and running with the Debugsy VS Code extension.
 3. **Run the Extension**
    - Press `F5` in VS Code to open a new Extension Development Host window
    - The extension will activate automatically on startup
-   - Check the Output panel (View → Output, select "Debugsy") for server logs
+   - Check the Output panel (View → Output, select "Debugssy") for server logs
 
 ## Testing the MCP Server
 
@@ -129,7 +129,7 @@ curl -X POST http://localhost:3000/mcp \
 
 ## Using with Claude Desktop
 
-To use Debugsy with Claude Desktop or another MCP client:
+To use Debugssy with Claude Desktop or another MCP client:
 
 1. Configure the client to connect to `http://localhost:3000/mcp`
 2. Use the Streamable HTTP transport
@@ -140,7 +140,7 @@ Example Claude Desktop configuration:
 ```json
 {
   "mcpServers": {
-    "debugsy": {
+    "debugssy": {
       "url": "http://localhost:3000/mcp",
       "transport": "streamableHttp"
     }
@@ -154,8 +154,8 @@ You can configure the extension in VS Code settings:
 
 ```json
 {
-  "debugsy.mcp.enabled": true,
-  "debugsy.mcp.port": 3000
+  "debugssy.mcp.enabled": true,
+  "debugssy.mcp.port": 3000
 }
 ```
 
@@ -163,9 +163,9 @@ You can configure the extension in VS Code settings:
 
 Available commands in the Command Palette (Ctrl+Shift+P):
 
-- `Debugsy: Start Server` - Manually start the MCP server
-- `Debugsy: Stop Server` - Stop the MCP server
-- `Debugsy: Restart Server` - Restart the MCP server
+- `Debugssy: Start Server` - Manually start the MCP server
+- `Debugssy: Stop Server` - Stop the MCP server
+- `Debugssy: Restart Server` - Restart the MCP server
 
 ## Troubleshooting
 

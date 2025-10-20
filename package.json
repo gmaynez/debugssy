@@ -1,9 +1,9 @@
 {
-  "name": "debugsy",
-  "displayName": "Debugsy",
+  "name": "debugssy",
+  "displayName": "Debugssy",
   "description": "MCP server for VS Code debugging with tools for breakpoints, debug control, and variable inspection",
   "version": "0.1.0",
-  "publisher": "debugsy",
+  "publisher": "debugssy",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -17,19 +17,19 @@
   "main": "./out/extension.js",
   "contributes": {
     "configuration": {
-      "title": "Debugsy",
+      "title": "Debugssy",
       "properties": {
-        "debugsy.mcp.enabled": {
+        "debugssy.mcp.enabled": {
           "type": "boolean",
           "default": true,
           "description": "Enable the MCP server for debugging tools"
         },
-        "debugsy.mcp.port": {
+        "debugssy.mcp.port": {
           "type": "number",
           "default": 3000,
           "description": "Port for the MCP server to listen on (localhost only)"
         },
-        "debugsy.automationLevel": {
+        "debugssy.automationLevel": {
           "type": "string",
           "enum": ["assisted", "full"],
           "default": "assisted",
@@ -39,7 +39,7 @@
             "Full mode: AI has complete control over debugging session including starting, stopping, and stepping"
           ]
         },
-        "debugsy.waitForBreakpointTimeout": {
+        "debugssy.waitForBreakpointTimeout": {
           "type": "number",
           "default": 10000,
           "minimum": 1000,
@@ -50,16 +50,16 @@
     },
     "commands": [
       {
-        "command": "debugsy.startServer",
-        "title": "Debugsy: Start Server"
+        "command": "debugssy.startServer",
+        "title": "Debugssy: Start Server"
       },
       {
-        "command": "debugsy.stopServer",
-        "title": "Debugsy: Stop Server"
+        "command": "debugssy.stopServer",
+        "title": "Debugssy: Stop Server"
       },
       {
-        "command": "debugsy.restartServer",
-        "title": "Debugsy: Restart Server"
+        "command": "debugssy.restartServer",
+        "title": "Debugssy: Restart Server"
       }
     ]
   },

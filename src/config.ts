@@ -8,7 +8,7 @@ export interface DebugConfiguration {
 }
 
 export class ConfigManager {
-    private static readonly CONFIG_SECTION = 'debugsy';
+    private static readonly CONFIG_SECTION = 'debugssy';
     private configChangeEmitter = new vscode.EventEmitter<DebugConfiguration>();
     public readonly onConfigChange = this.configChangeEmitter.event;
 

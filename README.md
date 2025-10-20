@@ -1,4 +1,4 @@
-# Debugsy
+# Debugssy
 
 A VS Code extension that provides debugging capabilities through a Model Context Protocol (MCP) server. Control VS Code's debugger remotely via MCP tools for breakpoint management, debug control, and variable inspection.
 
@@ -13,7 +13,7 @@ A VS Code extension that provides debugging capabilities through a Model Context
 
 ## Security
 
-Debugsy follows [MCP specification 2025-03-26](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#session-management) security best practices:
+Debugssy follows [MCP specification 2025-03-26](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#session-management) security best practices:
 
 - **Localhost Only**: Server binds exclusively to `localhost` (127.0.0.1), preventing external network access
 - **Origin Validation**: All requests are validated to ensure they originate from localhost, protecting against DNS rebinding attacks
@@ -32,12 +32,12 @@ For detailed compliance information, see [MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md
 
 Configure the MCP server through VS Code settings:
 
-- `debugsy.mcp.enabled` (default: `true`): Enable/disable the MCP server
-- `debugsy.mcp.port` (default: `3000`): Port for the MCP server (localhost only)
-- `debugsy.automationLevel` (default: `assisted`): Control AI automation level
+- `debugssy.mcp.enabled` (default: `true`): Enable/disable the MCP server
+- `debugssy.mcp.port` (default: `3000`): Port for the MCP server (localhost only)
+- `debugssy.automationLevel` (default: `assisted`): Control AI automation level
   - `assisted`: AI can set breakpoints and inspect variables, but user controls execution flow via VS Code UI (safer, recommended)
   - `full`: AI has complete control over debugging including starting sessions, stepping, and continuing execution
-- `debugsy.waitForBreakpointTimeout` (default: `10000`): Default timeout in milliseconds for wait_for_breakpoint tool (1s to 5min). Can be overridden per-call.
+- `debugssy.waitForBreakpointTimeout` (default: `10000`): Default timeout in milliseconds for wait_for_breakpoint tool (1s to 5min). Can be overridden per-call.
 
 ### MCP Client Configuration (Claude Desktop, etc.)
 
@@ -45,7 +45,7 @@ For MCP clients that support tool allowlists, see the **[MCP Allowlist Recommend
 
 ## Automation Levels
 
-Debugsy supports two automation levels to balance AI assistance with user control:
+Debugssy supports two automation levels to balance AI assistance with user control:
 
 **Important:** The MCP server dynamically exposes different tools based on your current automation level. This prevents AI agents from attempting to call tools that would be blocked, providing a better user experience. Tools like `start_debugging` and `wait_for_breakpoint` are only exposed in full automation mode.
 
@@ -330,7 +330,7 @@ Get the current debug session state including execution status and location info
 **Automation:** Full mode only (not exposed to AI agents in assisted mode)
 
 **Parameters:**
-- `timeout` (optional): Timeout in milliseconds. If not provided, uses `debugsy.waitForBreakpointTimeout` setting (default: 10000ms)
+- `timeout` (optional): Timeout in milliseconds. If not provided, uses `debugssy.waitForBreakpointTimeout` setting (default: 10000ms)
 
 **Returns:** Same as `get_debug_state` when breakpoint is hit
 
@@ -349,7 +349,7 @@ Get the current debug session state including execution status and location info
 You can set the default timeout globally in VS Code settings:
 ```json
 {
-  "debugsy.waitForBreakpointTimeout": 15000  // 15 seconds
+  "debugssy.waitForBreakpointTimeout": 15000  // 15 seconds
 }
 ```
 
@@ -430,7 +430,7 @@ const transport = new StreamableHTTPClientTransport(
 );
 
 const client = new Client({
-  name: 'debugsy-client',
+  name: 'debugssy-client',
   version: '1.0.0'
 });
 
@@ -451,7 +451,7 @@ const result = await client.callTool({
 
 ## MCP Allowlist Recommendations
 
-When using Debugsy with MCP clients that support tool allowlists (like Claude Desktop), you can configure which tools should be automatically approved without requiring user confirmation for each call.
+When using Debugssy with MCP clients that support tool allowlists (like Claude Desktop), you can configure which tools should be automatically approved without requiring user confirmation for each call.
 
 > **📋 Quick Start:** See [ALLOWLIST_GUIDE.md](./ALLOWLIST_GUIDE.md) for copy-paste configuration examples!
 
@@ -460,12 +460,12 @@ When using Debugsy with MCP clients that support tool allowlists (like Claude De
 These tools are **read-only** and have no side effects. They're safe to add to your allowlist:
 
 #### Inspection Tools (Always Safe)
-- **`debugsy:get_debug_state`** - Query current debug session state and execution status
-- **`debugsy:get_variables`** - Read variable values from current stack frame
-- **`debugsy:get_call_stack`** - Read the current call stack
-- **`debugsy:get_threads`** - List all threads in the debug session
-- **`debugsy:list_breakpoints`** - List all breakpoints in the workspace
-- **`debugsy:wait_for_breakpoint`** - Wait for execution to pause (passive operation, full mode only)
+- **`debugssy:get_debug_state`** - Query current debug session state and execution status
+- **`debugssy:get_variables`** - Read variable values from current stack frame
+- **`debugssy:get_call_stack`** - Read the current call stack
+- **`debugssy:get_threads`** - List all threads in the debug session
+- **`debugssy:list_breakpoints`** - List all breakpoints in the workspace
+- **`debugssy:wait_for_breakpoint`** - Wait for execution to pause (passive operation, full mode only)
 
 **Why these are safe:** These tools only read debugging state without modifying anything. They cannot alter your code execution, change breakpoints, or affect your debugging session.
 
@@ -473,15 +473,15 @@ These tools are **read-only** and have no side effects. They're safe to add to y
 ```json
 {
   "mcpServers": {
-    "debugsy": {
+    "debugssy": {
       "url": "http://localhost:3000/mcp",
       "allowlist": [
-        "debugsy:get_debug_state",
-        "debugsy:get_variables",
-        "debugsy:get_call_stack",
-        "debugsy:get_threads",
-        "debugsy:list_breakpoints",
-        "debugsy:wait_for_breakpoint"
+        "debugssy:get_debug_state",
+        "debugssy:get_variables",
+        "debugssy:get_call_stack",
+        "debugssy:get_threads",
+        "debugssy:list_breakpoints",
+        "debugssy:wait_for_breakpoint"
       ]
     }
   }
@@ -493,23 +493,23 @@ These tools are **read-only** and have no side effects. They're safe to add to y
 These tools modify state or control execution. They should **NOT** be allowlisted:
 
 #### Breakpoint Management
-- **`debugsy:set_breakpoint`** - Creates a new breakpoint
-- **`debugsy:remove_breakpoint`** - Removes a breakpoint
-- **`debugsy:toggle_breakpoint`** - Enables/disables a breakpoint
-- **`debugsy:remove_all_breakpoints`** - Removes all breakpoints
+- **`debugssy:set_breakpoint`** - Creates a new breakpoint
+- **`debugssy:remove_breakpoint`** - Removes a breakpoint
+- **`debugssy:toggle_breakpoint`** - Enables/disables a breakpoint
+- **`debugssy:remove_all_breakpoints`** - Removes all breakpoints
 
 #### Debug Control (Full Mode)
-- **`debugsy:start_debugging`** - Starts a debug session
-- **`debugsy:stop_debugging`** - Stops the current debug session
-- **`debugsy:continue`** - Resumes execution
-- **`debugsy:step_over`** - Steps over current line
-- **`debugsy:step_into`** - Steps into function
-- **`debugsy:step_out`** - Steps out of function
-- **`debugsy:pause`** - Pauses execution
-- **`debugsy:restart`** - Restarts debug session
+- **`debugssy:start_debugging`** - Starts a debug session
+- **`debugssy:stop_debugging`** - Stops the current debug session
+- **`debugssy:continue`** - Resumes execution
+- **`debugssy:step_over`** - Steps over current line
+- **`debugssy:step_into`** - Steps into function
+- **`debugssy:step_out`** - Steps out of function
+- **`debugssy:pause`** - Pauses execution
+- **`debugssy:restart`** - Restarts debug session
 
 #### Expression Evaluation
-- **`debugsy:evaluate_expression`** - Evaluates code (can have side effects)
+- **`debugssy:evaluate_expression`** - Evaluates code (can have side effects)
 
 **Why approval is needed:** These tools can modify your debugging environment, change execution flow, or execute arbitrary code. You should review each call to ensure it aligns with your intent.
 
@@ -519,10 +519,10 @@ These tools modify state or control execution. They should **NOT** be allowliste
 If you're only having the AI analyze your code without making changes:
 ```json
 "allowlist": [
-  "debugsy:get_debug_state",
-  "debugsy:get_variables",
-  "debugsy:get_call_stack",
-  "debugsy:list_breakpoints"
+  "debugssy:get_debug_state",
+  "debugssy:get_variables",
+  "debugssy:get_call_stack",
+  "debugssy:list_breakpoints"
 ]
 ```
 
@@ -530,11 +530,11 @@ If you're only having the AI analyze your code without making changes:
 If you want the AI to set breakpoints but maintain control over execution:
 ```json
 "allowlist": [
-  "debugsy:get_debug_state",
-  "debugsy:get_variables",
-  "debugsy:get_call_stack",
-  "debugsy:get_threads",
-  "debugsy:list_breakpoints"
+  "debugssy:get_debug_state",
+  "debugssy:get_variables",
+  "debugssy:get_call_stack",
+  "debugssy:get_threads",
+  "debugssy:list_breakpoints"
 ]
 ```
 Then manually approve `set_breakpoint` calls as needed.
@@ -543,14 +543,14 @@ Then manually approve `set_breakpoint` calls as needed.
 If you're in full automation mode and trust the AI completely, you might allowlist more tools, but this is **not recommended** for production debugging:
 ```json
 "allowlist": [
-  "debugsy:get_debug_state",
-  "debugsy:get_variables",
-  "debugsy:get_call_stack",
-  "debugsy:get_threads",
-  "debugsy:list_breakpoints",
-  "debugsy:wait_for_breakpoint",
-  "debugsy:set_breakpoint",
-  "debugsy:continue"
+  "debugssy:get_debug_state",
+  "debugssy:get_variables",
+  "debugssy:get_call_stack",
+  "debugssy:get_threads",
+  "debugssy:list_breakpoints",
+  "debugssy:wait_for_breakpoint",
+  "debugssy:set_breakpoint",
+  "debugssy:continue"
 ]
 ```
 
@@ -571,9 +571,9 @@ Even with these tools allowlisted, you maintain complete control through:
 
 The extension provides the following VS Code commands:
 
-- `debugsy.startServer`: Manually start the MCP server
-- `debugsy.stopServer`: Manually stop the MCP server
-- `debugsy.restartServer`: Restart the MCP server
+- `debugssy.startServer`: Manually start the MCP server
+- `debugssy.stopServer`: Manually stop the MCP server
+- `debugssy.restartServer`: Restart the MCP server
 
 ## Requirements
 
@@ -592,7 +592,7 @@ The extension provides the following VS Code commands:
 
 ```
 ┌─────────────────────────────────────┐
-│   VS Code Extension (Debugsy)       │
+│   VS Code Extension (Debugssy)       │
 │                                     │
 │  ┌──────────────────────────────┐  │
 │  │   MCP Server                 │  │

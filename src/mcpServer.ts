@@ -24,7 +24,7 @@ export class MCPServer {
 
         this.mcpServer = new Server(
             {
-                name: 'debugsy',
+                name: 'debugssy',
                 version: '0.1.0'
             },
             {
@@ -290,7 +290,7 @@ export class MCPServer {
                         properties: {
                             timeout: {
                                 type: 'number',
-                                description: 'Timeout in milliseconds (optional). If not provided, uses debugsy.waitForBreakpointTimeout setting (default: 10000ms)'
+                                description: 'Timeout in milliseconds (optional). If not provided, uses debugssy.waitForBreakpointTimeout setting (default: 10000ms)'
                             }
                         }
                     }
@@ -484,7 +484,7 @@ export class MCPServer {
         this.app.get('/health', (req, res) => {
             res.json({
                 status: 'ok',
-                server: 'debugsy-mcp',
+                server: 'debugssy-mcp',
                 version: '0.1.0',
                 transportInitialized: !!this.transport,
                 transport: 'streamable-http',
@@ -519,7 +519,7 @@ export class MCPServer {
                     await new Promise(r => setTimeout(r, 100));
                     
                     vscode.window.showInformationMessage(
-                        `Debugsy MCP Server started on port ${this.port}`
+                        `Debugssy MCP Server started on port ${this.port}`
                     );
                     console.log('MCP Server fully ready to accept connections');
                     resolve();

@@ -1,20 +1,20 @@
-# Debugsy Quick Start
+# Debugssy Quick Start
 
-## What is Debugsy?
+## What is Debugssy?
 
-Debugsy is a VS Code extension that exposes debugging capabilities through an MCP (Model Context Protocol) server. It allows you to control VS Code's debugger remotely via HTTP, making it possible to integrate debugging with AI assistants like Claude.
+Debugssy is a VS Code extension that exposes debugging capabilities through an MCP (Model Context Protocol) server. It allows you to control VS Code's debugger remotely via HTTP, making it possible to integrate debugging with AI assistants like Claude.
 
 ## Quick Start (3 Steps)
 
 ### 1. Run the Extension
 ```bash
-# In the debugsy directory
+# In the debugssy directory
 npm install
 npm run compile
 # Press F5 in VS Code
 ```
 
-This opens an Extension Development Host window with Debugsy active.
+This opens an Extension Development Host window with Debugssy active.
 
 ### 2. Start Debugging Something
 
@@ -115,19 +115,19 @@ curl -X POST http://localhost:3000/mcp \
 
 ## Configuration
 
-Settings (File → Preferences → Settings → search "debugsy"):
-- `debugsy.mcp.enabled` - Enable/disable server (default: true)
-- `debugsy.mcp.port` - Server port (default: 3000)
+Settings (File → Preferences → Settings → search "debugssy"):
+- `debugssy.mcp.enabled` - Enable/disable server (default: true)
+- `debugssy.mcp.port` - Server port (default: 3000)
 
 Commands (Ctrl+Shift+P):
-- `Debugsy: Start Server`
-- `Debugsy: Stop Server`
-- `Debugsy: Restart Server`
+- `Debugssy: Start Server`
+- `Debugssy: Stop Server`
+- `Debugssy: Restart Server`
 
 ## Project Structure
 
 ```
-debugsy/
+debugssy/
 ├── src/
 │   ├── extension.ts          # Extension entry point
 │   ├── mcpServer.ts          # MCP server with HTTP transport
@@ -153,7 +153,7 @@ Add to your Claude Desktop config:
 ```json
 {
   "mcpServers": {
-    "debugsy": {
+    "debugssy": {
       "url": "http://localhost:3000/mcp",
       "transport": "streamableHttp"
     }
@@ -167,7 +167,7 @@ Then ask Claude: "Set a breakpoint at line 10 of test.js" or "What are the curre
 
 **Server won't start?**
 - Check if port 3000 is in use
-- Look at Output panel (View → Output → Debugsy)
+- Look at Output panel (View → Output → Debugssy)
 
 **"No active debug session" error?**
 - Make sure you've pressed F5 to start debugging

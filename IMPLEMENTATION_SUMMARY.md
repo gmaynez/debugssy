@@ -1,13 +1,13 @@
-# Debugsy Implementation Summary
+# Debugssy Implementation Summary
 
 ## ✅ Completed Implementation
 
-Your VS Code extension "Debugsy" has been fully implemented with an MCP server using Streamable HTTP transport!
+Your VS Code extension "Debugssy" has been fully implemented with an MCP server using Streamable HTTP transport!
 
 ## 📁 Project Structure
 
 ```
-debugsy/
+debugssy/
 ├── src/
 │   ├── extension.ts              ✅ Extension lifecycle & debug session tracking
 │   ├── mcpServer.ts              ✅ MCP server with Streamable HTTP
@@ -69,7 +69,7 @@ debugsy/
 │         VS Code Extension Host              │
 │                                             │
 │  ┌───────────────────────────────────────┐ │
-│  │  Debugsy Extension (extension.ts)     │ │
+│  │  Debugssy Extension (extension.ts)     │ │
 │  │  - Lifecycle management               │ │
 │  │  - Debug session tracking             │ │
 │  │  - Configuration watching             │ │
@@ -165,15 +165,15 @@ const result = await client.callTool({
 ### VS Code Settings
 ```json
 {
-  "debugsy.mcp.enabled": true,    // Enable MCP server
-  "debugsy.mcp.port": 3000        // Server port
+  "debugssy.mcp.enabled": true,    // Enable MCP server
+  "debugssy.mcp.port": 3000        // Server port
 }
 ```
 
 ### VS Code Commands
-- `Debugsy: Start Server`
-- `Debugsy: Stop Server`
-- `Debugsy: Restart Server`
+- `Debugssy: Start Server`
+- `Debugssy: Stop Server`
+- `Debugssy: Restart Server`
 
 ## 🔑 Key Features
 
@@ -242,7 +242,7 @@ Add to config:
 ```json
 {
   "mcpServers": {
-    "debugsy": {
+    "debugssy": {
       "url": "http://localhost:3000/mcp",
       "transport": "streamableHttp"
     }
@@ -327,7 +327,7 @@ Your extension is fully functional and ready to use. Just press **F5** to start!
 
 If you need to modify or extend:
 - Add tools: Modify `src/tools/` and update `src/mcpServer.ts`
-- Change port: Update `debugsy.mcp.port` setting
+- Change port: Update `debugssy.mcp.port` setting
 - Add endpoints: Modify `setupHTTPRoutes()` in `src/mcpServer.ts`
 - Enhance DAP: Extend `src/dap/client.ts`
 

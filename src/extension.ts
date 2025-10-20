@@ -9,7 +9,7 @@ let configManager: ConfigManager;
 let dapClient: DAPClient;
 
 export async function activate(context: vscode.ExtensionContext) {
-    console.log('Debugsy extension is now active');
+    console.log('Debugssy extension is now active');
 
     // Initialize configuration manager
     configManager = new ConfigManager();
@@ -65,7 +65,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // Register commands for manual control
     context.subscriptions.push(
-        vscode.commands.registerCommand('debugsy.startServer', async () => {
+        vscode.commands.registerCommand('debugssy.startServer', async () => {
             const config = configManager.getConfig();
             if (mcpServer) {
                 vscode.window.showInformationMessage('MCP Server is already running');
@@ -76,7 +76,7 @@ export async function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('debugsy.stopServer', async () => {
+        vscode.commands.registerCommand('debugssy.stopServer', async () => {
             if (mcpServer) {
                 await stopMCPServer();
             } else {
@@ -86,7 +86,7 @@ export async function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('debugsy.restartServer', async () => {
+        vscode.commands.registerCommand('debugssy.restartServer', async () => {
             if (mcpServer) {
                 await stopMCPServer();
             }
@@ -110,7 +110,7 @@ async function stopMCPServer(): Promise<void> {
     if (mcpServer) {
         await mcpServer.stop();
         mcpServer = undefined;
-        vscode.window.showInformationMessage('Debugsy MCP Server stopped');
+        vscode.window.showInformationMessage('Debugssy MCP Server stopped');
     }
 }
 
