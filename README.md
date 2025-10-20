@@ -2,9 +2,12 @@
 
 A VS Code extension that provides debugging capabilities through a Model Context Protocol (MCP) server. Control VS Code's debugger remotely via MCP tools for breakpoint management, debug control, and variable inspection.
 
+> **🚀 Quick Start for AI Assistants**: Copy [COMPACT_PROMPT.txt](./COMPACT_PROMPT.txt) into your AI chat to help it understand Debugssy's capabilities instantly!
+
 ## Features
 
 - **MCP Server with Streamable HTTP**: Embedded HTTP server exposing debugging tools via MCP protocol
+- **MCP Prompts**: Pre-built debugging workflow templates (debug-crash, trace-variable, inspect-function, etc.)
 - **Debug Control**: Start, stop, pause, continue, step over/into/out operations
 - **Breakpoint Management**: Set, remove, list, and toggle breakpoints programmatically
 - **Variable Inspection**: Read variables, evaluate expressions, and inspect call stacks
@@ -106,6 +109,85 @@ This mode is ideal for:
 - AI-driven "vibe coding" workflows
 - Automated testing and validation scenarios
 - Experienced users comfortable with AI autonomy
+
+## MCP Prompts
+
+Debugssy provides **MCP Prompts** - reusable debugging workflow templates that AI assistants can request to get structured guidance. These are part of the MCP protocol itself.
+
+### Available Prompts
+
+AI assistants can list and use these prompts via the MCP protocol:
+
+#### `debug-crash`
+Debug a crash or exception by setting breakpoints and inspecting the call stack.
+
+**Arguments:**
+- `errorMessage` (required): The error message or description
+- `filePath` (optional): File where the error occurs
+
+**Example:**
+```javascript
+const prompt = await client.getPrompt({
+    name: 'debug-crash',
+    arguments: {
+        errorMessage: 'TypeError: Cannot read property "name" of undefined',
+        filePath: 'src/user.js'
+    }
+});
+```
+
+#### `trace-variable`
+Trace a variable's value through execution to find where it becomes incorrect.
+
+**Arguments:**
+- `variableName` (required): Name of the variable to trace
+- `expectedValue` (optional): What the value should be
+- `actualValue` (optional): What the value actually is
+
+#### `inspect-function`
+Inspect a function's behavior by setting breakpoints and examining inputs/outputs.
+
+**Arguments:**
+- `functionName` (required): Name of the function
+- `filePath` (required): File containing the function
+- `issue` (optional): Description of the issue
+
+#### `debug-loop`
+Debug an infinite loop or unexpected loop behavior using conditional breakpoints.
+
+**Arguments:**
+- `loopLocation` (required): Where the loop is located
+- `expectedIterations` (optional): How many times it should run
+
+#### `auto-debug-session` (Full mode only)
+Automatically start a full debugging session with breakpoints and inspection.
+
+**Arguments:**
+- `issue` (required): Description of the bug
+- `entryPoint` (optional): Main file or function to start from
+
+**Note:** This prompt is only available in **full automation mode**.
+
+### How AI Assistants Use Prompts
+
+According to the [MCP specification](https://github.com/modelcontextprotocol/typescript-sdk?tab=readme-ov-file#prompts), clients can:
+
+1. **List available prompts:**
+   ```javascript
+   const prompts = await client.listPrompts();
+   ```
+
+2. **Get a specific prompt:**
+   ```javascript
+   const prompt = await client.getPrompt({
+       name: 'debug-crash',
+       arguments: { errorMessage: 'null pointer' }
+   });
+   ```
+
+3. **Use the returned messages** in the conversation to guide debugging
+
+The prompts adapt to your automation mode, providing appropriate guidance for assisted vs full automation workflows.
 
 ## Available MCP Tools
 
@@ -436,6 +518,15 @@ AI: stop_debugging()
 
 - **MCP Endpoint**: `http://localhost:3000/mcp` (Streamable HTTP transport)
 - **Health Check**: `http://localhost:3000/health`
+
+## AI Assistant Prompt
+
+**New to Debugssy?** Give your AI assistant context about Debugssy's capabilities:
+
+- **📋 [COMPACT_PROMPT.txt](./COMPACT_PROMPT.txt)** - Ultra-compact reference (copy-paste into chat)
+- **📚 [DEBUGSSY_PROMPT.md](./DEBUGSSY_PROMPT.md)** - Comprehensive guide with patterns and best practices
+
+Simply paste one of these prompts into your AI assistant (Claude, ChatGPT, etc.) at the start of a debugging session to help it understand how to use Debugssy effectively!
 
 ## Usage with MCP Clients
 

@@ -1,0 +1,56 @@
+# Debugssy MCP - Quick Reference for AI Assistants
+
+You have access to Debugssy, a VS Code debugger via MCP. Use `list_tools` to see available tools and `list_prompts` to see debugging workflow templates.
+
+## Automation Modes
+- **assisted** (default): I set breakpoints/inspect, user controls execution via VS Code UI
+- **full**: I control everything including starting sessions and stepping
+
+## MCP Prompts (Structured Workflows)
+Request these prompts for guided debugging:
+- `debug-crash` - Debug crashes/exceptions
+- `trace-variable` - Track incorrect variable values
+- `inspect-function` - Examine function behavior
+- `debug-loop` - Debug infinite loops
+- `auto-debug-session` - Full automated session (full mode only)
+
+## Essential Tools
+
+**Inspection** (always available):
+- `get_debug_state` - Check if paused and where
+- `get_variables` - Read variables from current frame
+- `get_call_stack` - View call stack
+- `evaluate_expression` - Run expressions in debug context
+
+**Breakpoints** (always available):
+- `set_breakpoint` - Set BP (supports conditions, hit counts, logpoints)
+- `list_breakpoints` / `remove_breakpoint` / `remove_all_breakpoints`
+
+**Control** (full mode only, assisted mode prompts user):
+- `continue`, `step_over`, `step_into`, `step_out`, `pause`, `restart`
+- `stop_debugging` - Always available
+
+**Advanced** (full mode only):
+- `start_debugging` - Launch program
+- `wait_for_breakpoint` - Block until paused (with timeout)
+
+## Quick Workflows
+
+**Assisted Mode**: 
+1. `set_breakpoint` → ask user to start/continue in VS Code
+2. `get_debug_state` → `get_variables` → `evaluate_expression`
+3. Ask user to continue/step
+
+**Full Mode**: 
+1. `set_breakpoint` → `start_debugging` → `wait_for_breakpoint`
+2. Inspect/evaluate → `continue` → `wait_for_breakpoint` (repeat)
+3. `stop_debugging`
+
+**Key Rules**:
+- Always `get_debug_state` before inspecting (ensure paused)
+- Use conditional BPs: `set_breakpoint(condition: "x > 100")`
+- In assisted mode: clearly tell user what to click
+- Be systematic: set strategic breakpoints, then narrow down
+
+Debug efficiently and help users understand their code!
+

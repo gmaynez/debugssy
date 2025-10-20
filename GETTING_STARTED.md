@@ -2,6 +2,8 @@
 
 This guide will help you get up and running with the Debugssy VS Code extension.
 
+> **💡 First Time Using Debugssy with AI?** Check out [COMPACT_PROMPT.txt](./COMPACT_PROMPT.txt) - paste it into your AI assistant to help it understand how to debug with Debugssy!
+
 ## Development Setup
 
 ### Prerequisites
@@ -127,26 +129,67 @@ curl -X POST http://localhost:3000/mcp \
   }'
 ```
 
-## Using with Claude Desktop
+## Using MCP Prompts
 
-To use Debugssy with Claude Desktop or another MCP client:
+Debugssy provides **MCP Prompts** - structured debugging workflows that AI assistants can request via the MCP protocol. These help guide the AI through common debugging scenarios.
 
-1. Configure the client to connect to `http://localhost:3000/mcp`
-2. Use the Streamable HTTP transport
-3. Start debugging in VS Code
-4. Ask Claude to help debug your code using the available tools
+### Available Prompts
 
-Example Claude Desktop configuration:
-```json
-{
-  "mcpServers": {
-    "debugssy": {
-      "url": "http://localhost:3000/mcp",
-      "transport": "streamableHttp"
-    }
-  }
-}
+- **`debug-crash`** - Debug crashes/exceptions
+- **`trace-variable`** - Track where a variable becomes incorrect
+- **`inspect-function`** - Examine function behavior
+- **`debug-loop`** - Debug infinite loops or unexpected iterations
+- **`auto-debug-session`** - Full automated debugging (full mode only)
+
+### Example: Using a Prompt with Claude
+
 ```
+You: Use the debug-crash prompt for this error: "TypeError: Cannot read property 'name' of undefined" in src/user.js
+
+Claude: [Requests the prompt from Debugssy]
+Claude: I'll help debug that crash. Let me set a breakpoint where the error occurs...
+[Claude follows the structured workflow from the prompt]
+```
+
+The AI assistant can list available prompts and request them with specific arguments. Prompts adapt based on your automation mode (assisted vs full).
+
+## Using with AI Assistants
+
+### Claude Desktop Setup
+
+1. **Configure Claude Desktop** to connect to Debugssy:
+   ```json
+   {
+     "mcpServers": {
+       "debugssy": {
+         "url": "http://localhost:3000/mcp",
+         "transport": "streamableHttp"
+       }
+     }
+   }
+   ```
+
+2. **Start debugging in VS Code** (F5 or Run → Start Debugging)
+
+3. **Give Claude context** - Paste [COMPACT_PROMPT.txt](./COMPACT_PROMPT.txt) into your conversation:
+   ```
+   You: [Paste COMPACT_PROMPT.txt content]
+   
+   You: I have a bug in my fibonacci function - it's returning wrong values
+   
+   Claude: I'll help debug that. Let me start by setting a breakpoint...
+   [Claude uses set_breakpoint, get_variables, etc.]
+   ```
+
+4. **Work with Claude** to debug using the available tools
+
+### Other MCP Clients
+
+For any MCP client that supports Streamable HTTP transport:
+1. Connect to `http://localhost:3000/mcp`
+2. Use the Streamable HTTP transport
+3. Paste the appropriate prompt to help the AI understand Debugssy
+4. Start debugging!
 
 ## Extension Configuration
 
