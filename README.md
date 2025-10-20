@@ -25,6 +25,7 @@ Configure the MCP server through VS Code settings:
 - `debugsy.automationLevel` (default: `assisted`): Control AI automation level
   - `assisted`: AI can set breakpoints and inspect variables, but user controls execution flow via VS Code UI (safer, recommended)
   - `full`: AI has complete control over debugging including starting sessions, stepping, and continuing execution
+- `debugsy.waitForBreakpointTimeout` (default: `10000`): Default timeout in milliseconds for wait_for_breakpoint tool (1s to 5min). Can be overridden per-call.
 
 ## Automation Levels
 
@@ -302,7 +303,7 @@ Wait for execution to pause at a breakpoint. Blocks until the next breakpoint is
 **Automation:** Full mode only (returns error in assisted mode)
 
 **Parameters:**
-- `timeout` (optional): Timeout in milliseconds (default: 10000)
+- `timeout` (optional): Timeout in milliseconds. If not provided, uses `debugsy.waitForBreakpointTimeout` setting (default: 10000ms)
 
 **Returns:** Same as `get_debug_state` when breakpoint is hit
 
@@ -310,9 +311,19 @@ Wait for execution to pause at a breakpoint. Blocks until the next breakpoint is
 ```
 1. set_breakpoint at line 42
 2. continue
-3. wait_for_breakpoint (blocks until hit)
+3. wait_for_breakpoint (blocks until hit, uses configured timeout)
+   OR
+3. wait_for_breakpoint(timeout: 5000) (override with 5s timeout)
 4. evaluate_expression "myVar"
 5. get_variables
+```
+
+**Configuration:**
+You can set the default timeout globally in VS Code settings:
+```json
+{
+  "debugsy.waitForBreakpointTimeout": 15000  // 15 seconds
+}
 ```
 
 ## Usage Examples

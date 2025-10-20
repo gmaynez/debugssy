@@ -14,7 +14,7 @@ export function createToolRegistry(dapClient: DAPClient, configManager: ConfigMa
     return {
         debugControl: new DebugControlTools(configManager),
         breakpoints: new BreakpointTools(),
-        inspection: new InspectionTools(dapClient)
+        inspection: new InspectionTools(dapClient, configManager)
     };
 }
 

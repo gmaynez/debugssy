@@ -38,6 +38,13 @@
             "Assisted mode: AI can set breakpoints and inspect, but user controls execution flow via VS Code UI",
             "Full mode: AI has complete control over debugging session including starting, stopping, and stepping"
           ]
+        },
+        "debugsy.waitForBreakpointTimeout": {
+          "type": "number",
+          "default": 10000,
+          "minimum": 1000,
+          "maximum": 300000,
+          "description": "Default timeout in milliseconds for wait_for_breakpoint tool (1s to 5min, default: 10s). Can be overridden per-call."
         }
       }
     },

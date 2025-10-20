@@ -272,7 +272,7 @@ export class MCPServer {
                             properties: {
                                 timeout: {
                                     type: 'number',
-                                    description: 'Timeout in milliseconds (default: 10000)'
+                                    description: 'Timeout in milliseconds (optional). If not provided, uses debugsy.waitForBreakpointTimeout setting (default: 10000ms)'
                                 }
                             }
                         }

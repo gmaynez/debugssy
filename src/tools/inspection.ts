@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { DAPClient } from '../dap/client';
+import { ConfigManager } from '../config';
 
 export interface InspectionResult {
     success: boolean;
@@ -8,7 +9,10 @@ export interface InspectionResult {
 }
 
 export class InspectionTools {
-    constructor(private dapClient: DAPClient) {}
+    constructor(
+        private dapClient: DAPClient,
+        private configManager?: ConfigManager
+    ) {}
 
     async getDebugState(): Promise<InspectionResult> {
         try {
@@ -90,7 +94,9 @@ export class InspectionTools {
                 };
             }
 
-            const timeout = args.timeout || 10000;
+            // Use provided timeout, fallback to config, then default
+            const defaultTimeout = this.configManager?.getConfig().waitForBreakpointTimeout || 10000;
+            const timeout = args.timeout || defaultTimeout;
 
             // Wait for the next paused state
             const result = await Promise.race([

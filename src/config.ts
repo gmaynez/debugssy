@@ -4,6 +4,7 @@ export interface DebugConfiguration {
     enabled: boolean;
     port: number;
     automationLevel: 'assisted' | 'full';
+    waitForBreakpointTimeout: number;
 }
 
 export class ConfigManager {
@@ -24,7 +25,8 @@ export class ConfigManager {
         return {
             enabled: config.get<boolean>('mcp.enabled', true),
             port: config.get<number>('mcp.port', 3000),
-            automationLevel: config.get<'assisted' | 'full'>('automationLevel', 'assisted')
+            automationLevel: config.get<'assisted' | 'full'>('automationLevel', 'assisted'),
+            waitForBreakpointTimeout: config.get<number>('waitForBreakpointTimeout', 10000)
         };
     }
 
