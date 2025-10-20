@@ -53,72 +53,12 @@ export class MCPServer {
         this.mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
             const automationLevel = this.configManager.getConfig().automationLevel;
             
-            // Tools available in all modes
+            // Tools available in all modes (inspection, breakpoints, and stop as safety feature)
             const commonTools = [
-                // Debug Control Tools (assisted mode versions)
+                // Stop debugging - available in all modes as a safety escape hatch
                 {
                     name: 'stop_debugging',
                     description: 'Stop the current debugging session',
-                    inputSchema: {
-                        type: 'object',
-                        properties: {}
-                    }
-                },
-                {
-                    name: 'continue',
-                    description: automationLevel === 'assisted' 
-                        ? 'Prompt user to click Continue button in VS Code debugger UI'
-                        : 'Continue execution in the current debug session',
-                    inputSchema: {
-                        type: 'object',
-                        properties: {}
-                    }
-                },
-                {
-                    name: 'step_over',
-                    description: automationLevel === 'assisted'
-                        ? 'Prompt user to click Step Over button in VS Code debugger UI'
-                        : 'Step over the current line',
-                    inputSchema: {
-                        type: 'object',
-                        properties: {}
-                    }
-                },
-                {
-                    name: 'step_into',
-                    description: automationLevel === 'assisted'
-                        ? 'Prompt user to click Step Into button in VS Code debugger UI'
-                        : 'Step into the current function',
-                    inputSchema: {
-                        type: 'object',
-                        properties: {}
-                    }
-                },
-                {
-                    name: 'step_out',
-                    description: automationLevel === 'assisted'
-                        ? 'Prompt user to click Step Out button in VS Code debugger UI'
-                        : 'Step out of the current function',
-                    inputSchema: {
-                        type: 'object',
-                        properties: {}
-                    }
-                },
-                {
-                    name: 'pause',
-                    description: automationLevel === 'assisted'
-                        ? 'Prompt user to click Pause button in VS Code debugger UI'
-                        : 'Pause execution in the current debug session',
-                    inputSchema: {
-                        type: 'object',
-                        properties: {}
-                    }
-                },
-                {
-                    name: 'restart',
-                    description: automationLevel === 'assisted'
-                        ? 'Prompt user to click Restart button in VS Code debugger UI'
-                        : 'Restart the current debug session',
                     inputSchema: {
                         type: 'object',
                         properties: {}
@@ -271,6 +211,7 @@ export class MCPServer {
             
             // Tools only available in full automation mode
             const fullAutomationTools = [
+                // Start/wait tools
                 {
                     name: 'start_debugging',
                     description: 'Start a debugging session with the specified configuration. Requires full automation mode.',
@@ -303,6 +244,55 @@ export class MCPServer {
                                 description: 'Timeout in milliseconds (optional). If not provided, uses debugssy.waitForBreakpointTimeout setting (default: 10000ms)'
                             }
                         }
+                    }
+                },
+                // Execution control tools (not exposed in assisted mode - user controls via VS Code UI)
+                {
+                    name: 'continue',
+                    description: 'Continue execution in the current debug session',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {}
+                    }
+                },
+                {
+                    name: 'step_over',
+                    description: 'Step over the current line',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {}
+                    }
+                },
+                {
+                    name: 'step_into',
+                    description: 'Step into the current function',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {}
+                    }
+                },
+                {
+                    name: 'step_out',
+                    description: 'Step out of the current function',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {}
+                    }
+                },
+                {
+                    name: 'pause',
+                    description: 'Pause execution in the current debug session',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {}
+                    }
+                },
+                {
+                    name: 'restart',
+                    description: 'Restart the current debug session',
+                    inputSchema: {
+                        type: 'object',
+                        properties: {}
                     }
                 }
             ];

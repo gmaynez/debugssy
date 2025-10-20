@@ -26,9 +26,9 @@ Request these prompts for guided debugging:
 - `set_breakpoint` - Set BP (supports conditions, hit counts, logpoints)
 - `list_breakpoints` / `remove_breakpoint` / `remove_all_breakpoints`
 
-**Control** (full mode only, assisted mode prompts user):
-- `continue`, `step_over`, `step_into`, `step_out`, `pause`, `restart`
-- `stop_debugging` - Always available
+**Control**:
+- `stop_debugging` - Always available (safety escape)
+- `continue`, `step_over`, `step_into`, `step_out`, `pause`, `restart` - FULL MODE ONLY (not exposed in assisted mode)
 
 **Advanced** (full mode only):
 - `start_debugging` - Launch program
@@ -37,9 +37,10 @@ Request these prompts for guided debugging:
 ## Quick Workflows
 
 **Assisted Mode**: 
-1. `set_breakpoint` → ask user to start/continue in VS Code
-2. `get_debug_state` → `get_variables` → `evaluate_expression`
-3. Ask user to continue/step
+1. `set_breakpoint` → ask user to start debugging in VS Code (F5)
+2. User clicks Continue/Step buttons in VS Code debugger UI
+3. `get_debug_state` → `get_variables` → `evaluate_expression`
+4. Guide user on which VS Code button to click next
 
 **Full Mode**: 
 1. `set_breakpoint` → `start_debugging` → `wait_for_breakpoint`
@@ -49,7 +50,8 @@ Request these prompts for guided debugging:
 **Key Rules**:
 - Always `get_debug_state` before inspecting (ensure paused)
 - Use conditional BPs: `set_breakpoint(condition: "x > 100")`
-- In assisted mode: clearly tell user what to click
+- **Assisted mode**: Guide user to use VS Code UI (Continue/Step buttons) - execution control tools NOT available
+- **Full mode**: Use execution control tools programmatically
 - Be systematic: set strategic breakpoints, then narrow down
 
 Debug efficiently and help users understand their code!

@@ -78,15 +78,17 @@ In **assisted mode**, the AI agent can:
 - ✅ Inspect variables, evaluate expressions, and read call stacks
 - ✅ Query debug state (is execution paused? where?)
 - ✅ Stop debugging sessions (safety escape hatch)
-- ✅ Call execution control tools (`continue`, `step_*`, etc.) which return friendly prompts like "Please click Continue in VS Code debugger UI"
 
 But the user must:
-- 🔵 Start debugging sessions manually via VS Code
-- 🔵 Control execution flow by clicking buttons in VS Code debugger UI
+- 🔵 Start debugging sessions manually via VS Code (F5)
+- 🔵 Control execution flow by clicking buttons in VS Code debugger UI (Continue, Step Over, etc.)
 
 **Tools NOT exposed in assisted mode:**
 - ❌ `start_debugging` - Must start manually
+- ❌ `continue`, `step_over`, `step_into`, `step_out`, `pause`, `restart` - User controls via VS Code UI
 - ❌ `wait_for_breakpoint` - Requires automation to be useful
+
+**Why?** Better UX! The AI naturally guides you to use VS Code's UI instead of calling tools that just tell you to click buttons.
 
 This mode provides maximum safety and control, ideal for:
 - Senior engineers who want to maintain situational awareness
@@ -193,12 +195,12 @@ The prompts adapt to your automation mode, providing appropriate guidance for as
 
 ### Debug Control Tools
 
-**Note:** In **assisted mode**, flow control tools (`continue`, `step_*`, `pause`, `restart`) will return a message asking the user to use VS Code UI. Only in **full mode** do these tools execute automatically.
+**Note:** In **assisted mode**, execution control tools (`continue`, `step_*`, `pause`, `restart`) are **not exposed**. The AI will naturally guide you to use VS Code's debugger UI buttons instead. Only in **full mode** are these tools available for programmatic control.
 
 #### `start_debugging`
 **[Full automation mode only]** Start a debugging session with a configuration from `launch.json` or a custom configuration.
 
-**Automation:** Full mode only (returns error in assisted mode)
+**Availability:** Full mode only (not exposed in assisted mode)
 
 **Parameters:**
 - `workspaceFolder` (optional): Name or path of workspace folder
@@ -215,37 +217,37 @@ The prompts adapt to your automation mode, providing appropriate guidance for as
 #### `stop_debugging`
 Stop the current debugging session.
 
-**Automation:** Available in all modes (safety escape hatch)
+**Availability:** All modes (safety escape hatch)
 
 #### `continue`
-Continue execution from a breakpoint.
+**[Full automation mode only]** Continue execution from a breakpoint.
 
-**Automation:** Full mode executes; assisted mode returns guidance message
+**Availability:** Full mode only (not exposed in assisted mode)
 
 #### `step_over`
-Step over the current line.
+**[Full automation mode only]** Step over the current line.
 
-**Automation:** Full mode executes; assisted mode returns guidance message
+**Availability:** Full mode only (not exposed in assisted mode)
 
 #### `step_into`
-Step into a function call.
+**[Full automation mode only]** Step into a function call.
 
-**Automation:** Full mode executes; assisted mode returns guidance message
+**Availability:** Full mode only (not exposed in assisted mode)
 
 #### `step_out`
-Step out of the current function.
+**[Full automation mode only]** Step out of the current function.
 
-**Automation:** Full mode executes; assisted mode returns guidance message
+**Availability:** Full mode only (not exposed in assisted mode)
 
 #### `pause`
-Pause execution.
+**[Full automation mode only]** Pause execution.
 
-**Automation:** Full mode executes; assisted mode returns guidance message
+**Availability:** Full mode only (not exposed in assisted mode)
 
 #### `restart`
-Restart the current debug session.
+**[Full automation mode only]** Restart the current debug session.
 
-**Automation:** Full mode executes; assisted mode returns guidance message
+**Availability:** Full mode only (not exposed in assisted mode)
 
 ### Breakpoint Tools
 
