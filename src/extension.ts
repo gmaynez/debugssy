@@ -98,7 +98,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 // Automation level changed - restart server with single consolidated notification
                 await mcpServer.handleAutomationLevelChange(newConfig.automationLevel);
                 vscode.window.showInformationMessage(
-                    `Debugssy: Automation mode changed to '${newConfig.automationLevel}'. MCP server restarted on port ${newConfig.port}.`
+                    `Debugssy: Mode set to '${newConfig.automationLevel}'`
                 );
             }
             previousConfig = newConfig;
