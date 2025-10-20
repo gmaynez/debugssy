@@ -442,6 +442,22 @@ export class MCPServer {
                 }
             }
             
+            // MCP Protocol Version validation (MCP spec 2025-06-18)
+            // Clients MUST include MCP-Protocol-Version header
+            // For backwards compatibility, assume 2025-03-26 if not present
+            const protocolVersion = req.headers['mcp-protocol-version'] as string;
+            const supportedVersions = ['2025-03-26', '2025-06-18'];
+            
+            if (protocolVersion && !supportedVersions.includes(protocolVersion)) {
+                console.warn(`Rejected request with unsupported protocol version: ${protocolVersion}`);
+                res.status(400).json({ 
+                    error: `Bad Request: Unsupported MCP protocol version '${protocolVersion}'. Supported versions: ${supportedVersions.join(', ')}` 
+                });
+                return;
+            }
+            // If no version header present, assume 2025-03-26 for backwards compatibility
+            // Per spec: "the server SHOULD assume protocol version 2025-03-26"
+            
             next();
         });
 
@@ -472,7 +488,8 @@ export class MCPServer {
                 version: '0.1.0',
                 transportInitialized: !!this.transport,
                 transport: 'streamable-http',
-                protocolVersion: '2025-03-26'
+                protocolVersion: '2025-06-18',
+                supportedProtocolVersions: ['2025-03-26', '2025-06-18']
             });
         });
     }
