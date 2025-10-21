@@ -4,589 +4,143 @@
 
 # Debugssy
 
-A VS Code extension that provides debugging capabilities through a Model Context Protocol (MCP) server. Control VS Code's debugger remotely via MCP tools for breakpoint management, debug control, and variable inspection.
+**AI-powered debugging for VS Code.** Control your debugger with natural language through any AI coding assistant (Claude, Cursor, Copilot, etc.) using the Model Context Protocol (MCP).
 
-> **🚀 Quick Start for AI Assistants**: Copy [COMPACT_PROMPT.txt](./COMPACT_PROMPT.txt) into your AI chat to help it understand Debugssy's capabilities instantly!
+> **🚀 For AI Assistants**: Copy [COMPACT_PROMPT.txt](./COMPACT_PROMPT.txt) into your chat to understand Debugssy instantly!
 
-## Features
+---
 
-- **MCP Server with Streamable HTTP**: Embedded HTTP server exposing debugging tools via MCP protocol
-- **MCP Prompts**: Pre-built debugging workflow templates (debug-crash, trace-variable, inspect-function, etc.)
-- **Debug Control**: Start, stop, pause, continue, step over/into/out operations
-- **Breakpoint Management**: Set, remove, list, and toggle breakpoints programmatically
-- **Variable Inspection**: Read variables, evaluate expressions, and inspect call stacks
-- **DAP Integration**: Direct access to Debug Adapter Protocol for detailed debugger state
-- **Security**: Origin validation and localhost-only binding to prevent attacks
+## What is Debugssy?
 
-## Security
+Debugssy is a VS Code extension that lets you **debug with AI assistance**. Instead of manually clicking through the debugger, you can ask your AI assistant to:
 
-Debugssy follows [MCP specification 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) security best practices (with backwards compatibility for 2025-03-26):
+- Set breakpoints where bugs might be
+- Inspect variables to understand what's wrong
+- Step through code and explain what's happening
+- Trace how values change during execution
 
-- **Localhost Only**: Server binds exclusively to `localhost` (127.0.0.1), preventing external network access
-- **Origin Validation**: All requests are validated to ensure they originate from localhost, protecting against DNS rebinding attacks
-- **Session Management**: Cryptographically secure session IDs with proper lifecycle management
-- **No Remote Access**: The server cannot be accessed from other machines on your network
+**Example conversation with AI:**
+```
+You: "The calculation seems wrong in line 42"
+AI: Let me set a breakpoint there and inspect the variables...
+    [Sets breakpoint, asks you to run debugger]
+AI: I can see x=10 and y=20, but result is undefined. 
+    The issue is you're not returning the value!
+```
 
-For detailed compliance information, see [MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md).
+---
 
-## Installation
+## Quick Start (3 Steps)
 
-1. Clone or download this extension
-2. Run `npm install` to install dependencies
-3. Press F5 to run the extension in a new VS Code window (Extension Development Host)
+### 1. Install the Extension
+
+**Option A: From VS Code Marketplace** (when published)
+```
+Search "Debugssy" in VS Code Extensions
+```
+
+**Option B: Development Mode**
+```bash
+git clone <repository>
+cd debugssy
+npm install
+# Press F5 in VS Code
+```
+
+### 2. Configure Your AI Assistant
+
+Add Debugssy's MCP server to your AI assistant settings:
+
+**For Cursor / Claude Desktop:**
+```json
+{
+  "mcpServers": {
+    "debugssy": {
+      "url": "http://localhost:3000/mcp"
+    }
+  }
+}
+```
+
+**For other MCP-compatible assistants:** Connect to `http://localhost:3000/mcp`
+
+### 3. Start Debugging
+
+1. Open your code in VS Code
+2. Tell your AI assistant about the bug
+3. The AI will guide you through debugging!
+
+**That's it!** The AI can now help you debug by setting breakpoints, inspecting variables, and understanding your code's behavior.
+
+---
+
+## Features at a Glance
+
+- 🔴 **Smart Breakpoints** - AI sets breakpoints where bugs likely are
+- 🔍 **Variable Inspection** - AI reads and explains variable values
+- 📚 **Call Stack Analysis** - AI shows how you got to the current point
+- 🎯 **Conditional Breakpoints** - Only stop when specific conditions are met
+- 🚦 **Two Automation Modes** - Choose between assisted (you control) or full automation
+- 🔒 **Secure** - Localhost-only, origin validation, follows MCP security best practices
+
+---
+
+## Automation Modes
+
+Debugssy offers two modes to balance AI power with your control:
+
+### 🔵 Assisted Mode (Default, Recommended)
+
+**Best for:** Learning, understanding code, maintaining control
+
+The AI helps you debug, but **you stay in control**:
+- ✅ AI sets breakpoints and inspects variables
+- ✅ AI analyzes and explains what it finds
+- 🔵 **You** start debugging (F5 in VS Code)
+- 🔵 **You** control execution (Click Continue, Step Over, etc. in VS Code UI)
+
+**Why?** You see every step, understand the process, and maintain full situational awareness.
+
+### 🚀 Full Automation Mode
+
+**Best for:** Rapid iteration, experienced users, "vibe coding"
+
+The AI does everything automatically:
+- ✅ Everything from assisted mode
+- ✅ AI starts debugging sessions
+- ✅ AI controls execution (continue, step, pause)
+- ✅ AI waits for breakpoints automatically
+
+**Enable in VS Code settings:**
+```json
+{
+  "debugssy.automationLevel": "full"
+}
+```
+
+---
 
 ## Configuration
 
-Configure the MCP server through VS Code settings:
+### VS Code Settings
 
-- `debugssy.mcp.enabled` (default: `true`): Enable/disable the MCP server
-- `debugssy.mcp.port` (default: `3000`): Port for the MCP server (localhost only)
-- `debugssy.automationLevel` (default: `assisted`): Control AI automation level
-  - `assisted`: AI can set breakpoints and inspect variables, but user controls execution flow via VS Code UI (safer, recommended)
-  - `full`: AI has complete control over debugging including starting sessions, stepping, and continuing execution
-- `debugssy.waitForBreakpointTimeout` (default: `10000`): Default timeout in milliseconds for wait_for_breakpoint tool (1s to 5min). Can be overridden per-call.
+Access via `File → Preferences → Settings` (search "debugssy"):
 
-### Live Configuration Changes
-
-**Automation Mode Changes:** When you change the `debugssy.automationLevel` setting in VS Code, the MCP server automatically detects the change and restarts to reflect the new tool set. You'll see notifications like:
-
-```
-Debugssy: Automation mode changed to 'full'. Restarting MCP server...
-Debugssy: MCP server restarted with 'full' automation mode. MCP clients should reconnect.
-```
-
-**What happens during the restart:**
-1. The server detects the automation level change
-2. All active MCP client connections are gracefully closed
-3. The server restarts with the new tool configuration
-4. MCP clients should automatically reconnect (most MCP clients handle this transparently)
-5. The new tool list (with or without `start_debugging`/`wait_for_breakpoint`) becomes available
-
-**Note:** Active debug sessions in VS Code are NOT affected by this restart - only the MCP server connection is restarted.
-
-**Port Changes:** Similarly, when you change `debugssy.mcp.port`, the server restarts on the new port.
-
-### MCP Client Configuration (Claude Desktop, etc.)
-
-For MCP clients that support tool allowlists, see the **[MCP Allowlist Recommendations](#mcp-allowlist-recommendations)** section below for guidance on which tools are safe to auto-approve.
-
-## Automation Levels
-
-Debugssy supports two automation levels to balance AI assistance with user control:
-
-**Important:** The MCP server dynamically exposes different tools based on your current automation level. This prevents AI agents from attempting to call tools that would be blocked, providing a better user experience. Tools like `start_debugging` and `wait_for_breakpoint` are only exposed in full automation mode.
-
-### Assisted Mode (Default)
-In **assisted mode**, the AI agent can:
-- ✅ Set, remove, and manage breakpoints
-- ✅ Inspect variables, evaluate expressions, and read call stacks
-- ✅ Query debug state (is execution paused? where?)
-- ✅ Stop debugging sessions (safety escape hatch)
-
-But the user must:
-- 🔵 Start debugging sessions manually via VS Code (F5)
-- 🔵 Control execution flow by clicking buttons in VS Code debugger UI (Continue, Step Over, etc.)
-
-**Tools NOT exposed in assisted mode:**
-- ❌ `start_debugging` - Must start manually
-- ❌ `continue`, `step_over`, `step_into`, `step_out`, `pause`, `restart` - User controls via VS Code UI
-- ❌ `wait_for_breakpoint` - Requires automation to be useful
-
-**Why?** Better UX! The AI naturally guides you to use VS Code's UI instead of calling tools that just tell you to click buttons.
-
-This mode provides maximum safety and control, ideal for:
-- Senior engineers who want to maintain situational awareness
-- Learning and understanding code behavior step-by-step
-- Production or critical debugging scenarios
-
-### Full Automation Mode
-In **full mode**, the AI agent has complete control:
-- ✅ Everything from assisted mode
-- ✅ Start debugging sessions programmatically (`start_debugging`)
-- ✅ Control execution flow automatically (continue, step over/into/out, pause, restart)
-- ✅ Wait for breakpoint hits with timeout (`wait_for_breakpoint`)
-
-**Additional tools exposed in full mode:**
-- ✅ `start_debugging` - Programmatically start debug sessions
-- ✅ `wait_for_breakpoint` - Block until execution pauses
-
-This mode is ideal for:
-- Rapid iteration and exploration
-- AI-driven "vibe coding" workflows
-- Automated testing and validation scenarios
-- Experienced users comfortable with AI autonomy
-
-## MCP Prompts
-
-Debugssy provides **MCP Prompts** - reusable debugging workflow templates that AI assistants can request to get structured guidance. These are part of the MCP protocol itself.
-
-### Available Prompts
-
-AI assistants can list and use these prompts via the MCP protocol:
-
-#### `debug-crash`
-Debug a crash or exception by setting breakpoints and inspecting the call stack.
-
-**Arguments:**
-- `errorMessage` (required): The error message or description
-- `filePath` (optional): File where the error occurs
-
-**Example:**
-```javascript
-const prompt = await client.getPrompt({
-    name: 'debug-crash',
-    arguments: {
-        errorMessage: 'TypeError: Cannot read property "name" of undefined',
-        filePath: 'src/user.js'
-    }
-});
-```
-
-#### `trace-variable`
-Trace a variable's value through execution to find where it becomes incorrect.
-
-**Arguments:**
-- `variableName` (required): Name of the variable to trace
-- `expectedValue` (optional): What the value should be
-- `actualValue` (optional): What the value actually is
-
-#### `inspect-function`
-Inspect a function's behavior by setting breakpoints and examining inputs/outputs.
-
-**Arguments:**
-- `functionName` (required): Name of the function
-- `filePath` (required): File containing the function
-- `issue` (optional): Description of the issue
-
-#### `debug-loop`
-Debug an infinite loop or unexpected loop behavior using conditional breakpoints.
-
-**Arguments:**
-- `loopLocation` (required): Where the loop is located
-- `expectedIterations` (optional): How many times it should run
-
-#### `auto-debug-session` (Full mode only)
-Automatically start a full debugging session with breakpoints and inspection.
-
-**Arguments:**
-- `issue` (required): Description of the bug
-- `entryPoint` (optional): Main file or function to start from
-
-**Note:** This prompt is only available in **full automation mode**.
-
-### How AI Assistants Use Prompts
-
-According to the [MCP specification](https://github.com/modelcontextprotocol/typescript-sdk?tab=readme-ov-file#prompts), clients can:
-
-1. **List available prompts:**
-   ```javascript
-   const prompts = await client.listPrompts();
-   ```
-
-2. **Get a specific prompt:**
-   ```javascript
-   const prompt = await client.getPrompt({
-       name: 'debug-crash',
-       arguments: { errorMessage: 'null pointer' }
-   });
-   ```
-
-3. **Use the returned messages** in the conversation to guide debugging
-
-The prompts adapt to your automation mode, providing appropriate guidance for assisted vs full automation workflows.
-
-## Available MCP Tools
-
-### Debug Control Tools
-
-**Note:** In **assisted mode**, execution control tools (`continue`, `step_*`, `pause`, `restart`) are **not exposed**. The AI will naturally guide you to use VS Code's debugger UI buttons instead. Only in **full mode** are these tools available for programmatic control.
-
-#### `start_debugging`
-**[Full automation mode only]** Start a debugging session with a configuration from `launch.json` or a custom configuration.
-
-**Availability:** Full mode only (not exposed in assisted mode)
-
-**Parameters:**
-- `workspaceFolder` (optional): Name or path of workspace folder
-- `name` (optional): Name of debug configuration from launch.json
-- `configuration` (optional): Full debug configuration object
-
-**Example:**
 ```json
 {
-  "name": "Launch Program"
+  "debugssy.mcp.enabled": true,                    // Enable the MCP server
+  "debugssy.mcp.port": 3000,                       // Server port
+  "debugssy.automationLevel": "assisted",          // or "full"
+  "debugssy.waitForBreakpointTimeout": 10000       // Timeout in ms
 }
 ```
 
-#### `stop_debugging`
-Stop the current debugging session.
+### MCP Client Configuration
 
-**Availability:** All modes (safety escape hatch)
+**Recommended Allowlist** (for Claude Desktop, Cursor, etc.):
 
-#### `continue`
-**[Full automation mode only]** Continue execution from a breakpoint.
+Add these safe, read-only tools that won't modify your code:
 
-**Availability:** Full mode only (not exposed in assisted mode)
-
-#### `step_over`
-**[Full automation mode only]** Step over the current line.
-
-**Availability:** Full mode only (not exposed in assisted mode)
-
-#### `step_into`
-**[Full automation mode only]** Step into a function call.
-
-**Availability:** Full mode only (not exposed in assisted mode)
-
-#### `step_out`
-**[Full automation mode only]** Step out of the current function.
-
-**Availability:** Full mode only (not exposed in assisted mode)
-
-#### `pause`
-**[Full automation mode only]** Pause execution.
-
-**Availability:** Full mode only (not exposed in assisted mode)
-
-#### `restart`
-**[Full automation mode only]** Restart the current debug session.
-
-**Availability:** Full mode only (not exposed in assisted mode)
-
-### Breakpoint Tools
-
-#### `set_breakpoint`
-Set a breakpoint at a specific file and line.
-
-**Parameters:**
-- `filePath` (required): Absolute path to the file
-- `line` (required): Line number (1-based)
-- `condition` (optional): Condition expression for conditional breakpoint
-- `hitCondition` (optional): Hit count condition
-- `logMessage` (optional): Log message (creates a logpoint)
-
-**Example:**
-```json
-{
-  "filePath": "/path/to/file.js",
-  "line": 42,
-  "condition": "x > 10"
-}
-```
-
-#### `remove_breakpoint`
-Remove a breakpoint at a specific location.
-
-**Parameters:**
-- `filePath` (required): Absolute path to the file
-- `line` (required): Line number (1-based)
-
-#### `list_breakpoints`
-List all breakpoints in the workspace.
-
-**Returns:**
-```json
-{
-  "success": true,
-  "breakpoints": [
-    {
-      "id": "...",
-      "location": {
-        "uri": "/path/to/file.js",
-        "line": 42
-      },
-      "enabled": true,
-      "condition": "x > 10"
-    }
-  ]
-}
-```
-
-#### `toggle_breakpoint`
-Toggle a breakpoint's enabled/disabled state.
-
-**Parameters:**
-- `filePath` (required): Absolute path to the file
-- `line` (required): Line number (1-based)
-
-#### `remove_all_breakpoints`
-Remove all breakpoints from the workspace.
-
-### Inspection Tools
-
-#### `get_variables`
-Get variables from the current stack frame.
-
-**Parameters:**
-- `scope` (optional): Scope name to filter (e.g., "Local", "Global")
-- `frameId` (optional): Frame ID (defaults to current frame)
-
-**Returns:**
-```json
-{
-  "success": true,
-  "data": {
-    "frameId": 0,
-    "scopes": [
-      {
-        "name": "Local",
-        "variables": [
-          {
-            "name": "x",
-            "value": "42",
-            "type": "number"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-#### `get_call_stack`
-Get the current call stack.
-
-**Returns:**
-```json
-{
-  "success": true,
-  "data": {
-    "frames": [
-      {
-        "id": 0,
-        "name": "myFunction",
-        "source": "/path/to/file.js",
-        "line": 42,
-        "column": 10
-      }
-    ]
-  }
-}
-```
-
-#### `evaluate_expression`
-Evaluate an expression in the current debug context.
-
-**Parameters:**
-- `expression` (required): Expression to evaluate
-- `frameId` (optional): Frame ID (defaults to current frame)
-
-**Example:**
-```json
-{
-  "expression": "x + y"
-}
-```
-
-**Returns:**
-```json
-{
-  "success": true,
-  "data": {
-    "expression": "x + y",
-    "result": "15",
-    "type": "number"
-  }
-}
-```
-
-#### `get_threads`
-Get all threads in the current debug session.
-
-#### `get_debug_state`
-Get the current debug session state including execution status and location information.
-
-**Automation:** Available in all modes
-
-**Returns:**
-```json
-{
-  "success": true,
-  "data": {
-    "hasActiveSession": true,
-    "sessionName": "Launch Program",
-    "sessionType": "node",
-    "executionState": "paused",
-    "stoppedInfo": {
-      "reason": "breakpoint",
-      "description": "Paused on breakpoint",
-      "threadId": 1,
-      "allThreadsStopped": true,
-      "hitBreakpointIds": [1]
-    },
-    "currentLocation": {
-      "file": "/path/to/file.js",
-      "line": 42,
-      "column": 5,
-      "functionName": "myFunction"
-    }
-  }
-}
-```
-
-**Execution States:**
-- `not_started`: No debug session active or hasn't started yet
-- `running`: Debug session active and executing
-- `paused`: Execution paused (at breakpoint, after step, etc.)
-- `terminated`: Debug session ended
-
-**Use Case:** Call this before `evaluate_expression` or `get_variables` to ensure execution is paused and ready for inspection.
-
-#### `wait_for_breakpoint`
-**[Full automation mode only]** Wait for execution to pause at a breakpoint. Blocks until the next breakpoint is hit or timeout occurs.
-
-**Automation:** Full mode only (not exposed to AI agents in assisted mode)
-
-**Parameters:**
-- `timeout` (optional): Timeout in milliseconds. If not provided, uses `debugssy.waitForBreakpointTimeout` setting (default: 10000ms)
-
-**Returns:** Same as `get_debug_state` when breakpoint is hit
-
-**Example workflow (full mode):**
-```
-1. set_breakpoint at line 42
-2. continue
-3. wait_for_breakpoint (blocks until hit, uses configured timeout)
-   OR
-3. wait_for_breakpoint(timeout: 5000) (override with 5s timeout)
-4. evaluate_expression "myVar"
-5. get_variables
-```
-
-**Configuration:**
-You can set the default timeout globally in VS Code settings:
-```json
-{
-  "debugssy.waitForBreakpointTimeout": 15000  // 15 seconds
-}
-```
-
-## Usage Examples
-
-### Assisted Mode Workflow (Default)
-
-In assisted mode, the AI helps you set up debugging but you maintain control:
-
-```
-AI: "I'll set a breakpoint at line 42 where the calculation happens"
-AI: set_breakpoint(filePath: "app.js", line: 42)
-
-AI: "Please start debugging using VS Code (F5) and click Continue when you're ready"
-
-[User starts debugging and clicks Continue in VS Code UI]
-[Execution pauses at breakpoint]
-
-AI: get_debug_state()
-→ Returns: { executionState: "paused", currentLocation: "app.js:42" }
-
-AI: "Now I can inspect the values"
-AI: get_variables()
-→ Returns: { x: 10, y: 20, result: undefined }
-
-AI: evaluate_expression("x + y")
-→ Returns: { result: "30" }
-
-AI: "The values look correct. Please click Continue to proceed."
-```
-
-### Full Automation Mode Workflow
-
-In full mode, the AI controls the entire debugging session:
-
-```
-AI: "I'll debug this function automatically"
-AI: set_breakpoint(filePath: "app.js", line: 42)
-AI: start_debugging(name: "Launch Program")
-AI: wait_for_breakpoint(timeout: 5000)
-→ Blocks until breakpoint hit
-→ Returns: { executionState: "paused", currentLocation: "app.js:42" }
-
-AI: get_variables()
-→ Returns: { x: 10, y: 20 }
-
-AI: evaluate_expression("x + y")
-→ Returns: { result: "30" }
-
-AI: "Found the issue. Setting another breakpoint to verify the fix."
-AI: set_breakpoint(filePath: "app.js", line: 55)
-AI: continue()
-AI: wait_for_breakpoint()
-→ Execution continues and pauses at line 55
-
-AI: evaluate_expression("finalResult")
-→ Returns: { result: "30" }
-
-AI: "Verification complete. Stopping debug session."
-AI: stop_debugging()
-```
-
-## MCP Server Endpoints
-
-- **MCP Endpoint**: `http://localhost:3000/mcp` (Streamable HTTP transport)
-- **Health Check**: `http://localhost:3000/health`
-
-## AI Assistant Prompt
-
-**New to Debugssy?** Give your AI assistant context about Debugssy's capabilities:
-
-- **📋 [COMPACT_PROMPT.txt](./COMPACT_PROMPT.txt)** - Ultra-compact reference (copy-paste into chat)
-- **📚 [DEBUGSSY_PROMPT.md](./DEBUGSSY_PROMPT.md)** - Comprehensive guide with patterns and best practices
-
-Simply paste one of these prompts into your AI assistant (Claude, ChatGPT, etc.) at the start of a debugging session to help it understand how to use Debugssy effectively!
-
-## Usage with MCP Clients
-
-Connect to the MCP server using any MCP client that supports Streamable HTTP transport:
-
-```typescript
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-
-const transport = new StreamableHTTPClientTransport(
-  new URL('http://localhost:3000/mcp')
-);
-
-const client = new Client({
-  name: 'debugssy-client',
-  version: '1.0.0'
-});
-
-await client.connect(transport);
-
-// List available tools
-const tools = await client.listTools();
-
-// Call a tool
-const result = await client.callTool({
-  name: 'set_breakpoint',
-  arguments: {
-    filePath: '/path/to/file.js',
-    line: 42
-  }
-});
-```
-
-## MCP Allowlist Recommendations
-
-When using Debugssy with MCP clients that support tool allowlists (like Claude Desktop), you can configure which tools should be automatically approved without requiring user confirmation for each call.
-
-> **📋 Quick Start:** See [ALLOWLIST_GUIDE.md](./ALLOWLIST_GUIDE.md) for copy-paste configuration examples!
-
-### ✅ Safe Tools (Recommended for Allowlist)
-
-These tools are **read-only** and have no side effects. They're safe to add to your allowlist:
-
-#### Inspection Tools (Always Safe)
-- **`debugssy:get_debug_state`** - Query current debug session state and execution status
-- **`debugssy:get_variables`** - Read variable values from current stack frame
-- **`debugssy:get_call_stack`** - Read the current call stack
-- **`debugssy:get_threads`** - List all threads in the debug session
-- **`debugssy:list_breakpoints`** - List all breakpoints in the workspace
-- **`debugssy:wait_for_breakpoint`** - Wait for execution to pause (passive operation, full mode only)
-
-**Why these are safe:** These tools only read debugging state without modifying anything. They cannot alter your code execution, change breakpoints, or affect your debugging session.
-
-**Example allowlist configuration** (e.g., in Claude Desktop's `claude_desktop_config.json`):
 ```json
 {
   "mcpServers": {
@@ -597,115 +151,162 @@ These tools are **read-only** and have no side effects. They're safe to add to y
         "debugssy:get_variables",
         "debugssy:get_call_stack",
         "debugssy:get_threads",
-        "debugssy:list_breakpoints",
-        "debugssy:wait_for_breakpoint"
+        "debugssy:list_breakpoints"
       ]
     }
   }
 }
 ```
 
-### ⚠️ Write Tools (Require User Approval)
+> **📋 Need more details?** See [ALLOWLIST_GUIDE.md](./ALLOWLIST_GUIDE.md) for complete configuration examples.
 
-These tools modify state or control execution. They should **NOT** be allowlisted:
+---
 
-#### Breakpoint Management
-- **`debugssy:set_breakpoint`** - Creates a new breakpoint
-- **`debugssy:remove_breakpoint`** - Removes a breakpoint
-- **`debugssy:toggle_breakpoint`** - Enables/disables a breakpoint
-- **`debugssy:remove_all_breakpoints`** - Removes all breakpoints
+## Example Workflow
 
-#### Debug Control (Full Mode)
-- **`debugssy:start_debugging`** - Starts a debug session
-- **`debugssy:stop_debugging`** - Stops the current debug session
-- **`debugssy:continue`** - Resumes execution
-- **`debugssy:step_over`** - Steps over current line
-- **`debugssy:step_into`** - Steps into function
-- **`debugssy:step_out`** - Steps out of function
-- **`debugssy:pause`** - Pauses execution
-- **`debugssy:restart`** - Restarts debug session
+### Assisted Mode (Default)
 
-#### Expression Evaluation
-- **`debugssy:evaluate_expression`** - Evaluates code (can have side effects)
+```
+1. You tell AI: "This function returns wrong values"
 
-**Why approval is needed:** These tools can modify your debugging environment, change execution flow, or execute arbitrary code. You should review each call to ensure it aligns with your intent.
+2. AI: "Let me set a breakpoint and inspect..."
+   → Sets breakpoint at function entry
 
-### Workflow Recommendations
+3. You: Press F5 to start debugging in VS Code
 
-#### For Read-Only Analysis (Safest)
-If you're only having the AI analyze your code without making changes:
-```json
-"allowlist": [
-  "debugssy:get_debug_state",
-  "debugssy:get_variables",
-  "debugssy:get_call_stack",
-  "debugssy:list_breakpoints"
-]
+4. You: Click "Continue" in VS Code debugger UI
+
+5. AI: "Execution paused. I can see x=10, y=undefined"
+   → Inspects variables and finds the issue
+
+6. AI: "The problem is y is never assigned. You need to..."
+
+7. You: Click "Stop" in VS Code when done
 ```
 
-#### For Active Debugging with Breakpoints
-If you want the AI to set breakpoints but maintain control over execution:
-```json
-"allowlist": [
-  "debugssy:get_debug_state",
-  "debugssy:get_variables",
-  "debugssy:get_call_stack",
-  "debugssy:get_threads",
-  "debugssy:list_breakpoints"
-]
-```
-Then manually approve `set_breakpoint` calls as needed.
+### Full Automation Mode
 
-#### For Full Automation (Advanced)
-If you're in full automation mode and trust the AI completely, you might allowlist more tools, but this is **not recommended** for production debugging:
-```json
-"allowlist": [
-  "debugssy:get_debug_state",
-  "debugssy:get_variables",
-  "debugssy:get_call_stack",
-  "debugssy:get_threads",
-  "debugssy:list_breakpoints",
-  "debugssy:wait_for_breakpoint",
-  "debugssy:set_breakpoint",
-  "debugssy:continue"
-]
+```
+1. You tell AI: "Debug this function automatically"
+
+2. AI: "Starting automated debugging session..."
+   → Automatically sets breakpoints
+   → Starts debugging
+   → Continues execution
+   → Inspects variables at breakpoint
+   → Steps through code
+   → Analyzes and explains the issue
+   → Stops debugging
+
+3. AI: "Found it! The issue is on line 42 where..."
 ```
 
-### Security Note
+---
 
-The read-only inspection tools are safe to allowlist because:
-1. They cannot modify your code or debugging state
-2. They cannot execute arbitrary code
-3. They only read information that's already visible in VS Code's debugger UI
-4. They respect VS Code's security model and permissions
+## Security & Privacy
 
-Even with these tools allowlisted, you maintain complete control through:
-- Automation level settings (assisted vs full mode)
-- Manual approval of write operations
-- VS Code's built-in debugging safeguards
+Debugssy is designed with security as a priority:
 
-## Commands
+- 🔒 **Localhost Only** - Server binds exclusively to `127.0.0.1` (no network access)
+- 🛡️ **Origin Validation** - Protects against DNS rebinding attacks
+- 🔐 **Secure Sessions** - Cryptographically secure session IDs
+- 🚫 **No Remote Access** - Cannot be accessed from other machines
+- ✅ **MCP Compliant** - Follows [MCP 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) security best practices
 
-The extension provides the following VS Code commands:
+> **📋 For security details:** See [MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md)
 
-- `debugssy.startServer`: Manually start the MCP server
-- `debugssy.stopServer`: Manually stop the MCP server
-- `debugssy.restartServer`: Restart the MCP server
+---
+
+## Available Tools
+
+The AI assistant has access to these debugging tools:
+
+### 🔍 Inspection Tools (Always Available)
+- `get_debug_state` - Check if debugger is running/paused
+- `get_variables` - Read variable values
+- `get_call_stack` - See the call stack
+- `evaluate_expression` - Evaluate expressions
+- `get_threads` - List all threads
+
+### 🔴 Breakpoint Tools (Always Available)
+- `set_breakpoint` - Set breakpoints (with conditions, hit counts, log messages)
+- `remove_breakpoint` - Remove specific breakpoint
+- `list_breakpoints` - Show all breakpoints
+- `toggle_breakpoint` - Enable/disable breakpoint
+- `remove_all_breakpoints` - Clear all breakpoints
+
+### ▶️ Execution Control
+- `stop_debugging` - Stop session (always available)
+- `continue`, `step_over`, `step_into`, `step_out`, `pause`, `restart`
+  - **Assisted mode**: Not exposed (use VS Code UI)
+  - **Full mode**: AI controls these automatically
+
+### 🚀 Advanced (Full Mode Only)
+- `start_debugging` - Start debug session programmatically
+- `wait_for_breakpoint` - Wait for execution to pause
+
+---
+
+## MCP Prompts (Debugging Workflows)
+
+Debugssy provides structured debugging workflows that AI assistants can use:
+
+- **`debug-crash`** - Debug crashes and exceptions
+- **`trace-variable`** - Track where a variable becomes incorrect
+- **`inspect-function`** - Examine function behavior
+- **`debug-loop`** - Debug infinite loops or unexpected iterations
+- **`auto-debug-session`** - Full automated debugging (full mode only)
+
+> **💡 For AI Assistants:** See [DEBUGSSY_PROMPT.md](./DEBUGSSY_PROMPT.md) for detailed guidance on using these workflows.
+
+---
 
 ## Requirements
 
-- VS Code 1.85.0 or higher
-- Node.js for running the extension
+- **VS Code** 1.85.0 or higher
+- **Node.js** (for development/building)
+- **MCP-compatible AI assistant** (Claude Desktop, Cursor, Copilot, or custom client)
 
-## Development
+---
 
-1. Clone the repository
-2. Run `npm install`
-3. Press F5 to open a new VS Code window with the extension loaded
-4. Start a debug session in a workspace
-5. Connect an MCP client to `http://localhost:3000/mcp`
+## Commands
 
-## Architecture
+Access these via Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`):
+
+- `Debugssy: Start Server` - Manually start the MCP server
+- `Debugssy: Stop Server` - Stop the MCP server
+- `Debugssy: Restart Server` - Restart the MCP server
+
+---
+
+## Troubleshooting
+
+### "No active debug session" error
+**Solution:** Start debugging in VS Code (press F5) before asking AI to inspect variables
+
+### Server won't start / Port in use
+**Solution:** Change port in settings or stop process using port 3000
+```json
+{ "debugssy.mcp.port": 3001 }
+```
+
+### AI can't connect to server
+**Solution:** 
+1. Check Output panel: `View → Output → Debugssy`
+2. Verify server is running: `curl http://localhost:3000/health`
+3. Check your AI assistant's MCP configuration
+
+### Variables not available
+**Solution:** 
+1. Ensure execution is paused at a breakpoint
+2. Try `get_debug_state` first to verify debugger state
+
+---
+
+## Technical Details
+
+<details>
+<summary>🏗️ Architecture (Click to expand)</summary>
 
 ```
 ┌─────────────────────────────────────┐
@@ -734,22 +335,210 @@ The extension provides the following VS Code commands:
                  │
         ┌────────▼────────┐
         │   MCP Client    │
-        │  (Claude, etc)  │
+        │ (AI Assistant)  │
         └─────────────────┘
 ```
 
+</details>
+
+<details>
+<summary>🔌 MCP Server Endpoints</summary>
+
+- **MCP Endpoint**: `http://localhost:3000/mcp` (Streamable HTTP transport)
+- **Health Check**: `http://localhost:3000/health`
+
+**Test with curl:**
+```bash
+# Health check
+curl http://localhost:3000/health
+
+# List tools
+curl -X POST http://localhost:3000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+</details>
+
+<details>
+<summary>🔧 Using MCP SDK (for custom clients)</summary>
+
+```typescript
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+
+const transport = new StreamableHTTPClientTransport(
+  new URL('http://localhost:3000/mcp')
+);
+
+const client = new Client({
+  name: 'my-client',
+  version: '1.0.0'
+});
+
+await client.connect(transport);
+
+// List available tools
+const tools = await client.listTools();
+
+// Call a tool
+const result = await client.callTool({
+  name: 'get_call_stack'
+});
+```
+
+</details>
+
+<details>
+<summary>📊 Tool Details & Parameters</summary>
+
+### `set_breakpoint`
+```json
+{
+  "filePath": "/absolute/path/to/file.js",
+  "line": 42,
+  "condition": "x > 10",              // Optional
+  "hitCondition": "> 5",              // Optional
+  "logMessage": "Value: {x}"          // Optional (creates logpoint)
+}
+```
+
+### `get_variables`
+```json
+{
+  "scope": "Local",                    // Optional: "Local", "Global", etc.
+  "frameId": 0                         // Optional: defaults to current frame
+}
+```
+
+### `evaluate_expression`
+```json
+{
+  "expression": "x + y",
+  "frameId": 0                         // Optional: defaults to current frame
+}
+```
+
+### `start_debugging` (Full mode only)
+```json
+{
+  "name": "Launch Program",            // Name from launch.json
+  "workspaceFolder": "myproject",      // Optional
+  "configuration": { /* custom */ }    // Optional: full config object
+}
+```
+
+### `wait_for_breakpoint` (Full mode only)
+```json
+{
+  "timeout": 5000                      // Optional: ms (default: 10000)
+}
+```
+
+</details>
+
+<details>
+<summary>🔄 Live Configuration Changes</summary>
+
+When you change settings, the server automatically restarts:
+
+**Automation Mode Changes:**
+```
+1. Change debugssy.automationLevel in VS Code settings
+2. Server detects change and restarts
+3. New tool set becomes available
+4. MCP clients reconnect automatically
+```
+
+**What happens:**
+- Notifications appear confirming the restart
+- Active MCP connections gracefully close and reconnect
+- Active VS Code debug sessions are NOT affected
+- New tool list immediately reflects your automation level
+
+**Port Changes:**
+Similarly, changing `debugssy.mcp.port` restarts the server on the new port.
+
+</details>
+
+---
+
 ## Known Limitations
 
-- Watch expressions are not directly accessible via VS Code API (use `evaluate_expression` instead)
-- The extension currently assumes thread ID 1 for some DAP operations
-- Session management is simplified for single-threaded debugging scenarios
-- In assisted mode, AI cannot detect when user manually clicks continue/step (use `get_debug_state` to poll current state)
-- `wait_for_breakpoint` requires the debug session to already be running (call after `continue` in full mode)
+- Watch expressions not directly accessible (use `evaluate_expression` instead)
+- Assumes thread ID 1 for some operations (simplified for single-threaded debugging)
+- In assisted mode, AI cannot detect when you manually click continue/step (use `get_debug_state` to check)
+- `wait_for_breakpoint` requires debug session to be running (call after `continue` in full mode)
+
+---
+
+## Development
+
+### Building from Source
+
+```bash
+# Clone and install
+git clone <repository>
+cd debugssy
+npm install
+
+# Compile
+npm run compile
+
+# Run in development mode
+# Press F5 in VS Code to open Extension Development Host
+```
+
+### Project Structure
+
+```
+debugssy/
+├── src/
+│   ├── extension.ts              # Extension entry point
+│   ├── mcpServer.ts              # MCP server with HTTP transport
+│   ├── config.ts                 # Configuration management
+│   ├── dap/
+│   │   └── client.ts             # Debug Adapter Protocol client
+│   └── tools/
+│       ├── debugControl.ts       # Debug control tools
+│       ├── breakpoints.ts        # Breakpoint management
+│       ├── inspection.ts         # Variable inspection
+│       └── index.ts              # Tool registry
+├── example/
+│   └── test.js                   # Example for testing
+└── README.md                     # This file
+```
+
+---
 
 ## Contributing
 
 Contributions are welcome! Please feel free to submit issues or pull requests.
 
+---
+
 ## License
 
 Apache 2.0
+
+---
+
+## Additional Resources
+
+- **📋 [ALLOWLIST_GUIDE.md](./ALLOWLIST_GUIDE.md)** - MCP client allowlist configuration examples
+- **🔒 [MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md)** - Security implementation and MCP spec compliance
+- **🤖 [DEBUGSSY_PROMPT.md](./DEBUGSSY_PROMPT.md)** - Comprehensive guide for AI assistants
+- **📝 [COMPACT_PROMPT.txt](./COMPACT_PROMPT.txt)** - Quick AI assistant reference
+
+### External Links
+
+- [Model Context Protocol Specification](https://modelcontextprotocol.io)
+- [VS Code Debug API](https://code.visualstudio.com/api/references/vscode-api#debug)
+- [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/)
+- [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)
+
+---
+
+<div align="center">
+  <p><strong>Happy debugging with AI! 🐛🤖</strong></p>
+</div>
