@@ -4,6 +4,24 @@
   "description": "MCP server for VS Code debugging with tools for breakpoints, debug control, and variable inspection",
   "version": "0.1.0",
   "publisher": "debugssy",
+  "author": {
+    "name": "Guillermo Garcia Maynez Rocha"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/debugssy.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/debugssy/issues"
+  },
+  "homepage": "https://github.com/yourusername/debugssy#readme",
+  "keywords": [
+    "debugging",
+    "ai",
+    "mcp"
+  ],
+  "icon": "assets/debugssy_logo.png",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -31,7 +49,10 @@
         },
         "debugssy.automationLevel": {
           "type": "string",
-          "enum": ["assisted", "full"],
+          "enum": [
+            "assisted",
+            "full"
+          ],
           "default": "assisted",
           "description": "Control automation level: 'assisted' (user controls flow, AI assists) or 'full' (AI has full control)",
           "enumDescriptions": [

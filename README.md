@@ -519,7 +519,9 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 
 ## License
 
-Apache 2.0
+Copyright © 2025 Guillermo Garcia Maynez Rocha
+
+Licensed under the Apache License, Version 2.0. See the [LICENSE](./LICENSE) file for details.
 
 ---
 
