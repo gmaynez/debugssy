@@ -517,9 +517,21 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 
 ---
 
+## Support This Project
+
+If you find Debugssy helpful, consider supporting its development! Your contributions help maintain and improve the extension.
+
+[![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/donate/?hosted_button_id=FH3S38FT3NYGE)
+
+**[💝 Donate via PayPal](https://www.paypal.com/donate/?hosted_button_id=FH3S38FT3NYGE)**
+
+Every contribution, no matter how small, is greatly appreciated! 🙏
+
+---
+
 ## License
 
-Copyright © 2025 Guillermo Garcia Maynez Rocha
+Copyright © 2025 Guillermo Eduardo Garcia Maynez Rocha
 
 Licensed under the Apache License, Version 2.0. See the [LICENSE](./LICENSE) file for details.
 
