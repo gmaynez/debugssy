@@ -531,7 +531,7 @@ Every contribution, no matter how small, is greatly appreciated! 🙏
 
 ## License
 
-Copyright © 2025 Guillermo Eduardo Garcia Maynez Rocha
+Copyright © 2025 Guillermo Garcia Maynez
 
 Licensed under the Apache License, Version 2.0. See the [LICENSE](./LICENSE) file for details.
 
