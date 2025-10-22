@@ -286,12 +286,25 @@ export class MCPServer {
 
     async handleAutomationLevelChange(newLevel: 'assisted' | 'full'): Promise<void> {
         console.log(`Automation level changed from '${this.currentAutomationLevel}' to '${newLevel}'`);
+        
+        const oldLevel = this.currentAutomationLevel;
         this.currentAutomationLevel = newLevel;
         
-        // Restart the server with a fresh MCP Server instance to ensure clean state
-        // This prevents "Server not initialized" errors from stale connections
-        await this.stop();
-        this.initializeMCPServer(); // Recreate MCP Server instance with fresh state
-        await this.start({ silent: true }); // Silent mode - caller will show consolidated notification
+        // Note: ToolRouter already reads automation level dynamically from configManager
+        // on each getToolSchemas() call, so no need to update it explicitly.
+        
+        // Notify connected clients about the tools/list_changed
+        // Per MCP Dynamic Servers pattern: notify clients when capabilities change
+        // so they can refresh their tool list without reconnecting
+        try {
+            await this.mcpServer.notification({
+                method: 'notifications/tools/list_changed',
+                params: {}
+            });
+            console.log(`Notified clients: tools changed due to automation level ${oldLevel} → ${newLevel}`);
+        } catch (error: any) {
+            // Notification may fail if no clients are connected - this is fine
+            console.log(`Could not notify clients (likely none connected): ${error.message}`);
+        }
     }
 }
