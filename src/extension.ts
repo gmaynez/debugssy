@@ -159,10 +159,39 @@ export async function activate(context: vscode.ExtensionContext) {
             const mcpServer = extensionContext!.getMCPServer();
             const config = configManager.getConfig();
             
-            if (mcpServer) {
-                await extensionContext!.stopMCPServer();
-            }
-            await extensionContext!.startMCPServer(config.port);
+            // Show status message during restart
+            await vscode.window.withProgress(
+                {
+                    location: vscode.ProgressLocation.Notification,
+                    title: "Restarting Debugssy MCP Server...",
+                    cancellable: false
+                },
+                async (progress) => {
+                    try {
+                        progress.report({ increment: 30, message: 'Stopping server...' });
+                        
+                        if (mcpServer) {
+                            await extensionContext!.stopMCPServer();
+                        }
+                        
+                        progress.report({ increment: 30, message: 'Starting server...' });
+                        await extensionContext!.startMCPServer(config.port);
+                        
+                        progress.report({ increment: 40, message: 'Done!' });
+                        
+                        // Give user a moment to see the completion
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        
+                        vscode.window.showInformationMessage(
+                            `Debugssy MCP Server restarted successfully on port ${config.port}`
+                        );
+                    } catch (error: any) {
+                        vscode.window.showErrorMessage(
+                            `Failed to restart MCP Server: ${error.message}`
+                        );
+                    }
+                }
+            );
         })
     );
 }
