@@ -4,13 +4,14 @@ import { Server as HTTPServer } from 'http';
 import { randomUUID } from 'crypto';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { CallToolRequestSchema, ListToolsRequestSchema, ListPromptsRequestSchema, GetPromptRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, ListToolsRequestSchema, ListPromptsRequestSchema, GetPromptRequestSchema, CompleteRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { ToolRegistry } from './tools';
 import { ConfigManager } from './config';
 import { MCP_SERVER_READY_DELAY_MS, CURRENT_MCP_PROTOCOL_VERSION } from './constants';
 import { SecurityValidator } from './security/SecurityValidator';
 import { ToolRouter } from './routing/ToolRouter';
 import { PromptHandler } from './routing/PromptHandler';
+import { CompletionProvider } from './routing/CompletionProvider';
 
 /**
  * Main MCP server class that orchestrates the debugging tools and prompts.
@@ -18,6 +19,7 @@ import { PromptHandler } from './routing/PromptHandler';
  * - SecurityValidator: Handles origin and protocol validation
  * - ToolRouter: Manages tool schemas and routing
  * - PromptHandler: Manages prompt schemas and generation
+ * - CompletionProvider: Provides autocomplete suggestions for prompt arguments
  */
 export class MCPServer {
     private app: express.Application;
@@ -30,6 +32,7 @@ export class MCPServer {
     private securityValidator: SecurityValidator;
     private toolRouter: ToolRouter;
     private promptHandler: PromptHandler;
+    private completionProvider: CompletionProvider;
 
     constructor(
         private port: number,
@@ -45,6 +48,7 @@ export class MCPServer {
         this.securityValidator = new SecurityValidator();
         this.toolRouter = new ToolRouter(toolRegistry, configManager);
         this.promptHandler = new PromptHandler(configManager);
+        this.completionProvider = new CompletionProvider();
 
         this.initializeMCPServer();
         this.setupHTTPRoutes();
@@ -60,13 +64,15 @@ export class MCPServer {
             {
                 capabilities: {
                     tools: {},
-                    prompts: {}
+                    prompts: {},
+                    completion: {}
                 }
             }
         );
 
         this.setupToolHandlers();
         this.setupPromptHandlers();
+        this.setupCompletionHandler();
     }
 
     private setupToolHandlers(): void {
@@ -119,6 +125,45 @@ export class MCPServer {
         this.mcpServer.setRequestHandler(GetPromptRequestSchema, async (request) => {
             const { name, arguments: args } = request.params;
             return this.promptHandler.generatePrompt(name, args);
+        });
+    }
+
+    private setupCompletionHandler(): void {
+        // Provide completions for prompt arguments - delegated to CompletionProvider
+        this.mcpServer.setRequestHandler(CompleteRequestSchema, async (request) => {
+            const { ref, argument } = request.params;
+
+            // Only provide completions for prompts (not resources or other ref types)
+            if (ref.type !== 'ref/prompt') {
+                return {
+                    completion: {
+                        values: [],
+                        total: 0,
+                        hasMore: false
+                    }
+                };
+            }
+
+            try {
+                const result = await this.completionProvider.getCompletions(
+                    ref.name,
+                    argument.name,
+                    argument.value || ''
+                );
+
+                return {
+                    completion: result
+                };
+            } catch (error: any) {
+                console.error('Error providing completions:', error);
+                return {
+                    completion: {
+                        values: [],
+                        total: 0,
+                        hasMore: false
+                    }
+                };
+            }
         });
     }
 
