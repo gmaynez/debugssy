@@ -1,0 +1,106 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  validate-pr:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate package.json
+        run: |
+          echo "✅ Validating package.json structure..."
+          node -e "require('./package.json')"
+          echo "✅ package.json is valid JSON"
+
+      - name: Check for version bump
+        if: github.base_ref == 'main'
+        run: |
+          git fetch origin main
+          BASE_VERSION=$(git show origin/main:package.json | node -pe "JSON.parse(require('fs').readFileSync(0)).version")
+          CURRENT_VERSION=$(node -pe "require('./package.json').version")
+          echo "Base version: $BASE_VERSION"
+          echo "Current version: $CURRENT_VERSION"
+          if [ "$BASE_VERSION" = "$CURRENT_VERSION" ]; then
+            echo "⚠️  Warning: Version has not been bumped in package.json"
+            echo "Consider updating the version before merging to main"
+          else
+            echo "✅ Version has been updated: $BASE_VERSION → $CURRENT_VERSION"
+          fi
+
+      - name: Check for breaking changes in description
+        run: |
+          if grep -i "breaking" <<< "${{ github.event.pull_request.body }}"; then
+            echo "⚠️  Breaking changes detected in PR description"
+            echo "Make sure to update version appropriately (major version bump)"
+          fi
+
+      - name: Lint code
+        run: npm run lint
+
+      - name: Build extension
+        run: npm run compile
+
+      - name: Package extension (dry run)
+        run: npm run package
+
+      - name: Check file sizes
+        run: |
+          echo "📦 Package size information:"
+          ls -lh *.vsix
+          
+          VSIX_SIZE=$(stat -f%z *.vsix 2>/dev/null || stat -c%s *.vsix)
+          MAX_SIZE=$((50 * 1024 * 1024))  # 50MB
+          
+          if [ $VSIX_SIZE -gt $MAX_SIZE ]; then
+            echo "⚠️  Warning: Package size is large ($(($VSIX_SIZE / 1024 / 1024))MB)"
+            echo "Consider optimizing assets or excluding unnecessary files"
+          else
+            echo "✅ Package size is acceptable ($(($VSIX_SIZE / 1024 / 1024))MB)"
+          fi
+
+  comment-on-pr:
+    runs-on: ubuntu-latest
+    needs: validate-pr
+    if: always()
+    
+    steps:
+      - name: Comment build result
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ needs.validate-pr.result }}';
+            const emoji = status === 'success' ? '✅' : '❌';
+            const message = status === 'success' 
+              ? 'All validation checks passed! Ready for review.'
+              : 'Some validation checks failed. Please review the logs.';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `${emoji} **PR Validation Results**\n\n${message}\n\nWorkflow: [${context.runId}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`
+            });
+
+
+
+
+
+
+

@@ -1,0 +1,129 @@
+name: Publish Extension
+
+on:
+  # Trigger on version tags (e.g., v0.1.0, v1.2.3)
+  # Note: Tags should be created from the main branch for releases
+  push:
+    tags:
+      - 'v*'
+  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      publish_vscode:
+        description: 'Publish to VS Code Marketplace'
+        required: true
+        type: boolean
+        default: true
+      publish_openvsx:
+        description: 'Publish to Open VSX'
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history to check branch
+
+      - name: Verify tag is on main branch
+        if: github.event_name == 'push'
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor ${{ github.sha }} origin/main; then
+            echo "❌ Error: Tag must be created from main branch for publishing"
+            echo "Current tag is not an ancestor of main branch"
+            exit 1
+          fi
+          echo "✅ Tag verified: Created from main branch"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint code
+        run: npm run lint
+
+      - name: Compile TypeScript
+        run: npm run compile
+
+      - name: Package extension
+        run: npm run package
+
+      - name: Get version from tag
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            VERSION=$(node -p "require('./package.json').version")
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Publishing version: $VERSION"
+
+      - name: Publish to VS Code Marketplace
+        if: |
+          (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+          (github.event_name == 'workflow_dispatch' && inputs.publish_vscode)
+        run: npx @vscode/vsce publish -p ${{ secrets.VSCE_PAT }}
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Publish to Open VSX
+        if: |
+          (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+          (github.event_name == 'workflow_dispatch' && inputs.publish_openvsx)
+        run: npx ovsx publish -p ${{ secrets.OVSX_PAT }}
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: debugssy-${{ steps.get_version.outputs.VERSION }}.vsix
+          path: '*.vsix'
+          retention-days: 30
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: '*.vsix'
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          body: |
+            ## 📦 Installation
+            
+            Download the `.vsix` file below and install it in VS Code:
+            
+            ```bash
+            code --install-extension debugssy-${{ steps.get_version.outputs.VERSION }}.vsix
+            ```
+            
+            Or use VS Code UI: Extensions → ... → Install from VSIX
+            
+            ## 🔗 Marketplace Links
+            
+            - [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy)
+            - [Open VSX Registry](https://open-vsx.org/extension/gamag/debugssy)
+            
+            ---
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+
+
+
+
+

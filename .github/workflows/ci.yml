@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main      # Production/release branch
+      - develop   # Development branch
+      - 'feature/**'  # Feature branches
+      - 'fix/**'      # Bug fix branches
+  pull_request:
+    branches:
+      - main      # PRs to main (for releases)
+      - develop   # PRs to develop (for development)
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [18, 20]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint code
+        run: npm run lint
+
+      - name: Compile TypeScript
+        run: npm run compile
+
+      - name: Check for TypeScript errors
+        run: npx tsc --noEmit
+
+      - name: Package extension
+        run: npm run package
+
+      - name: Upload build artifacts (Ubuntu only)
+        if: matrix.os == 'ubuntu-latest' && matrix.node-version == 20
+        uses: actions/upload-artifact@v4
+        with:
+          name: debugssy-build
+          path: |
+            out/
+            *.vsix
+          retention-days: 7
+
+  security-audit:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Run npm audit
+        run: npm audit --production --audit-level=moderate
+
+      - name: Check for outdated dependencies
+        run: npm outdated || true
+
+  code-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting (if prettier is configured)
+        run: |
+          if [ -f ".prettierrc" ] || [ -f "prettier.config.js" ]; then
+            npx prettier --check "src/**/*.ts"
+          else
+            echo "Prettier not configured, skipping..."
+          fi
+        continue-on-error: true
+
+      - name: Count lines of code
+        run: |
+          echo "📊 Code Statistics:"
+          echo "Total TypeScript files:"
+          find src -name "*.ts" | wc -l
+          echo "Total lines of code:"
+          find src -name "*.ts" -exec wc -l {} + | tail -1
+
+
+
+
+
+
+

@@ -1,12 +1,59 @@
+# Build artifacts
 .vscode/**
 .vscode-test/**
 src/**
-.gitignore
-.yarnrc
-vsc-extension-quickstart.md
-**/tsconfig.json
-**/.eslintrc.json
-**/*.map
-**/*.ts
-node_modules/**
+out/test/**
+.idea/**
 
+# Git and GitHub
+.git
+.gitignore
+.github/**
+
+# Documentation (keep only essential)
+DOCUMENTATION_CLEANUP_SUMMARY.md
+CLEANUP_SUMMARY.txt
+.allowlist-summary.md
+
+# Node modules
+node_modules
+**/.eslintrc.json
+**/.eslintrc.js
+
+# TypeScript
+tsconfig.json
+**/*.ts
+**/*.map
+
+# Misc development files
+.editorconfig
+.prettierrc
+.prettierignore
+
+# Test files
+**/test/**
+**/*.test.ts
+**/*.spec.ts
+
+# Build scripts
+*.sh
+*.bat
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
