@@ -10,12 +10,12 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/debugssy.git"
+    "url": "https://github.com/gmaynez/debugssy.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/debugssy/issues"
+    "url": "https://github.com/gmaynez/debugssy/issues"
   },
-  "homepage": "https://github.com/yourusername/debugssy#readme",
+  "homepage": "https://github.com/gmaynez/debugssy#readme",
   "keywords": [
     "debugging",
     "ai",
