@@ -37,13 +37,10 @@ jobs:
       - name: Lint code
         run: npm run lint
 
-      - name: Compile TypeScript
-        run: npm run compile
+      - name: Type check
+        run: npm run check-types
 
-      - name: Check for TypeScript errors
-        run: npx tsc --noEmit
-
-      - name: Package extension
+      - name: Build and package extension (esbuild)
         run: npm run package
 
       - name: Upload build artifacts (Ubuntu only)
@@ -52,7 +49,7 @@ jobs:
         with:
           name: debugssy-build
           path: |
-            out/
+            out/extension.js
             *.vsix
           retention-days: 7
 

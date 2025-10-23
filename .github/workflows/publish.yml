@@ -53,10 +53,7 @@ jobs:
       - name: Lint code
         run: npm run lint
 
-      - name: Compile TypeScript
-        run: npm run compile
-
-      - name: Package extension
+      - name: Build and package extension (esbuild)
         run: npm run package
 
       - name: Get version from tag

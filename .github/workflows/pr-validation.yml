@@ -54,10 +54,7 @@ jobs:
       - name: Lint code
         run: npm run lint
 
-      - name: Build extension
-        run: npm run compile
-
-      - name: Package extension (dry run)
+      - name: Build and package extension (esbuild)
         run: npm run package
 
       - name: Check file sizes
