@@ -66,6 +66,11 @@
           "minimum": 1000,
           "maximum": 300000,
           "description": "Default timeout in milliseconds for wait_for_breakpoint tool (1s to 5min, default: 10s). Can be overridden per-call."
+        },
+        "debugssy.allowStepOperations": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable step operations (step_over, step_into, step_out) in full automation mode. Note: For AI debugging, setting strategic breakpoints and using 'continue' is generally more efficient."
         }
       }
     },

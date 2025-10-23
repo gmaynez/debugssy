@@ -246,31 +246,7 @@ export class ToolRouter {
             // Execution control tools (not exposed in assisted mode - user controls via VS Code UI)
             {
                 name: 'continue',
-                description: 'Continue execution in the current debug session',
-                inputSchema: {
-                    type: 'object',
-                    properties: {}
-                }
-            },
-            {
-                name: 'step_over',
-                description: 'Step over the current line',
-                inputSchema: {
-                    type: 'object',
-                    properties: {}
-                }
-            },
-            {
-                name: 'step_into',
-                description: 'Step into the current function',
-                inputSchema: {
-                    type: 'object',
-                    properties: {}
-                }
-            },
-            {
-                name: 'step_out',
-                description: 'Step out of the current function',
+                description: 'Continue execution until the next breakpoint. This is the recommended way to navigate between inspection points.',
                 inputSchema: {
                     type: 'object',
                     properties: {}
@@ -293,6 +269,40 @@ export class ToolRouter {
                 }
             }
         ];
+        
+        // Step operations (opt-in via allowStepOperations setting)
+        const stepOperations = [
+            {
+                name: 'step_over',
+                description: 'Step over the current line. NOTE: For efficient AI debugging, prefer setting strategic breakpoints and using "continue". Use this only for fine-grained exploration of complex runtime behavior.',
+                inputSchema: {
+                    type: 'object',
+                    properties: {}
+                }
+            },
+            {
+                name: 'step_into',
+                description: 'Step into the current function. NOTE: For efficient AI debugging, prefer setting strategic breakpoints and using "continue". Use this only for fine-grained exploration of complex runtime behavior.',
+                inputSchema: {
+                    type: 'object',
+                    properties: {}
+                }
+            },
+            {
+                name: 'step_out',
+                description: 'Step out of the current function. NOTE: For efficient AI debugging, prefer setting strategic breakpoints and using "continue". Use this only for fine-grained exploration of complex runtime behavior.',
+                inputSchema: {
+                    type: 'object',
+                    properties: {}
+                }
+            }
+        ];
+        
+        // Conditionally add step operations if enabled
+        const allowStepOperations = this.configManager.getConfig().allowStepOperations;
+        if (allowStepOperations) {
+            fullAutomationTools.push(...stepOperations);
+        }
         
         // Return tools based on automation level
         return automationLevel === 'full' 

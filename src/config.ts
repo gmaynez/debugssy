@@ -5,6 +5,7 @@ export interface DebugConfiguration {
     port: number;
     automationLevel: 'assisted' | 'full';
     waitForBreakpointTimeout: number;
+    allowStepOperations: boolean;
 }
 
 export class ConfigManager {
@@ -26,7 +27,8 @@ export class ConfigManager {
             enabled: config.get<boolean>('mcp.enabled', true),
             port: config.get<number>('mcp.port', 3000),
             automationLevel: config.get<'assisted' | 'full'>('automationLevel', 'assisted'),
-            waitForBreakpointTimeout: config.get<number>('waitForBreakpointTimeout', 10000)
+            waitForBreakpointTimeout: config.get<number>('waitForBreakpointTimeout', 10000),
+            allowStepOperations: config.get<boolean>('allowStepOperations', false)
         };
     }
 

@@ -293,6 +293,19 @@ export class MCPServer {
         // Note: ToolRouter already reads automation level dynamically from configManager
         // on each getToolSchemas() call, so no need to update it explicitly.
         
+        await this.notifyToolListChanged(`automation level ${oldLevel} → ${newLevel}`);
+    }
+
+    async handleStepOperationsChange(enabled: boolean): Promise<void> {
+        console.log(`Step operations ${enabled ? 'enabled' : 'disabled'}`);
+        
+        // Note: ToolRouter already reads allowStepOperations dynamically from configManager
+        // on each getToolSchemas() call, so no need to update it explicitly.
+        
+        await this.notifyToolListChanged(`step operations ${enabled ? 'enabled' : 'disabled'}`);
+    }
+
+    private async notifyToolListChanged(reason: string): Promise<void> {
         // Notify connected clients about the tools/list_changed
         // Per MCP Dynamic Servers pattern: notify clients when capabilities change
         // so they can refresh their tool list without reconnecting
@@ -301,7 +314,7 @@ export class MCPServer {
                 method: 'notifications/tools/list_changed',
                 params: {}
             });
-            console.log(`Notified clients: tools changed due to automation level ${oldLevel} → ${newLevel}`);
+            console.log(`Notified clients: tools changed due to ${reason}`);
         } catch (error: any) {
             // Notification may fail if no clients are connected - this is fine
             console.log(`Could not notify clients (likely none connected): ${error.message}`);

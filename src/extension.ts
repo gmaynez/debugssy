@@ -95,10 +95,16 @@ export async function activate(context: vscode.ExtensionContext) {
                     `Debugssy: MCP server restarted on port ${newConfig.port}`
                 );
             } else if (mcpServer && newConfig.automationLevel !== previousConfig.automationLevel) {
-                // Automation level changed - restart server with single consolidated notification
+                // Automation level changed - notify clients of tool list change
                 await mcpServer.handleAutomationLevelChange(newConfig.automationLevel);
                 vscode.window.showInformationMessage(
                     `Debugssy: Mode set to '${newConfig.automationLevel}'`
+                );
+            } else if (mcpServer && newConfig.allowStepOperations !== previousConfig.allowStepOperations) {
+                // Step operations setting changed - notify clients of tool list change
+                await mcpServer.handleStepOperationsChange(newConfig.allowStepOperations);
+                vscode.window.showInformationMessage(
+                    `Debugssy: Step operations ${newConfig.allowStepOperations ? 'enabled' : 'disabled'}`
                 );
             }
             previousConfig = newConfig;
