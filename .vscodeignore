@@ -5,27 +5,50 @@ src/**
 out/test/**
 .idea/**
 
+# Exclude all out files except the bundled extension.js
+out/**
+!out/extension.js
+
 # Git and GitHub
 .git
 .gitignore
 .github/**
 
-# Documentation (keep only essential)
-DOCUMENTATION_CLEANUP_SUMMARY.md
+# Documentation (keep only essential: README.md and LICENSE.txt)
+ALLOWLIST_GUIDE.md
+BUILD_GUIDE.md
+CI_CD_SETUP_SUMMARY.md
 CLEANUP_SUMMARY.txt
+COMPACT_PROMPT.txt
+COMPLETIONS_FEATURE.md
+DEBUGSSY_PROMPT.md
+DOCUMENTATION_CLEANUP_SUMMARY.md
+DYNAMIC_SERVER_IMPROVEMENT.md
+GITHUB_RELEASE_GUIDE.md
+MCP_COMPLIANCE.md
+PUBLISHING.md
+RELEASE_SETUP_SUMMARY.md
 .allowlist-summary.md
 
-# Node modules - production dependencies must be included
-# node_modules (commented out - needed for runtime dependencies)
+# Node modules - excluded since we bundle with esbuild
+node_modules
 **/.eslintrc.json
 **/.eslintrc.js
 
 # TypeScript
 tsconfig.json
 **/*.ts
+**/*.d.ts
 **/*.map
 
+# Build scripts
+esbuild.js
+
+# Example/test files
+example/**
+
 # Misc development files
+eslint.config.mjs
 .editorconfig
 .prettierrc
 .prettierignore
