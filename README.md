@@ -1,12 +1,6 @@
-<div align="center">
-  <img src="./assets/debugssy_logo.png" alt="Debugssy Logo" width="300" height="300">
-</div>
-
 # Debugssy
 
-**AI-powered debugging for VS Code.** Control your debugger with natural language through any AI coding assistant (Claude, Cursor, Copilot, etc.) using the Model Context Protocol (MCP).
-
-> **🚀 For AI Assistants**: Copy [COMPACT_PROMPT.txt](./COMPACT_PROMPT.txt) into your chat to understand Debugssy instantly!
+**AI-powered debugging for VS Code.** Control your debugger with natural language through any AI coding assistant (Cursor, Copilot, etc.) using the Model Context Protocol (MCP).
 
 ---
 
@@ -19,22 +13,13 @@ Debugssy is a VS Code extension that lets you **debug with AI assistance**. Inst
 - Step through code and explain what's happening
 - Trace how values change during execution
 
-**Example conversation with AI:**
-```
-You: "The calculation seems wrong in line 42"
-AI: Let me set a breakpoint there and inspect the variables...
-    [Sets breakpoint, asks you to run debugger]
-AI: I can see x=10 and y=20, but result is undefined. 
-    The issue is you're not returning the value!
-```
-
 ---
 
 ## Quick Start (3 Steps)
 
 ### 1. Install the Extension
 
-**Option A: From VS Code Marketplace** (when published)
+**Option A: From VS Code Marketplace**
 ```
 Search "Debugssy" in VS Code Extensions
 ```
@@ -85,37 +70,14 @@ Add Debugssy's MCP server to your AI assistant settings:
 
 ---
 
-## Automation Modes
+## Modes
 
-Debugssy offers two modes to balance AI power with your control:
+- Assisted (default): You control start/step/continue in VS Code; AI inspects and manages breakpoints.
+- Full: AI may start sessions and control execution.
 
-### 🔵 Assisted Mode (Default, Recommended)
-
-**Best for:** Learning, understanding code, maintaining control
-
-The AI helps you debug, but **you stay in control**:
-- ✅ AI sets breakpoints and inspects variables
-- ✅ AI analyzes and explains what it finds
-- 🔵 **You** start debugging (F5 in VS Code)
-- 🔵 **You** control execution (Click Continue, Step Over, etc. in VS Code UI)
-
-**Why?** You see every step, understand the process, and maintain full situational awareness.
-
-### 🚀 Full Automation Mode
-
-**Best for:** Rapid iteration, experienced users, "vibe coding"
-
-The AI does everything automatically:
-- ✅ Everything from assisted mode
-- ✅ AI starts debugging sessions
-- ✅ AI controls execution (continue, step, pause)
-- ✅ AI waits for breakpoints automatically
-
-**Enable in VS Code settings:**
+Switch in settings:
 ```json
-{
-  "debugssy.automationLevel": "full"
-}
+{ "debugssy.automationLevel": "assisted" | "full" }
 ```
 
 ---
@@ -162,56 +124,14 @@ Add these safe, read-only tools that won't modify your code:
 
 ---
 
-## Example Workflow
-
-### Assisted Mode (Default)
-
-```
-1. You tell AI: "This function returns wrong values"
-
-2. AI: "Let me set a breakpoint and inspect..."
-   → Sets breakpoint at function entry
-
-3. You: Press F5 to start debugging in VS Code
-
-4. You: Click "Continue" in VS Code debugger UI
-
-5. AI: "Execution paused. I can see x=10, y=undefined"
-   → Inspects variables and finds the issue
-
-6. AI: "The problem is y is never assigned. You need to..."
-
-7. You: Click "Stop" in VS Code when done
-```
-
-### Full Automation Mode
-
-```
-1. You tell AI: "Debug this function automatically"
-
-2. AI: "Starting automated debugging session..."
-   → Automatically sets breakpoints
-   → Starts debugging
-   → Continues execution
-   → Inspects variables at breakpoint
-   → Steps through code
-   → Analyzes and explains the issue
-   → Stops debugging
-
-3. AI: "Found it! The issue is on line 42 where..."
-```
-
----
+ 
 
 ## Security & Privacy
 
 Debugssy is designed with security as a priority:
 
 - 🔒 **Localhost Only** - Server binds exclusively to `127.0.0.1` (no network access)
-- 🛡️ **Origin Validation** - Protects against DNS rebinding attacks
-- 🔐 **Secure Sessions** - Cryptographically secure session IDs
-- 🚫 **No Remote Access** - Cannot be accessed from other machines
-- ✅ **MCP Compliant** - Follows [MCP 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) security best practices
+- ✅ Follows [MCP 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) security best practices
 
 > **📋 For security details:** See [MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md)
 
@@ -553,6 +473,4 @@ Licensed under the Apache License, Version 2.0. See the [LICENSE](./LICENSE) fil
 
 ---
 
-<div align="center">
-  <p><strong>Happy debugging with AI! 🐛🤖</strong></p>
-</div>
+
