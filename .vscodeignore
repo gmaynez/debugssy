@@ -15,8 +15,8 @@ DOCUMENTATION_CLEANUP_SUMMARY.md
 CLEANUP_SUMMARY.txt
 .allowlist-summary.md
 
-# Node modules
-node_modules
+# Node modules - production dependencies must be included
+# node_modules (commented out - needed for runtime dependencies)
 **/.eslintrc.json
 **/.eslintrc.js
 
