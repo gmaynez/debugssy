@@ -9,7 +9,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { CallToolRequestSchema, ListToolsRequestSchema, ListPromptsRequestSchema, GetPromptRequestSchema, CompleteRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { ToolRegistry } from './tools';
 import { ConfigManager } from './config';
-import { MCP_SERVER_READY_DELAY_MS, CURRENT_MCP_PROTOCOL_VERSION } from './constants';
+import { MCP_SERVER_READY_DELAY_MS, CURRENT_MCP_PROTOCOL_VERSION, EXTENSION_VERSION } from './constants';
 import { SecurityValidator } from './security/SecurityValidator';
 import { ToolRouter } from './routing/ToolRouter';
 import { PromptHandler } from './routing/PromptHandler';
@@ -64,7 +64,7 @@ export class MCPServer {
         this.mcpServer = new Server(
             {
                 name: 'debugssy',
-                version: '1.1.1'
+                version: EXTENSION_VERSION
             },
             {
                 capabilities: {
@@ -223,7 +223,7 @@ export class MCPServer {
             res.json({
                 status: 'ok',
                 server: 'debugssy-mcp',
-                version: '0.1.0',
+                version: EXTENSION_VERSION,
                 transportInitialized: !!this.transport,
                 transport: 'streamable-http',
                 protocolVersion: CURRENT_MCP_PROTOCOL_VERSION,

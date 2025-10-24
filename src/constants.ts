@@ -5,6 +5,12 @@
  */
 
 /**
+ * Extension version - should match package.json
+ * This is used for server identification and health checks.
+ */
+export const EXTENSION_VERSION = '1.1.1';
+
+/**
  * Default thread ID to use when thread information is not available.
  * Most single-threaded applications use thread ID 1.
  */

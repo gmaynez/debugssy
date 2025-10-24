@@ -85,12 +85,17 @@ export async function activate(context: vscode.ExtensionContext) {
     let previousConfig = config;
     context.subscriptions.push(
         configManager.onConfigChange(async (newConfig) => {
-            const mcpServer = extensionContext!.getMCPServer();
+            if (!extensionContext) {
+                console.error('Extension context is not initialized');
+                return;
+            }
+
+            const mcpServer = extensionContext.getMCPServer();
             
             if (newConfig.enabled && !mcpServer) {
-                await extensionContext!.startMCPServer(newConfig.port);
+                await extensionContext.startMCPServer(newConfig.port);
             } else if (!newConfig.enabled && mcpServer) {
-                await extensionContext!.stopMCPServer();
+                await extensionContext.stopMCPServer();
             } else if (mcpServer && newConfig.port !== previousConfig.port) {
                 await mcpServer.updatePort(newConfig.port);
                 vscode.window.showInformationMessage(
@@ -140,22 +145,32 @@ export async function activate(context: vscode.ExtensionContext) {
     // Register commands for manual control
     context.subscriptions.push(
         vscode.commands.registerCommand('debugssy.startServer', async () => {
-            const mcpServer = extensionContext!.getMCPServer();
+            if (!extensionContext) {
+                vscode.window.showErrorMessage('Extension context is not initialized');
+                return;
+            }
+
+            const mcpServer = extensionContext.getMCPServer();
             const config = configManager.getConfig();
             
             if (mcpServer) {
                 vscode.window.showInformationMessage('MCP Server is already running');
             } else {
-                await extensionContext!.startMCPServer(config.port);
+                await extensionContext.startMCPServer(config.port);
             }
         })
     );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('debugssy.stopServer', async () => {
-            const mcpServer = extensionContext!.getMCPServer();
+            if (!extensionContext) {
+                vscode.window.showErrorMessage('Extension context is not initialized');
+                return;
+            }
+
+            const mcpServer = extensionContext.getMCPServer();
             if (mcpServer) {
-                await extensionContext!.stopMCPServer();
+                await extensionContext.stopMCPServer();
             } else {
                 vscode.window.showInformationMessage('MCP Server is not running');
             }
@@ -164,7 +179,14 @@ export async function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('debugssy.restartServer', async () => {
-            const mcpServer = extensionContext!.getMCPServer();
+            if (!extensionContext) {
+                vscode.window.showErrorMessage('Extension context is not initialized');
+                return;
+            }
+
+            // Capture in local variable for use in async callback
+            const extContext = extensionContext;
+            const mcpServer = extContext.getMCPServer();
             const config = configManager.getConfig();
             
             // Show status message during restart
@@ -179,11 +201,11 @@ export async function activate(context: vscode.ExtensionContext) {
                         progress.report({ increment: 30, message: 'Stopping server...' });
                         
                         if (mcpServer) {
-                            await extensionContext!.stopMCPServer();
+                            await extContext.stopMCPServer();
                         }
                         
                         progress.report({ increment: 30, message: 'Starting server...' });
-                        await extensionContext!.startMCPServer(config.port);
+                        await extContext.startMCPServer(config.port);
                         
                         progress.report({ increment: 40, message: 'Done!' });
                         

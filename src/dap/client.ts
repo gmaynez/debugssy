@@ -53,8 +53,6 @@ export interface ConsoleOutput {
 export class DAPClient {
     private currentFrameId: number | undefined;
     private stackFrames: StackFrame[] = [];
-    private variableCache: Map<number, Variable[]> = new Map();
-    private scopeCache: Map<number, Scope[]> = new Map();
     private executionState: ExecutionState = 'not_started';
     private stoppedInfo: StoppedInfo | undefined;
     private consoleOutputBuffer: ConsoleOutput[] = [];
@@ -95,18 +93,9 @@ export class DAPClient {
                         }
                     }
                     break;
-                case 'scopes':
-                    if (message.success && message.body?.scopes) {
-                        const frameId = message.request_seq; // Approximation, might need better tracking
-                        this.scopeCache.set(frameId, message.body.scopes);
-                    }
-                    break;
-                case 'variables':
-                    if (message.success && message.body?.variables) {
-                        const variablesReference = message.request_seq; // Approximation
-                        this.variableCache.set(variablesReference, message.body.variables);
-                    }
-                    break;
+                // Note: We don't cache scopes or variables because request_seq doesn't map
+                // to the actual frameId/variablesReference. Instead, we fetch them on-demand
+                // via getScopes() and getVariables() methods.
             }
         } else if (message.type === 'event') {
             switch (message.event) {
@@ -274,8 +263,6 @@ export class DAPClient {
     reset(): void {
         this.currentFrameId = undefined;
         this.stackFrames = [];
-        this.variableCache.clear();
-        this.scopeCache.clear();
         this.executionState = 'not_started';
         this.stoppedInfo = undefined;
         this.consoleOutputBuffer = [];
