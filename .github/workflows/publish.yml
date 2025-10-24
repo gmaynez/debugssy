@@ -20,6 +20,13 @@ on:
         type: boolean
         default: true
 
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -89,15 +96,18 @@ jobs:
           name: debugssy-${{ steps.get_version.outputs.VERSION }}.vsix
           path: '*.vsix'
           retention-days: 30
+          if-no-files-found: error
 
       - name: Create GitHub Release
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: '*.vsix'
           generate_release_notes: true
           draft: false
           prerelease: false
+          tag_name: ${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           body: |
             ## 📦 Installation
             

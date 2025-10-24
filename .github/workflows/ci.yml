@@ -40,7 +40,11 @@ jobs:
       - name: Type check
         run: npm run check-types
 
-      - name: Build and package extension (esbuild)
+      - name: Build (esbuild)
+        run: npm run compile
+
+      - name: Package extension (Node 20 only)
+        if: matrix.node-version == 20
         run: npm run package
 
       - name: Upload build artifacts (Ubuntu only)

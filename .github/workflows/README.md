@@ -20,6 +20,7 @@ Quick reference for Debugssy's CI/CD workflows.
 **Required secrets:**
 - `VSCE_PAT` - VS Code Marketplace token
 - `OVSX_PAT` - Open VSX token
+  (GitHub token permissions are requested via `permissions: contents: write` in the workflow.)
 
 **Setup guide:** See [PUBLISHING.md](../../PUBLISHING.md)
 
@@ -157,6 +158,9 @@ npm version major   # 1.0.0 → 2.0.0 (breaking changes)
 
 **"Version already exists"**  
 → Bump version with `npm version patch/minor/major`
+
+**"GitHub release failed with status: 403"**  
+→ Ensure the workflow includes `permissions: contents: write` and uses `softprops/action-gh-release@v2`.
 
 For more troubleshooting, see [PUBLISHING.md](../../PUBLISHING.md)
 
