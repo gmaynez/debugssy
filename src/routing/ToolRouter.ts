@@ -164,7 +164,7 @@ export class ToolRouter {
                     properties: {
                         scope: {
                             type: 'string',
-                            description: 'Optional scope name to filter (e.g., "Local", "Global"). Recommended to specify to reduce verbosity.'
+                            description: 'Optional scope prefix to filter (e.g., "Local" matches "Local: functionName", "Global" matches "Global"). Case-insensitive. Recommended to reduce verbosity.'
                         },
                         frameId: {
                             type: 'number',

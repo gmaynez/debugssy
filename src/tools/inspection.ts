@@ -162,7 +162,8 @@ export class InspectionTools {
 
             // Get variables for each scope
             for (const scope of scopes) {
-                if (args.scope && scope.name !== args.scope) {
+                // Filter by scope if specified - use startsWith to match "Local: functionName" with "Local"
+                if (args.scope && !scope.name.toLowerCase().startsWith(args.scope.toLowerCase())) {
                     continue;
                 }
 

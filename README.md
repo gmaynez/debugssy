@@ -361,10 +361,12 @@ const result = await client.callTool({
 ### `get_variables`
 ```json
 {
-  "scope": "Local",                    // Optional: "Local", "Global", etc.
+  "scope": "Local",                    // Optional: scope prefix (case-insensitive)
   "frameId": 0                         // Optional: defaults to current frame
 }
 ```
+
+**Note:** Scope filtering uses prefix matching. "Local" matches scopes like "Local: functionName", making it easy to filter local variables without knowing the exact function name.
 
 ### `evaluate_expression`
 ```json
@@ -448,7 +450,7 @@ To minimize context usage when working with AI assistants:
 - **`get_debug_state`** - Lightweight, always check this first
 - **`get_call_stack`** - Defaults to 20 frames (configurable). Use `get_debug_state` if you only need current location
 - **`get_console_output`** - Defaults to 50 most recent entries (configurable up to 1000). Use category filter to reduce output
-- **`get_variables`** - Can be verbose. Specify scope (e.g., "Local") to reduce output
+- **`get_variables`** - Can be verbose. Specify scope prefix (e.g., "Local" to match "Local: functionName") to reduce output
 - **`evaluate_expression`** - Keep expressions simple to avoid large object returns
 
 Tools that return truncated data include `truncated: true` and `totalFrames`/`count` in their response.
