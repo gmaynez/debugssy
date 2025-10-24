@@ -56,6 +56,71 @@ class ExtensionContext {
         }
     }
 
+    /**
+     * Handles changes to the enabled state of the MCP server.
+     */
+    private async handleServerEnabledChange(newConfig: any, _previousConfig: any): Promise<void> {
+        const mcpServer = this.getMCPServer();
+        
+        if (newConfig.enabled && !mcpServer) {
+            await this.startMCPServer(newConfig.port);
+        } else if (!newConfig.enabled && mcpServer) {
+            await this.stopMCPServer();
+        }
+    }
+
+    /**
+     * Handles changes to the MCP server port.
+     */
+    private async handlePortChange(newConfig: any, previousConfig: any): Promise<void> {
+        const mcpServer = this.getMCPServer();
+        
+        if (mcpServer && newConfig.port !== previousConfig.port) {
+            await mcpServer.updatePort(newConfig.port);
+            vscode.window.showInformationMessage(
+                `Debugssy: MCP server restarted on port ${newConfig.port}`
+            );
+        }
+    }
+
+    /**
+     * Handles changes to the automation level.
+     */
+    private async handleAutomationLevelChange(newConfig: any, previousConfig: any): Promise<void> {
+        const mcpServer = this.getMCPServer();
+        
+        if (mcpServer && newConfig.automationLevel !== previousConfig.automationLevel) {
+            await mcpServer.handleAutomationLevelChange(newConfig.automationLevel);
+            vscode.window.showInformationMessage(
+                `Debugssy: Mode set to '${newConfig.automationLevel}'`
+            );
+        }
+    }
+
+    /**
+     * Handles changes to the step operations setting.
+     */
+    private async handleStepOperationsChange(newConfig: any, previousConfig: any): Promise<void> {
+        const mcpServer = this.getMCPServer();
+        
+        if (mcpServer && newConfig.allowStepOperations !== previousConfig.allowStepOperations) {
+            await mcpServer.handleStepOperationsChange(newConfig.allowStepOperations);
+            vscode.window.showInformationMessage(
+                `Debugssy: Step operations ${newConfig.allowStepOperations ? 'enabled' : 'disabled'}`
+            );
+        }
+    }
+
+    /**
+     * Main configuration change handler that delegates to specific handlers.
+     */
+    async handleConfigChange(newConfig: any, previousConfig: any): Promise<void> {
+        await this.handleServerEnabledChange(newConfig, previousConfig);
+        await this.handlePortChange(newConfig, previousConfig);
+        await this.handleAutomationLevelChange(newConfig, previousConfig);
+        await this.handleStepOperationsChange(newConfig, previousConfig);
+    }
+
     async dispose(): Promise<void> {
         if (this.mcpServer) {
             await this.mcpServer.stop();
@@ -90,30 +155,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 return;
             }
 
-            const mcpServer = extensionContext.getMCPServer();
-            
-            if (newConfig.enabled && !mcpServer) {
-                await extensionContext.startMCPServer(newConfig.port);
-            } else if (!newConfig.enabled && mcpServer) {
-                await extensionContext.stopMCPServer();
-            } else if (mcpServer && newConfig.port !== previousConfig.port) {
-                await mcpServer.updatePort(newConfig.port);
-                vscode.window.showInformationMessage(
-                    `Debugssy: MCP server restarted on port ${newConfig.port}`
-                );
-            } else if (mcpServer && newConfig.automationLevel !== previousConfig.automationLevel) {
-                // Automation level changed - notify clients of tool list change
-                await mcpServer.handleAutomationLevelChange(newConfig.automationLevel);
-                vscode.window.showInformationMessage(
-                    `Debugssy: Mode set to '${newConfig.automationLevel}'`
-                );
-            } else if (mcpServer && newConfig.allowStepOperations !== previousConfig.allowStepOperations) {
-                // Step operations setting changed - notify clients of tool list change
-                await mcpServer.handleStepOperationsChange(newConfig.allowStepOperations);
-                vscode.window.showInformationMessage(
-                    `Debugssy: Step operations ${newConfig.allowStepOperations ? 'enabled' : 'disabled'}`
-                );
-            }
+            await extensionContext.handleConfigChange(newConfig, previousConfig);
             previousConfig = newConfig;
         })
     );
