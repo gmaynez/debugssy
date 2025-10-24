@@ -62,7 +62,7 @@ export class MCPServer {
         this.mcpServer = new Server(
             {
                 name: 'debugssy',
-                version: '0.1.0'
+                version: '1.1.0'
             },
             {
                 capabilities: {
