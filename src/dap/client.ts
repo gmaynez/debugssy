@@ -36,6 +36,18 @@ export interface StoppedInfo {
     hitBreakpointIds?: number[];
 }
 
+export interface ConsoleOutput {
+    category: 'console' | 'stdout' | 'stderr' | 'telemetry' | string;
+    output: string;
+    timestamp: number;
+    variablesReference?: number;
+    source?: {
+        path?: string;
+        name?: string;
+    };
+    line?: number;
+}
+
 export class DAPClient {
     private currentFrameId: number | undefined;
     private stackFrames: StackFrame[] = [];
@@ -43,6 +55,8 @@ export class DAPClient {
     private scopeCache: Map<number, Scope[]> = new Map();
     private executionState: ExecutionState = 'not_started';
     private stoppedInfo: StoppedInfo | undefined;
+    private consoleOutputBuffer: ConsoleOutput[] = [];
+    private readonly MAX_CONSOLE_BUFFER_SIZE = 1000; // Keep last 1000 entries
     private stateChangeEmitter = new vscode.EventEmitter<ExecutionState>();
     public readonly onStateChange = this.stateChangeEmitter.event;
 
@@ -115,6 +129,18 @@ export class DAPClient {
                     this.executionState = 'terminated';
                     this.stoppedInfo = undefined;
                     this.stateChangeEmitter.fire('terminated');
+                    break;
+                case 'output':
+                    if (message.body?.output) {
+                        this.captureConsoleOutput({
+                            category: message.body.category || 'console',
+                            output: message.body.output,
+                            timestamp: Date.now(),
+                            variablesReference: message.body.variablesReference,
+                            source: message.body.source,
+                            line: message.body.line
+                        });
+                    }
                     break;
             }
         }
@@ -198,6 +224,51 @@ export class DAPClient {
         return this.executionState === 'paused' && this.stoppedInfo !== undefined;
     }
 
+    private captureConsoleOutput(output: ConsoleOutput): void {
+        this.consoleOutputBuffer.push(output);
+        
+        // Keep buffer size limited
+        if (this.consoleOutputBuffer.length > this.MAX_CONSOLE_BUFFER_SIZE) {
+            this.consoleOutputBuffer.shift(); // Remove oldest entry
+        }
+    }
+
+    getConsoleOutput(options?: { 
+        category?: string; 
+        limit?: number; 
+        since?: number;
+        clear?: boolean;
+    }): ConsoleOutput[] {
+        let output = [...this.consoleOutputBuffer];
+        
+        // Filter by category if specified
+        if (options?.category) {
+            output = output.filter(o => o.category === options.category);
+        }
+        
+        // Filter by timestamp if specified
+        if (options?.since !== undefined) {
+            const sinceTimestamp = options.since;
+            output = output.filter(o => o.timestamp >= sinceTimestamp);
+        }
+        
+        // Limit results if specified
+        if (options?.limit && options.limit > 0) {
+            output = output.slice(-options.limit); // Get last N entries
+        }
+        
+        // Clear buffer if requested
+        if (options?.clear) {
+            this.consoleOutputBuffer = [];
+        }
+        
+        return output;
+    }
+
+    clearConsoleOutput(): void {
+        this.consoleOutputBuffer = [];
+    }
+
     reset(): void {
         this.currentFrameId = undefined;
         this.stackFrames = [];
@@ -205,6 +276,7 @@ export class DAPClient {
         this.scopeCache.clear();
         this.executionState = 'not_started';
         this.stoppedInfo = undefined;
+        this.consoleOutputBuffer = [];
     }
 
     dispose(): void {

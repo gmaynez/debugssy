@@ -34,6 +34,13 @@ interface WaitForBreakpointArgs {
     timeout?: number;
 }
 
+interface GetConsoleOutputArgs {
+    category?: string;
+    limit?: number;
+    since?: number;
+    clear?: boolean;
+}
+
 /**
  * Handles tool registration and routing for the MCP server.
  * Provides tool schemas and executes tool calls.
@@ -199,6 +206,40 @@ export class ToolRouter {
             {
                 name: 'get_debug_state',
                 description: 'Get current debug session state including execution state (running/paused), current location if paused, and reason for stopping',
+                inputSchema: {
+                    type: 'object',
+                    properties: {}
+                }
+            },
+            {
+                name: 'get_console_output',
+                description: 'Get output from the debug console including stdout, stderr, and console.log messages. Returns recent console output captured during the debug session.',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        category: {
+                            type: 'string',
+                            description: 'Filter by output category: "console", "stdout", "stderr", "telemetry". If not specified, returns all categories.',
+                            enum: ['console', 'stdout', 'stderr', 'telemetry']
+                        },
+                        limit: {
+                            type: 'number',
+                            description: 'Maximum number of recent entries to return. If not specified, returns all available entries (up to 1000 most recent).'
+                        },
+                        since: {
+                            type: 'number',
+                            description: 'Unix timestamp (ms) to filter entries since this time. Only returns entries newer than this timestamp.'
+                        },
+                        clear: {
+                            type: 'boolean',
+                            description: 'If true, clears the console output buffer after reading. Default: false.'
+                        }
+                    }
+                }
+            },
+            {
+                name: 'clear_console_output',
+                description: 'Clear the debug console output buffer',
                 inputSchema: {
                     type: 'object',
                     properties: {}
@@ -374,6 +415,12 @@ export class ToolRouter {
                     automationLevel
                 });
             }
+            case 'get_console_output':
+                return await this.toolRegistry.inspection.getConsoleOutput(
+                    args as unknown as GetConsoleOutputArgs
+                );
+            case 'clear_console_output':
+                return await this.toolRegistry.inspection.clearConsoleOutput();
 
             default:
                 throw new Error(`Unknown tool: ${toolName}`);

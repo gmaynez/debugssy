@@ -288,5 +288,57 @@ export class InspectionTools {
             };
         }
     }
+
+    async getConsoleOutput(args?: { 
+        category?: string; 
+        limit?: number; 
+        since?: number;
+        clear?: boolean;
+    }): Promise<InspectionResult> {
+        try {
+            const output = this.dapClient.getConsoleOutput({
+                category: args?.category,
+                limit: args?.limit,
+                since: args?.since,
+                clear: args?.clear
+            });
+
+            return {
+                success: true,
+                data: {
+                    entries: output.map(entry => ({
+                        category: entry.category,
+                        output: entry.output,
+                        timestamp: entry.timestamp,
+                        source: entry.source?.path || entry.source?.name,
+                        line: entry.line
+                    })),
+                    count: output.length
+                }
+            };
+        } catch (error: any) {
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    async clearConsoleOutput(): Promise<InspectionResult> {
+        try {
+            this.dapClient.clearConsoleOutput();
+            return {
+                success: true,
+                data: {
+                    message: 'Console output buffer cleared'
+                }
+            };
+        } catch (error: any) {
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
 }
 

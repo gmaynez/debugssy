@@ -113,6 +113,7 @@ Add these safe, read-only tools that won't modify your code:
         "debugssy:get_variables",
         "debugssy:get_call_stack",
         "debugssy:get_threads",
+        "debugssy:get_console_output",
         "debugssy:list_breakpoints"
       ]
     }
@@ -147,6 +148,8 @@ The AI assistant has access to these debugging tools:
 - `get_call_stack` - See the call stack
 - `evaluate_expression` - Evaluate expressions
 - `get_threads` - List all threads
+- `get_console_output` - Read debug console output (stdout, stderr, console.log)
+- `clear_console_output` - Clear the console output buffer
 
 ### 🔴 Breakpoint Tools (Always Available)
 - `set_breakpoint` - Set breakpoints (with conditions, hit counts, log messages)
@@ -352,6 +355,16 @@ const result = await client.callTool({
 ```json
 {
   "timeout": 5000                      // Optional: ms (default: 3000)
+}
+```
+
+### `get_console_output`
+```json
+{
+  "category": "stdout",                // Optional: "console", "stdout", "stderr", "telemetry"
+  "limit": 50,                         // Optional: max number of recent entries
+  "since": 1704067200000,              // Optional: Unix timestamp (ms) for filtering
+  "clear": false                       // Optional: clear buffer after reading
 }
 ```
 
