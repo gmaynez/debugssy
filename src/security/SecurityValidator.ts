@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 import { Request, Response, NextFunction } from 'express';
 import { SUPPORTED_MCP_PROTOCOL_VERSIONS } from '../constants';
 

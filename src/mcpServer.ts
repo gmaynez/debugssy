@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 import * as vscode from 'vscode';
 import express from 'express';
 import { Server as HTTPServer } from 'http';

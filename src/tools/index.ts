@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 import { DebugControlTools } from './debugControl';
 import { BreakpointTools } from './breakpoints';
 import { InspectionTools } from './inspection';

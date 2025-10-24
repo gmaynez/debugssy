@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * Application-wide constants to avoid magic numbers and improve maintainability.
  */
