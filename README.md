@@ -358,15 +358,26 @@ const result = await client.callTool({
 }
 ```
 
+### `get_call_stack`
+```json
+{
+  "maxDepth": 10                       // Optional: max stack frames (default: 20)
+}
+```
+
+**Note:** Returns `truncated: true` if call stack was limited.
+
 ### `get_console_output`
 ```json
 {
   "category": "stdout",                // Optional: "console", "stdout", "stderr", "telemetry"
-  "limit": 50,                         // Optional: max number of recent entries
+  "limit": 50,                         // Optional: max entries (default: 50, max: 1000)
   "since": 1704067200000,              // Optional: Unix timestamp (ms) for filtering
   "clear": false                       // Optional: clear buffer after reading
 }
 ```
+
+**Note:** Returns `truncated: true` if more entries are available.
 
 </details>
 
@@ -396,12 +407,25 @@ Similarly, changing `debugssy.mcp.port` restarts the server on the new port.
 
 ---
 
+## Performance & Context Usage
+
+To minimize context usage when working with AI assistants:
+
+- **`get_debug_state`** - Lightweight, always check this first
+- **`get_call_stack`** - Defaults to 20 frames (configurable). Use `get_debug_state` if you only need current location
+- **`get_console_output`** - Defaults to 50 most recent entries (configurable up to 1000). Use category filter to reduce output
+- **`get_variables`** - Can be verbose. Specify scope (e.g., "Local") to reduce output
+- **`evaluate_expression`** - Keep expressions simple to avoid large object returns
+
+Tools that return truncated data include `truncated: true` and `totalFrames`/`count` in their response.
+
 ## Known Limitations
 
 - Watch expressions not directly accessible (use `evaluate_expression` instead)
 - Assumes thread ID 1 for some operations (simplified for single-threaded debugging)
 - In assisted mode, AI cannot detect when you manually click continue/step (use `get_debug_state` to check)
 - `wait_for_breakpoint` requires debug session to be running (call after `continue` in full mode)
+- Variable values are converted to strings by the debugger; complex nested objects may be abbreviated
 
 ---
 

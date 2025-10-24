@@ -14,13 +14,14 @@ This prevents the AI from attempting to call tools that would be blocked by your
 
 ## TL;DR - Safe Tools to Allowlist
 
-These **5 read-only tools** are safe to allowlist in **both modes**:
+These **6 read-only tools** are safe to allowlist in **both modes**:
 
 1. `debugssy:get_debug_state` - Query debug session state
 2. `debugssy:get_variables` - Read variable values  
 3. `debugssy:get_call_stack` - Read call stack
 4. `debugssy:get_threads` - List threads
-5. `debugssy:list_breakpoints` - List breakpoints
+5. `debugssy:get_console_output` - Read debug console output (stdout, stderr, logs)
+6. `debugssy:list_breakpoints` - List breakpoints
 
 **Full automation mode only:**
 - `debugssy:wait_for_breakpoint` - Wait for execution to pause (only visible in full mode)
@@ -41,6 +42,7 @@ Add to your `claude_desktop_config.json`:
         "debugssy:get_debug_state",
         "debugssy:get_variables",
         "debugssy:get_call_stack",
+        "debugssy:get_console_output",
         "debugssy:list_breakpoints"
       ]
     }
@@ -61,6 +63,7 @@ Add to your `claude_desktop_config.json`:
         "debugssy:get_variables",
         "debugssy:get_call_stack",
         "debugssy:get_threads",
+        "debugssy:get_console_output",
         "debugssy:list_breakpoints",
         "debugssy:continue",
         "debugssy:step_over",
@@ -85,6 +88,7 @@ Add to your `claude_desktop_config.json`:
         "debugssy:get_variables",
         "debugssy:get_call_stack",
         "debugssy:get_threads",
+        "debugssy:get_console_output",
         "debugssy:list_breakpoints",
         "debugssy:wait_for_breakpoint",
         "debugssy:start_debugging",
@@ -110,6 +114,7 @@ These tools NEVER modify state:
 - `debugssy:get_variables`
 - `debugssy:get_call_stack`
 - `debugssy:get_threads`
+- `debugssy:get_console_output`
 - `debugssy:list_breakpoints`
 
 ### 🔵 Full Automation Only
@@ -144,7 +149,7 @@ This tool can execute arbitrary code:
 
 ## Why These Tools Are Safe
 
-The 5 recommended read-only tools are safe because they:
+The 6 recommended read-only tools are safe because they:
 
 1. **Cannot modify your code** - They only read existing state
 2. **Cannot change execution flow** - They don't start/stop/step through code

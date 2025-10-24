@@ -41,6 +41,10 @@ interface GetConsoleOutputArgs {
     clear?: boolean;
 }
 
+interface GetCallStackArgs {
+    maxDepth?: number;
+}
+
 /**
  * Handles tool registration and routing for the MCP server.
  * Provides tool schemas and executes tool calls.
@@ -154,13 +158,13 @@ export class ToolRouter {
             // Inspection Tools
             {
                 name: 'get_variables',
-                description: 'Get variables from the current stack frame',
+                description: 'Get variables from the current stack frame. WARNING: Can be verbose with many variables. Consider filtering by scope (e.g., "Local") to reduce output.',
                 inputSchema: {
                     type: 'object',
                     properties: {
                         scope: {
                             type: 'string',
-                            description: 'Optional scope name to filter (e.g., "Local", "Global")'
+                            description: 'Optional scope name to filter (e.g., "Local", "Global"). Recommended to specify to reduce verbosity.'
                         },
                         frameId: {
                             type: 'number',
@@ -171,21 +175,26 @@ export class ToolRouter {
             },
             {
                 name: 'get_call_stack',
-                description: 'Get the current call stack',
+                description: 'Get the current call stack. WARNING: Can be very verbose with deep call stacks. Only call when you need to understand the execution path. Consider using get_debug_state first for just the current location.',
                 inputSchema: {
                     type: 'object',
-                    properties: {}
+                    properties: {
+                        maxDepth: {
+                            type: 'number',
+                            description: 'Maximum number of stack frames to return (default: 20). Use smaller values to reduce verbosity.'
+                        }
+                    }
                 }
             },
             {
                 name: 'evaluate_expression',
-                description: 'Evaluate an expression in the current debug context',
+                description: 'Evaluate an expression in the current debug context. Use simple expressions (e.g., "x", "obj.prop") rather than complex ones that return large objects. For large objects, use get_variables with scope filter instead.',
                 inputSchema: {
                     type: 'object',
                     properties: {
                         expression: {
                             type: 'string',
-                            description: 'Expression to evaluate'
+                            description: 'Expression to evaluate (keep it simple to avoid verbose output)'
                         },
                         frameId: {
                             type: 'number',
@@ -205,7 +214,7 @@ export class ToolRouter {
             },
             {
                 name: 'get_debug_state',
-                description: 'Get current debug session state including execution state (running/paused), current location if paused, and reason for stopping',
+                description: 'Get current debug session state including execution state (running/paused), current location if paused, and reason for stopping. Lightweight - always check this first before calling more verbose tools like get_call_stack.',
                 inputSchema: {
                     type: 'object',
                     properties: {}
@@ -213,18 +222,18 @@ export class ToolRouter {
             },
             {
                 name: 'get_console_output',
-                description: 'Get output from the debug console including stdout, stderr, and console.log messages. Returns recent console output captured during the debug session.',
+                description: 'Get output from the debug console including stdout, stderr, and console.log messages. WARNING: Can be extremely verbose. Always specify a limit (default: 50 most recent entries). Use category filter to reduce output.',
                 inputSchema: {
                     type: 'object',
                     properties: {
                         category: {
                             type: 'string',
-                            description: 'Filter by output category: "console", "stdout", "stderr", "telemetry". If not specified, returns all categories.',
+                            description: 'Filter by output category: "console", "stdout", "stderr", "telemetry". Recommended to reduce verbosity.',
                             enum: ['console', 'stdout', 'stderr', 'telemetry']
                         },
                         limit: {
                             type: 'number',
-                            description: 'Maximum number of recent entries to return. If not specified, returns all available entries (up to 1000 most recent).'
+                            description: 'Maximum number of recent entries to return (default: 50, max: 1000). Start with smaller values.'
                         },
                         since: {
                             type: 'number',
@@ -398,7 +407,9 @@ export class ToolRouter {
                     args as unknown as GetVariablesArgs
                 );
             case 'get_call_stack':
-                return await this.toolRegistry.inspection.getCallStack();
+                return await this.toolRegistry.inspection.getCallStack(
+                    args as unknown as GetCallStackArgs
+                );
             case 'evaluate_expression':
                 return await this.toolRegistry.inspection.evaluateExpression(
                     args as unknown as EvaluateExpressionArgs

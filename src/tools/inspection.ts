@@ -189,7 +189,7 @@ export class InspectionTools {
         }
     }
 
-    async getCallStack(): Promise<InspectionResult> {
+    async getCallStack(args?: { maxDepth?: number }): Promise<InspectionResult> {
         try {
             const session = vscode.debug.activeDebugSession;
             if (!session) {
@@ -200,17 +200,23 @@ export class InspectionTools {
             }
 
             const stackFrames = await this.dapClient.getStackTrace(session);
+            
+            // Default to 20 frames to reduce verbosity
+            const maxDepth = args?.maxDepth ?? 20;
+            const limitedFrames = stackFrames.slice(0, maxDepth);
 
             return {
                 success: true,
                 data: {
-                    frames: stackFrames.map((frame) => ({
+                    frames: limitedFrames.map((frame) => ({
                         id: frame.id,
                         name: frame.name,
                         source: frame.source?.path || frame.source?.name || 'unknown',
                         line: frame.line,
                         column: frame.column
-                    }))
+                    })),
+                    totalFrames: stackFrames.length,
+                    truncated: stackFrames.length > maxDepth
                 }
             };
         } catch (error: any) {
@@ -296,9 +302,12 @@ export class InspectionTools {
         clear?: boolean;
     }): Promise<InspectionResult> {
         try {
+            // Default to 50 entries to reduce verbosity
+            const limit = args?.limit ?? 50;
+            
             const output = this.dapClient.getConsoleOutput({
                 category: args?.category,
-                limit: args?.limit,
+                limit: limit,
                 since: args?.since,
                 clear: args?.clear
             });
@@ -313,7 +322,8 @@ export class InspectionTools {
                         source: entry.source?.path || entry.source?.name,
                         line: entry.line
                     })),
-                    count: output.length
+                    count: output.length,
+                    truncated: limit < 1000 // Indicate if there might be more
                 }
             };
         } catch (error: any) {
