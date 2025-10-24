@@ -95,6 +95,13 @@ export class InspectionTools {
                 };
             }
 
+            // CRITICAL: Check if already paused to avoid race condition
+            // If we're already paused, return immediately with current state
+            const currentState = this.dapClient.getExecutionState();
+            if (currentState === 'paused') {
+                return await this.getDebugState();
+            }
+
             // Use provided timeout, fallback to config, then default
             const defaultTimeout = this.configManager?.getConfig().waitForBreakpointTimeout || DEFAULT_BREAKPOINT_TIMEOUT_MS;
             const timeout = args.timeout || defaultTimeout;
