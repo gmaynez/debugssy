@@ -1,6 +1,15 @@
 # Debugssy
 
+[![VS Code Marketplace Version](https://vsmarketplacebadges.dev/version-short/gamag.debugssy.svg)](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy)
+[![Open VSX Version](https://img.shields.io/open-vsx/v/gamag/debugssy?label=Open%20VSX)](https://open-vsx.org/extension/gamag/debugssy)
+
 **AI-powered debugging for VS Code.** Control your debugger with natural language through any AI coding assistant (Cursor, Copilot, etc.) using the Model Context Protocol (MCP).
+
+TL;DR: Install the extension, connect your AI via MCP, and debug—no extra setup needed in assisted mode. Recommended model: **Claude 4.5 Haiku** — fast, smart, and low-cost.
+
+Install now: [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy) · [Open VSX](https://open-vsx.org/extension/gamag/debugssy)
+
+Jump to: [Quick Start](#quick-start-3-steps) · [Configuration](#configuration) · [Tools](#tools) · [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -19,12 +28,25 @@ Debugssy is a VS Code extension that lets you **debug with AI assistance**. Inst
 
 ### 1. Install the Extension
 
-**Option A: From VS Code Marketplace**
-```
-Search "Debugssy" in VS Code Extensions
+**Option A: From Extension Marketplace**
+
+- [**→ Install from VS Code Marketplace**](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy)
+- [**→ Install from Open VSX**](https://open-vsx.org/extension/gamag/debugssy) (for VSCodium, Gitpod, etc.)
+
+Or search "Debugssy" in VS Code Extensions (`Ctrl+Shift+X`)
+
+**Option B: Manual Installation (VSIX)**
+
+1. Download the latest `.vsix` file from [GitHub Releases](https://github.com/gmaynez/debugssy/releases)
+2. Open VS Code
+3. Drag and drop the `.vsix` file into the VS Code window
+
+Or install via command line:
+```bash
+code --install-extension debugssy-1.1.0.vsix
 ```
 
-**Option B: Development Mode**
+**Option C: Development Mode**
 ```bash
 git clone <repository>
 cd debugssy
@@ -36,7 +58,42 @@ npm install
 
 Add Debugssy's MCP server to your AI assistant settings:
 
-**For Cursor / Claude Desktop:**
+> Recommended model: **Claude 4.5 Haiku** — fast, smart, and low-cost for interactive debugging.
+
+**For Cursor:**
+
+[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en-US/install-mcp?name=debugssy&config=eyJ0eXBlIjoiaHR0cCIsInVybCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMC9tY3AifQ%3D%3D)
+
+*Click the button above for automatic installation, or manually add to `~/.cursor/mcp.json`:*
+
+```json
+{
+  "mcpServers": {
+    "debugssy": {
+      "url": "http://localhost:3000/mcp"
+    }
+  }
+}
+```
+
+**For GitHub Copilot:**
+
+Add to your VS Code `settings.json` (File → Preferences → Settings → Edit in settings.json):
+
+```json
+{
+  "github.copilot.chat.mcp.servers": {
+    "debugssy": {
+      "url": "http://localhost:3000/mcp"
+    }
+  }
+}
+```
+
+**For Claude Desktop:**
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (Mac) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
 ```json
 {
   "mcpServers": {
@@ -54,6 +111,8 @@ Add Debugssy's MCP server to your AI assistant settings:
 1. Open your code in VS Code
 2. Tell your AI assistant about the bug
 3. The AI will guide you through debugging!
+
+Tip: Use built-in MCP prompts for guided workflows: `debug-crash`, `trace-variable`, `inspect-function`, `debug-loop`, `auto-debug-session`. In Cursor and Copilot Chat, type `/` in the chat to see available prompts. See [MCP Prompts](#mcp-prompts-debugging-workflows).
 
 **That's it!** The AI can now help you debug by setting breakpoints, inspecting variables, and understanding your code's behavior.
 
@@ -77,7 +136,10 @@ Add Debugssy's MCP server to your AI assistant settings:
 
 Switch in settings:
 ```json
-{ "debugssy.automationLevel": "assisted" | "full" }
+{ "debugssy.automationLevel": "assisted" }
+```
+```json
+{ "debugssy.automationLevel": "full" }
 ```
 
 ---
@@ -96,6 +158,8 @@ Access via `File → Preferences → Settings` (search "debugssy"):
   "debugssy.waitForBreakpointTimeout": 5000        // Timeout in ms
 }
 ```
+
+Note: VS Code `settings.json` supports comments.
 
 ### MCP Client Configuration
 
@@ -152,7 +216,7 @@ Debugssy exposes workspace configuration as MCP resources for context:
 
 ---
 
-## Available Tools
+## Tools
 
 The AI assistant has access to these debugging tools:
 
@@ -175,7 +239,7 @@ The AI assistant has access to these debugging tools:
 ### ▶️ Execution Control
 - `continue`, `step_over`, `step_into`, `step_out`, `pause`, `restart`, `stop_debugging`
   - **Assisted mode**: Not exposed (use VS Code UI)
-  - **Full mode**: AI controls these automatically
+  - **Full mode**: AI controls these automatically (may start/continue sessions)
 
 ### 🚀 Advanced (Full Mode Only)
 - `start_debugging` - Start debug session programmatically
@@ -204,6 +268,12 @@ curl -X POST http://localhost:3000/mcp \
 ## MCP Prompts (Debugging Workflows)
 
 Debugssy provides structured debugging workflows that AI assistants can use:
+
+How to access prompts:
+- Cursor: Open the chat and type `/` to view available prompts.
+- Copilot Chat (VS Code): Open the chat panel and type `/` to view available prompts.
+
+> Recommended model: **Claude 4.5 Haiku** — fast, smart, and low-cost for interactive debugging.
 
 - **`debug-crash`** - Debug crashes and exceptions
   - In full mode: Guides LLM to check launch.json resource before starting
@@ -256,7 +326,7 @@ Access these via Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`):
 ### "No active debug session" error
 **Solution:** Start debugging in VS Code (press F5) before asking AI to inspect variables
 
-### Server won't start / Port in use
+### Server won't start or port is in use
 **Solution:** Change port in settings or stop process using port 3000
 ```json
 { "debugssy.mcp.port": 3001 }
