@@ -93,7 +93,7 @@ Access via `File → Preferences → Settings` (search "debugssy"):
   "debugssy.mcp.enabled": true,                    // Enable the MCP server
   "debugssy.mcp.port": 3000,                       // Server port
   "debugssy.automationLevel": "assisted",          // or "full"
-  "debugssy.waitForBreakpointTimeout": 10000       // Timeout in ms
+  "debugssy.waitForBreakpointTimeout": 3000        // Timeout in ms
 }
 ```
 
@@ -351,7 +351,7 @@ const result = await client.callTool({
 ### `wait_for_breakpoint` (Full mode only)
 ```json
 {
-  "timeout": 5000                      // Optional: ms (default: 10000)
+  "timeout": 5000                      // Optional: ms (default: 3000)
 }
 ```
 

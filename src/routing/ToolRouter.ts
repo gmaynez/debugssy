@@ -232,13 +232,13 @@ export class ToolRouter {
             },
             {
                 name: 'wait_for_breakpoint',
-                description: 'Wait for execution to pause at a breakpoint. Blocks until next breakpoint is hit or timeout occurs. Requires full automation mode.',
+                description: 'Wait for execution to pause at a breakpoint. Blocks until next breakpoint is hit or timeout occurs. Requires full automation mode. After calling this, always use get_debug_state to verify the breakpoint was hit and inspect the current location.',
                 inputSchema: {
                     type: 'object',
                     properties: {
                         timeout: {
                             type: 'number',
-                            description: 'Timeout in milliseconds (optional). If not provided, uses debugssy.waitForBreakpointTimeout setting (default: 10000ms)'
+                            description: 'Timeout in milliseconds (optional). If not provided, uses debugssy.waitForBreakpointTimeout setting (default: 3000ms)'
                         }
                     }
                 }

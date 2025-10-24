@@ -62,10 +62,10 @@
         },
         "debugssy.waitForBreakpointTimeout": {
           "type": "number",
-          "default": 10000,
+          "default": 3000,
           "minimum": 1000,
           "maximum": 300000,
-          "description": "Default timeout in milliseconds for wait_for_breakpoint tool (1s to 5min, default: 10s). Can be overridden per-call."
+          "description": "Default timeout in milliseconds for wait_for_breakpoint tool (1s to 5min, default: 3s). Can be overridden per-call."
         },
         "debugssy.allowStepOperations": {
           "type": "boolean",
