@@ -3,12 +3,13 @@
 /**
  * Application-wide constants to avoid magic numbers and improve maintainability.
  */
+import packageJson from '../package.json';
 
 /**
- * Extension version - should match package.json
- * This is used for server identification and health checks.
+ * Extension version - sourced from package.json for single source of truth.
+ * Used for server identification and health checks.
  */
-export const EXTENSION_VERSION = '1.1.1';
+export const EXTENSION_VERSION = packageJson.version as string;
 
 /**
  * Default thread ID to use when thread information is not available.
