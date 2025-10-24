@@ -138,6 +138,20 @@ Debugssy is designed with security as a priority:
 
 ---
 
+## Available Resources
+
+Debugssy exposes workspace configuration as MCP resources for context:
+
+### 📄 Debug Configuration Resources
+- **`debugssy:///{workspaceName}/launch.json`** - Exposes debug configurations from `.vscode/launch.json`
+  - Lists available debug configuration names
+  - Used by `start_debugging` tool to know which configurations are available
+  - AI assistants can read this before starting a debug session
+
+**Example:** List resources to see available launch.json files, then read them to find configuration names.
+
+---
+
 ## Available Tools
 
 The AI assistant has access to these debugging tools:
@@ -167,6 +181,24 @@ The AI assistant has access to these debugging tools:
 ### 🚀 Advanced (Full Mode Only)
 - `start_debugging` - Start debug session programmatically
 - `wait_for_breakpoint` - Wait for execution to pause
+
+---
+
+## MCP Resources API
+
+### Listing Resources
+```bash
+curl -X POST http://localhost:3000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"resources/list"}'
+```
+
+### Reading a Resource
+```bash
+curl -X POST http://localhost:3000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"resources/read","params":{"uri":"debugssy:///myproject/launch.json"}}'
+```
 
 ---
 
@@ -350,6 +382,8 @@ const result = await client.callTool({
   "configuration": { /* custom */ }    // Optional: full config object
 }
 ```
+
+**Tip:** Use MCP resources to read `debugssy:///{workspaceName}/launch.json` first to find available configuration names.
 
 ### `wait_for_breakpoint` (Full mode only)
 ```json

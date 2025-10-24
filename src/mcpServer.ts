@@ -4,7 +4,7 @@ import { Server as HTTPServer } from 'http';
 import { randomUUID } from 'crypto';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { CallToolRequestSchema, ListToolsRequestSchema, ListPromptsRequestSchema, GetPromptRequestSchema, CompleteRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, ListToolsRequestSchema, ListPromptsRequestSchema, GetPromptRequestSchema, CompleteRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { ToolRegistry } from './tools';
 import { ConfigManager } from './config';
 import { MCP_SERVER_READY_DELAY_MS, CURRENT_MCP_PROTOCOL_VERSION } from './constants';
@@ -12,6 +12,7 @@ import { SecurityValidator } from './security/SecurityValidator';
 import { ToolRouter } from './routing/ToolRouter';
 import { PromptHandler } from './routing/PromptHandler';
 import { CompletionProvider } from './routing/CompletionProvider';
+import { ResourceProvider } from './routing/ResourceProvider';
 
 /**
  * Main MCP server class that orchestrates the debugging tools and prompts.
@@ -33,6 +34,7 @@ export class MCPServer {
     private toolRouter: ToolRouter;
     private promptHandler: PromptHandler;
     private completionProvider: CompletionProvider;
+    private resourceProvider: ResourceProvider;
 
     constructor(
         private port: number,
@@ -49,6 +51,7 @@ export class MCPServer {
         this.toolRouter = new ToolRouter(toolRegistry, configManager);
         this.promptHandler = new PromptHandler(configManager);
         this.completionProvider = new CompletionProvider();
+        this.resourceProvider = new ResourceProvider();
 
         this.initializeMCPServer();
         this.setupHTTPRoutes();
@@ -65,6 +68,7 @@ export class MCPServer {
                 capabilities: {
                     tools: {},
                     prompts: {},
+                    resources: {},
                     completion: {}
                 }
             }
@@ -72,6 +76,7 @@ export class MCPServer {
 
         this.setupToolHandlers();
         this.setupPromptHandlers();
+        this.setupResourceHandlers();
         this.setupCompletionHandler();
     }
 
@@ -125,6 +130,26 @@ export class MCPServer {
         this.mcpServer.setRequestHandler(GetPromptRequestSchema, async (request) => {
             const { name, arguments: args } = request.params;
             return this.promptHandler.generatePrompt(name, args);
+        });
+    }
+
+    private setupResourceHandlers(): void {
+        // List available resources - delegated to ResourceProvider
+        this.mcpServer.setRequestHandler(ListResourcesRequestSchema, async () => {
+            const resources = await this.resourceProvider.listResources();
+            return { resources };
+        });
+
+        // Handle resource reading - delegated to ResourceProvider
+        this.mcpServer.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+            const { uri } = request.params;
+
+            try {
+                const result = await this.resourceProvider.readResource(uri);
+                return result;
+            } catch (error: any) {
+                throw new Error(`Failed to read resource: ${error.message}`);
+            }
         });
     }
 
