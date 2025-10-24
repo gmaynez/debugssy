@@ -62,9 +62,9 @@ Add Debugssy's MCP server to your AI assistant settings:
 
 **For Cursor:**
 
-[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en-US/install-mcp?name=debugssy&config=eyJ0eXBlIjoiaHR0cCIsInVybCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMC9tY3AifQ%3D%3D)
+[**→ One-click install in Cursor**](https://cursor.com/en-US/install-mcp?name=debugssy&config=eyJ0eXBlIjoiaHR0cCIsInVybCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMC9tY3AifQ%3D%3D)
 
-*Click the button above for automatic installation, or manually add to `~/.cursor/mcp.json`:*
+Or manually add to `~/.cursor/mcp.json`:
 
 ```json
 {
