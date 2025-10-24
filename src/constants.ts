@@ -11,7 +11,7 @@ export const DEFAULT_THREAD_ID = 1;
 /**
  * Default timeout in milliseconds for waiting for a breakpoint to be hit.
  */
-export const DEFAULT_BREAKPOINT_TIMEOUT_MS = 3000;
+export const DEFAULT_BREAKPOINT_TIMEOUT_MS = 5000;
 
 /**
  * Delay in milliseconds to ensure the MCP transport is fully ready to accept connections

@@ -61,17 +61,8 @@ export class ToolRouter {
     getToolSchemas(): any[] {
         const automationLevel = this.configManager.getConfig().automationLevel;
         
-        // Tools available in all modes (inspection, breakpoints, and stop as safety feature)
+        // Tools available in all modes (inspection and breakpoints)
         const commonTools = [
-            // Stop debugging - available in all modes as a safety escape hatch
-            {
-                name: 'stop_debugging',
-                description: 'Stop the current debugging session',
-                inputSchema: {
-                    type: 'object',
-                    properties: {}
-                }
-            },
             // Breakpoint Tools
             {
                 name: 'set_breakpoint',
@@ -288,7 +279,7 @@ export class ToolRouter {
                     properties: {
                         timeout: {
                             type: 'number',
-                            description: 'Timeout in milliseconds (optional). If not provided, uses debugssy.waitForBreakpointTimeout setting (default: 3000ms)'
+                            description: 'Timeout in milliseconds (optional). If not provided, uses debugssy.waitForBreakpointTimeout setting (default: 5000ms)'
                         }
                     }
                 }
@@ -313,6 +304,14 @@ export class ToolRouter {
             {
                 name: 'restart',
                 description: 'Restart the current debug session',
+                inputSchema: {
+                    type: 'object',
+                    properties: {}
+                }
+            },
+            {
+                name: 'stop_debugging',
+                description: 'Stop the current debugging session',
                 inputSchema: {
                     type: 'object',
                     properties: {}

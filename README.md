@@ -93,7 +93,7 @@ Access via `File → Preferences → Settings` (search "debugssy"):
   "debugssy.mcp.enabled": true,                    // Enable the MCP server
   "debugssy.mcp.port": 3000,                       // Server port
   "debugssy.automationLevel": "assisted",          // or "full"
-  "debugssy.waitForBreakpointTimeout": 3000        // Timeout in ms
+  "debugssy.waitForBreakpointTimeout": 5000        // Timeout in ms
 }
 ```
 
@@ -173,8 +173,7 @@ The AI assistant has access to these debugging tools:
 - `remove_all_breakpoints` - Clear all breakpoints
 
 ### ▶️ Execution Control
-- `stop_debugging` - Stop session (always available)
-- `continue`, `step_over`, `step_into`, `step_out`, `pause`, `restart`
+- `continue`, `step_over`, `step_into`, `step_out`, `pause`, `restart`, `stop_debugging`
   - **Assisted mode**: Not exposed (use VS Code UI)
   - **Full mode**: AI controls these automatically
 
@@ -408,7 +407,7 @@ const result = await client.callTool({
 ### `wait_for_breakpoint` (Full mode only)
 ```json
 {
-  "timeout": 5000                      // Optional: ms (default: 3000)
+  "timeout": 10000                     // Optional: ms (default: 5000)
 }
 ```
 
