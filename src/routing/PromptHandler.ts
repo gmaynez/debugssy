@@ -152,13 +152,17 @@ export class PromptHandler {
         const errorMsg = args.errorMessage || 'unknown error';
         const filePath = args.filePath ? ` in ${args.filePath}` : '';
         
+        const debugStartHint = automationLevel === 'assisted' 
+            ? 'Ask me to start debugging and reproduce the error'
+            : 'Check MCP resources for launch.json, then use start_debugging with the appropriate configuration';
+        
         return {
             messages: [
                 {
                     role: 'user',
                     content: {
                         type: 'text',
-                        text: `I need help debugging a crash/exception${filePath}. Error: "${errorMsg}"\n\nPlease help me:\n1. Set a breakpoint where the error occurs\n2. ${automationLevel === 'assisted' ? 'Ask me to start debugging and reproduce the error' : 'Start debugging and wait for the error'}\n3. Inspect the call stack with get_call_stack\n4. Examine variables at the point of failure with get_variables\n5. Help me understand what's causing the error`
+                        text: `I need help debugging a crash/exception${filePath}. Error: "${errorMsg}"\n\nPlease help me:\n1. Set a breakpoint where the error occurs\n2. ${debugStartHint}\n3. Use get_call_stack (with maxDepth if deep) to see the execution path\n4. Examine variables at the point of failure with get_variables (scope: "Local" to reduce verbosity)\n5. Check console output with get_console_output if relevant\n6. Help me understand what's causing the error`
                     }
                 }
             ]
@@ -170,13 +174,17 @@ export class PromptHandler {
         const expected = args.expectedValue ? ` (expected: ${args.expectedValue})` : '';
         const actual = args.actualValue ? ` but is actually ${args.actualValue}` : '';
         
+        const executionHint = automationLevel === 'assisted' 
+            ? 'Guide me through stepping and inspecting'
+            : 'Step through execution automatically, checking launch.json resource for debug configuration if needed';
+        
         return {
             messages: [
                 {
                     role: 'user',
                     content: {
                         type: 'text',
-                        text: `I need to trace the variable "${varName}"${expected}${actual}.\n\nPlease help me:\n1. Set breakpoints at key points where this variable is assigned or modified\n2. ${automationLevel === 'assisted' ? 'Guide me through stepping and inspecting' : 'Step through execution automatically'}\n3. Use get_variables and evaluate_expression to track its value\n4. Identify where the value becomes incorrect\n5. Explain what's causing the wrong value`
+                        text: `I need to trace the variable "${varName}"${expected}${actual}.\n\nPlease help me:\n1. Set breakpoints at key points where this variable is assigned or modified\n2. ${executionHint}\n3. Use get_variables (scope: "Local") and evaluate_expression (simple expressions) to track its value\n4. Identify where the value becomes incorrect\n5. Explain what's causing the wrong value`
                     }
                 }
             ]
@@ -188,13 +196,17 @@ export class PromptHandler {
         const filePath = args.filePath || 'the file';
         const issue = args.issue ? `\nIssue: ${args.issue}` : '';
         
+        const debugStartHint = automationLevel === 'assisted' 
+            ? 'Ask me to trigger the function'
+            : 'Check MCP resources for launch.json, start debugging, and wait for the breakpoint';
+        
         return {
             messages: [
                 {
                     role: 'user',
                     content: {
                         type: 'text',
-                        text: `I need to inspect the function "${funcName}" in ${filePath}.${issue}\n\nPlease help me:\n1. Set a breakpoint at the function entry point\n2. ${automationLevel === 'assisted' ? 'Ask me to trigger the function' : 'Start debugging and wait for the breakpoint'}\n3. Use get_variables to inspect input parameters\n4. Step through the function with ${automationLevel === 'assisted' ? 'guidance on when to step' : 'step_over/step_into'}\n5. Evaluate expressions to verify intermediate calculations\n6. Inspect the return value\n7. Explain the function's behavior`
+                        text: `I need to inspect the function "${funcName}" in ${filePath}.${issue}\n\nPlease help me:\n1. Set a breakpoint at the function entry point\n2. ${debugStartHint}\n3. Use get_variables (scope: "Local") to inspect input parameters\n4. Step through the function with ${automationLevel === 'assisted' ? 'guidance on when to step' : 'step_over/step_into'}\n5. Evaluate expressions to verify intermediate calculations (keep them simple)\n6. Inspect the return value\n7. Explain the function's behavior`
                     }
                 }
             ]
@@ -205,13 +217,17 @@ export class PromptHandler {
         const location = args.loopLocation || 'the loop';
         const expected = args.expectedIterations ? ` It should run ${args.expectedIterations} times.` : '';
         
+        const debugStartHint = automationLevel === 'assisted' 
+            ? 'Ask me to start debugging'
+            : 'Check MCP resources for launch.json, then start debugging';
+        
         return {
             messages: [
                 {
                     role: 'user',
                     content: {
                         type: 'text',
-                        text: `I have a loop issue at ${location}.${expected}\n\nPlease help me:\n1. Set a conditional breakpoint inside the loop (e.g., condition: "i > 100" to catch excessive iterations)\n2. ${automationLevel === 'assisted' ? 'Ask me to start debugging' : 'Start debugging'}\n3. When the breakpoint hits, use get_variables to inspect loop variables\n4. Use evaluate_expression to check loop conditions\n5. Check the call stack with get_call_stack to see how we got here\n6. Explain why the loop isn't behaving as expected`
+                        text: `I have a loop issue at ${location}.${expected}\n\nPlease help me:\n1. Set a conditional breakpoint inside the loop (e.g., condition: "i > 100" to catch excessive iterations)\n2. ${debugStartHint}\n3. When the breakpoint hits, use get_variables (scope: "Local") to inspect loop variables\n4. Use evaluate_expression (keep it simple) to check loop conditions\n5. Check the call stack with get_call_stack (maxDepth: 10) to see how we got here\n6. Explain why the loop isn't behaving as expected`
                     }
                 }
             ]
@@ -228,7 +244,7 @@ export class PromptHandler {
                     role: 'user',
                     content: {
                         type: 'text',
-                        text: `I need help debugging: "${issue}"${entryPoint}\n\nPlease run a full automated debugging session:\n1. Set strategic breakpoints at likely problem areas\n2. Use start_debugging to launch the program\n3. Use wait_for_breakpoint to pause at each breakpoint\n4. At each stop, inspect variables and evaluate expressions\n5. Use continue to proceed to the next breakpoint\n6. Systematically narrow down the root cause\n7. Explain your findings and suggest a fix\n8. Call stop_debugging when done`
+                        text: `I need help debugging: "${issue}"${entryPoint}\n\nPlease run a full automated debugging session:\n1. FIRST: List MCP resources to find available launch.json files\n2. Read the launch.json resource (debugssy:///{workspaceName}/launch.json) to see available debug configurations\n3. Set strategic breakpoints at likely problem areas\n4. Use start_debugging with the appropriate configuration name from launch.json\n5. Use wait_for_breakpoint to pause at each breakpoint, then get_debug_state to verify location\n6. At each stop, inspect variables (use scope filter "Local" to reduce verbosity) and evaluate expressions\n7. Use continue to proceed to the next breakpoint\n8. Systematically narrow down the root cause\n9. Explain your findings and suggest a fix\n10. Call stop_debugging when done`
                     }
                 }
             ]

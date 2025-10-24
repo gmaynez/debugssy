@@ -207,12 +207,30 @@ curl -X POST http://localhost:3000/mcp \
 Debugssy provides structured debugging workflows that AI assistants can use:
 
 - **`debug-crash`** - Debug crashes and exceptions
+  - In full mode: Guides LLM to check launch.json resource before starting
+  - Hints to use scope filters and maxDepth for efficiency
+  
 - **`trace-variable`** - Track where a variable becomes incorrect
+  - Optimized with scope filtering and simple expressions
+  - Guides proper resource usage in full mode
+  
 - **`inspect-function`** - Examine function behavior
+  - Includes launch.json resource hints for full automation
+  - Recommends efficient variable inspection patterns
+  
 - **`debug-loop`** - Debug infinite loops or unexpected iterations
+  - Suggests conditional breakpoints and limited stack depth
+  - Resource-aware in full automation mode
+  
 - **`auto-debug-session`** - Full automated debugging (full mode only)
+  - **Enhanced:** Step-by-step guidance including:
+    1. List MCP resources to find launch.json
+    2. Read configuration before starting debug session
+    3. Use scope filters and limits for context efficiency
+    4. Verify breakpoint hits with get_debug_state
+    5. Systematic narrowing of root cause
 
-> **💡 For AI Assistants:** See [DEBUGSSY_PROMPT.md](./DEBUGSSY_PROMPT.md) for detailed guidance on using these workflows.
+> **💡 For AI Assistants:** All prompts now include best practices for context efficiency (scope filters, maxDepth, simple expressions) and guide proper use of MCP resources.
 
 ---
 
