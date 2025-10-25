@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Debugssy • One‑click install for VS Code</title>
+  <meta name="description" content="Redirects to VS Code to install the Debugssy MCP server with one click.">
+  <style>
+    * { box-sizing: border-box; }
+    :root {
+      color-scheme: light dark;
+      --bg: #ffffff;
+      --text: #1a1a1a;
+      --text-muted: #666666;
+      --border: #e0e0e0;
+      --code-bg: #f5f5f5;
+      --accent: #007acc;
+      --accent-hover: #005a9e;
+      --card-bg: #ffffff;
+      --shadow: rgba(0, 0, 0, 0.1);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1e1e1e;
+        --text: #e0e0e0;
+        --text-muted: #8a8a8a;
+        --border: #333333;
+        --code-bg: #2d2d2d;
+        --accent: #0098ff;
+        --accent-hover: #33aaff;
+        --card-bg: #252526;
+        --shadow: rgba(0, 0, 0, 0.3);
+      }
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      margin: 0;
+      padding: 2rem 1rem;
+      line-height: 1.6;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .container {
+      max-width: 600px;
+      width: 100%;
+    }
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 2.5rem;
+      box-shadow: 0 4px 20px var(--shadow);
+      border: 1px solid var(--border);
+    }
+    h1 {
+      margin: 0 0 0.5rem;
+      font-size: 2rem;
+      font-weight: 600;
+    }
+    .subtitle {
+      color: var(--text-muted);
+      margin: 0 0 2rem;
+      font-size: 1rem;
+    }
+    .status {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      border: 1px solid var(--border);
+      background: var(--code-bg);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .status-icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+    .status-text {
+      font-size: 0.95rem;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.875rem 1.75rem;
+      border-radius: 8px;
+      background: var(--accent);
+      color: white;
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 1rem;
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      box-shadow: 0 2px 8px rgba(0, 122, 204, 0.2);
+    }
+    .btn:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+    }
+    .btn:active {
+      transform: translateY(0);
+    }
+    .btn-icon {
+      font-size: 1.25rem;
+    }
+    #fallback {
+      display: none;
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border);
+    }
+    #fallback.show {
+      display: block;
+      animation: fadeIn 0.3s ease-in;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fallback-title {
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      font-size: 1rem;
+    }
+    .fallback-text {
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+    }
+    code {
+      display: block;
+      padding: 0.875rem;
+      border-radius: 6px;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      word-break: break-all;
+      font-size: 0.85rem;
+      font-family: 'SF Mono', Monaco, Consolas, 'Courier New', monospace;
+      overflow-x: auto;
+    }
+    .spinner {
+      display: inline-block;
+      width: 1.25rem;
+      height: 1.25rem;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Debugssy</h1>
+      <p class="subtitle">One-click MCP server setup for VS Code</p>
+
+      <div class="status" id="status">
+        <div class="spinner status-icon"></div>
+        <div class="status-text">Opening VS Code...</div>
+      </div>
+
+      <button class="btn" id="openButton">
+        <span class="btn-icon">⚡</span>
+        <span>Open VS Code</span>
+      </button>
+
+      <div id="fallback">
+        <div class="fallback-title">VS Code didn't open?</div>
+        <p class="fallback-text">
+          Your browser may have blocked the automatic redirect. Click the button above to try again, or copy this URL and paste it into your browser's address bar:
+        </p>
+        <code id="schemeText">vscode:mcp/install?%7B%22name%22%3A%22debugssy%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22http%3A%2F%2Flocalhost%3A3000%2Fmcp%22%7D</code>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const vscodeUrl = 'vscode:mcp/install?%7B%22name%22%3A%22debugssy%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22http%3A%2F%2Flocalhost%3A3000%2Fmcp%22%7D';
+      const openButton = document.getElementById('openButton');
+      const fallback = document.getElementById('fallback');
+      const status = document.getElementById('status');
+
+      function updateStatus(icon, text) {
+        status.innerHTML = `<div class="status-icon">${icon}</div><div class="status-text">${text}</div>`;
+      }
+
+      function tryOpen() {
+        updateStatus('<div class="spinner"></div>', 'Opening VS Code...');
+        window.location.href = vscodeUrl;
+        
+        // Show fallback after delay
+        setTimeout(() => {
+          updateStatus('⚠️', 'If VS Code didn\'t open, try the button below');
+          fallback.classList.add('show');
+        }, 2000);
+      }
+
+      openButton.addEventListener('click', function(e){
+        e.preventDefault();
+        tryOpen();
+      });
+
+      // Auto-attempt on load
+      window.addEventListener('load', function() {
+        setTimeout(tryOpen, 300);
+      });
+    })();
+  </script>
+</body>
+</html>
+

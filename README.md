@@ -62,7 +62,7 @@ Click one of the links below to automatically configure Debugssy:
 
 **For VS Code / GitHub Copilot:**
 
-[**→ One-click install in VS Code**](vscode:mcp/install?%7B%22name%22%3A%22debugssy%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22http%3A%2F%2Flocalhost%3A3000%2Fmcp%22%7D)
+[**→ One-click install in VS Code**](vscode:mcp/install?%7B%22name%22%3A%22debugssy%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22http%3A%2F%2Flocalhost%3A3000%2Fmcp%22%7D) · [**Open from browser**](https://gmaynez.github.io/debugssy/oneclick-vscode.html)
 
 Or manually add to your VS Code `settings.json` (File → Preferences → Settings → Edit in settings.json):
 
