@@ -1,10 +1,43 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { ConfigManager } from '../config';
+import { z } from 'zod';
 
-interface PromptArguments {
-    [key: string]: string | undefined;
-}
+const DebugCrashArgsSchema = z.object({
+    errorMessage: z.string().min(1, { error: 'errorMessage is required and must not be empty' }),
+    filePath: z.string().optional()
+});
+type DebugCrashArgs = z.infer<typeof DebugCrashArgsSchema>;
+
+const TraceVariableArgsSchema = z.object({
+    variableName: z.string().min(1, { error: 'variableName is required and must not be empty' }),
+    expectedValue: z.string().optional(),
+    actualValue: z.string().optional()
+});
+type TraceVariableArgs = z.infer<typeof TraceVariableArgsSchema>;
+
+const InspectFunctionArgsSchema = z.object({
+    functionName: z.string().min(1, { error: 'functionName is required and must not be empty' }),
+    filePath: z.string().min(1, { error: 'filePath is required and must not be empty' }),
+    issue: z.string().optional()
+});
+type InspectFunctionArgs = z.infer<typeof InspectFunctionArgsSchema>;
+
+const DebugLoopArgsSchema = z.object({
+    loopLocation: z.string().min(1, { error: 'loopLocation is required and must not be empty' }),
+    expectedIterations: z.number().int().positive({ 
+        error: 'expectedIterations must be a positive integer' 
+    }).optional()
+});
+type DebugLoopArgs = z.infer<typeof DebugLoopArgsSchema>;
+
+const AutoDebugSessionArgsSchema = z.object({
+    issue: z.string().min(1, { error: 'issue is required and must not be empty' }),
+    entryPoint: z.string().optional()
+});
+type AutoDebugSessionArgs = z.infer<typeof AutoDebugSessionArgsSchema>;
+
+type PromptArguments = Record<string, unknown>;
 
 /**
  * Handles prompt registration and generation for the MCP server.
@@ -122,36 +155,47 @@ export class PromptHandler {
 
     /**
      * Generates prompt content based on the prompt name and arguments.
+     * Validates arguments using Zod schemas per MCP security best practices.
      */
     generatePrompt(promptName: string, args: PromptArguments = {}): any {
         const automationLevel = this.configManager.getConfig().automationLevel;
 
         switch (promptName) {
-            case 'debug-crash':
-                return this.generateDebugCrashPrompt(args, automationLevel);
+            case 'debug-crash': {
+                const validated = DebugCrashArgsSchema.parse(args);
+                return this.generateDebugCrashPrompt(validated, automationLevel);
+            }
             
-            case 'trace-variable':
-                return this.generateTraceVariablePrompt(args, automationLevel);
+            case 'trace-variable': {
+                const validated = TraceVariableArgsSchema.parse(args);
+                return this.generateTraceVariablePrompt(validated, automationLevel);
+            }
             
-            case 'inspect-function':
-                return this.generateInspectFunctionPrompt(args, automationLevel);
+            case 'inspect-function': {
+                const validated = InspectFunctionArgsSchema.parse(args);
+                return this.generateInspectFunctionPrompt(validated, automationLevel);
+            }
             
-            case 'debug-loop':
-                return this.generateDebugLoopPrompt(args, automationLevel);
+            case 'debug-loop': {
+                const validated = DebugLoopArgsSchema.parse(args);
+                return this.generateDebugLoopPrompt(validated, automationLevel);
+            }
             
-            case 'auto-debug-session':
+            case 'auto-debug-session': {
                 if (automationLevel !== 'full') {
                     throw new Error('auto-debug-session prompt requires full automation mode');
                 }
-                return this.generateAutoDebugSessionPrompt(args);
+                const validated = AutoDebugSessionArgsSchema.parse(args);
+                return this.generateAutoDebugSessionPrompt(validated);
+            }
             
             default:
                 throw new Error(`Unknown prompt: ${promptName}`);
         }
     }
 
-    private generateDebugCrashPrompt(args: PromptArguments, automationLevel: string): any {
-        const errorMsg = args.errorMessage || 'unknown error';
+    private generateDebugCrashPrompt(args: DebugCrashArgs, automationLevel: string): any {
+        const errorMsg = args.errorMessage;
         const filePath = args.filePath ? ` in ${args.filePath}` : '';
         
         const debugStartHint = automationLevel === 'assisted' 
@@ -171,8 +215,8 @@ export class PromptHandler {
         };
     }
 
-    private generateTraceVariablePrompt(args: PromptArguments, automationLevel: string): any {
-        const varName = args.variableName || 'variable';
+    private generateTraceVariablePrompt(args: TraceVariableArgs, automationLevel: string): any {
+        const varName = args.variableName;
         const expected = args.expectedValue ? ` (expected: ${args.expectedValue})` : '';
         const actual = args.actualValue ? ` but is actually ${args.actualValue}` : '';
         
@@ -193,9 +237,9 @@ export class PromptHandler {
         };
     }
 
-    private generateInspectFunctionPrompt(args: PromptArguments, automationLevel: string): any {
-        const funcName = args.functionName || 'function';
-        const filePath = args.filePath || 'the file';
+    private generateInspectFunctionPrompt(args: InspectFunctionArgs, automationLevel: string): any {
+        const funcName = args.functionName;
+        const filePath = args.filePath;
         const issue = args.issue ? `\nIssue: ${args.issue}` : '';
         
         const debugStartHint = automationLevel === 'assisted' 
@@ -215,8 +259,8 @@ export class PromptHandler {
         };
     }
 
-    private generateDebugLoopPrompt(args: PromptArguments, automationLevel: string): any {
-        const location = args.loopLocation || 'the loop';
+    private generateDebugLoopPrompt(args: DebugLoopArgs, automationLevel: string): any {
+        const location = args.loopLocation;
         const expected = args.expectedIterations ? ` It should run ${args.expectedIterations} times.` : '';
         
         const debugStartHint = automationLevel === 'assisted' 
@@ -236,8 +280,8 @@ export class PromptHandler {
         };
     }
 
-    private generateAutoDebugSessionPrompt(args: PromptArguments): any {
-        const issue = args.issue || 'unknown issue';
+    private generateAutoDebugSessionPrompt(args: AutoDebugSessionArgs): any {
+        const issue = args.issue;
         const entryPoint = args.entryPoint ? ` starting from ${args.entryPoint}` : '';
         
         return {

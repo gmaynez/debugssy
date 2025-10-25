@@ -3,7 +3,7 @@
 import { ToolRegistry } from '../tools';
 import { ConfigManager } from '../config';
 import { breakpointSchemas, inspectionSchemas, debugControlSchemas, stepOperationSchemas } from './schemas';
-import type {
+import {
     SetBreakpointArgs,
     RemoveBreakpointArgs,
     ToggleBreakpointArgs,
@@ -12,7 +12,9 @@ import type {
     WaitForBreakpointArgs,
     GetConsoleOutputArgs,
     GetCallStackArgs,
-    StartDebuggingArgs
+    StartDebuggingArgs,
+    Validators,
+    ValidatorKey
 } from './types/toolArguments';
 
 /**
@@ -130,6 +132,7 @@ export class ToolRouter {
     /**
      * Routes a tool call to the appropriate handler and returns the result.
      * Uses Map-based lookup for O(1) performance and better maintainability.
+     * Validates arguments using Zod schemas per MCP security best practices.
      */
     async routeToolCall(toolName: string, args: any): Promise<any> {
         const handler = this.toolHandlers.get(toolName);
@@ -138,7 +141,25 @@ export class ToolRouter {
             throw new Error(`Unknown tool: ${toolName}`);
         }
         
-        return await handler(args || {});
+        // Validate input against Zod schema if available (type-safe lookup)
+        if (toolName in Validators) {
+            const validator = Validators[toolName as ValidatorKey];
+            const parsed = validator.safeParse(args || {});
+            
+            if (!parsed.success) {
+                // Format validation errors for MCP clients
+                const issues = parsed.error.issues.map(issue => {
+                    const path = issue.path.length > 0 ? ` at "${issue.path.join('.')}"` : '';
+                    return `${issue.message}${path}`;
+                }).join('; ');
+                
+                throw new Error(`Invalid arguments for tool '${toolName}': ${issues}`);
+            }
+            
+            args = parsed.data;
+        }
+        
+        return await handler(args);
     }
 }
 
