@@ -9,6 +9,8 @@ TL;DR: Install the extension, connect your AI via MCP, and debug—no extra setu
 
 Install now: [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy) · [Open VSX](https://open-vsx.org/extension/gamag/debugssy)
 
+Pro tip: Use built-in MCP prompts: `/debug-crash`, `/trace-variable`, `/inspect-function`, `/debug-loop`, and `/auto-debug-session` (full mode).
+
 Jump to: [Quick Start](#quick-start-3-steps) · [Configuration](#configuration) · [Tools](#tools) · [Troubleshooting](#troubleshooting)
 
 ---
@@ -43,7 +45,7 @@ Or search "Debugssy" in VS Code Extensions (`Ctrl+Shift+X`)
 
 Or install via command line:
 ```bash
-code --install-extension debugssy-1.1.0.vsix
+code --install-extension path/to/debugssy-<version>.vsix
 ```
 
 **Option C: Development Mode**
@@ -155,7 +157,8 @@ Access via `File → Preferences → Settings` (search "debugssy"):
   "debugssy.mcp.enabled": true,                    // Enable the MCP server
   "debugssy.mcp.port": 3000,                       // Server port
   "debugssy.automationLevel": "assisted",          // or "full"
-  "debugssy.waitForBreakpointTimeout": 5000        // Timeout in ms
+  "debugssy.waitForBreakpointTimeout": 5000,       // Timeout in ms
+  "debugssy.allowStepOperations": false            // Expose step_over/step_into/step_out in full mode
 }
 ```
 
@@ -195,8 +198,8 @@ Add these safe, read-only tools that won't modify your code:
 
 Debugssy is designed with security as a priority:
 
-- 🔒 **Localhost Only** - Server binds exclusively to `127.0.0.1` (no network access)
-- ✅ Follows [MCP 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) security best practices
+- 🔒 **Localhost Only** - Server binds to `localhost` (no network access)
+- ✅ Follows [MCP 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices) security best practices
 
 > **📋 For security details:** See [MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md)
 
@@ -240,6 +243,7 @@ The AI assistant has access to these debugging tools:
 - `continue`, `step_over`, `step_into`, `step_out`, `pause`, `restart`, `stop_debugging`
   - **Assisted mode**: Not exposed (use VS Code UI)
   - **Full mode**: AI controls these automatically (may start/continue sessions)
+  - Note: `step_over`/`step_into`/`step_out` are hidden by default; enable via `debugssy.allowStepOperations`.
 
 ### 🚀 Advanced (Full Mode Only)
 - `start_debugging` - Start debug session programmatically
@@ -525,6 +529,13 @@ When you change settings, the server automatically restarts:
 
 **Port Changes:**
 Similarly, changing `debugssy.mcp.port` restarts the server on the new port.
+
+**Step Operations Changes:**
+```
+1. Toggle debugssy.allowStepOperations in VS Code settings
+2. Server notifies connected MCP clients that tools changed (no restart required)
+3. Clients refresh their tool list automatically
+```
 
 </details>
 
