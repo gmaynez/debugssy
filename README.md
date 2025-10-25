@@ -5,13 +5,13 @@
 
 **AI-powered debugging for VS Code.** Control your debugger with natural language through any AI coding assistant (Cursor, Copilot, etc.) using the Model Context Protocol (MCP).
 
-TL;DR: Install the extension, connect your AI via MCP, and debug—no extra setup needed in assisted mode. Recommended model: **Claude 4.5 Haiku** — fast, smart, and low-cost.
+TL;DR: Install the extension, use one-click MCP setup for your AI, and debug—simple as that! Recommended models: **Claude 4.5 Haiku** or **Grok 4 Fast** — fast, smart, and low-cost.
 
 Install now: [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy) · [Open VSX](https://open-vsx.org/extension/gamag/debugssy)
 
-Pro tip: Use built-in MCP prompts: `/debug-crash`, `/trace-variable`, `/inspect-function`, `/debug-loop`, and `/auto-debug-session` (full mode).
+Tip: Use MCP prompts: `/debug-crash`, `/trace-variable`, `/inspect-function`, `/debug-loop`, `/auto-debug-session` (full mode).
 
-Jump to: [Quick Start](#quick-start-3-steps) · [Configuration](#configuration) · [Tools](#tools) · [Troubleshooting](#troubleshooting)
+Jump to: [Quick Start](#quick-start-3-steps) · [Configuration](#configuration) · [Tools](#tools) · [MCP Prompts](#mcp-prompts-debugging-workflows) · [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -56,11 +56,27 @@ npm install
 # Press F5 in VS Code
 ```
 
-### 2. Configure Your AI Assistant
+### 2. Connect Your AI Assistant (One-Click!)
 
-Add Debugssy's MCP server to your AI assistant settings:
+Click one of the links below to automatically configure Debugssy:
 
-> Recommended model: **Claude 4.5 Haiku** — fast, smart, and low-cost for interactive debugging.
+**For VS Code / GitHub Copilot:**
+
+[**→ One-click install in VS Code**](vscode:mcp/install?%7B%22name%22%3A%22debugssy%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22http%3A%2F%2Flocalhost%3A3000%2Fmcp%22%7D)
+
+Or manually add to your VS Code `settings.json` (File → Preferences → Settings → Edit in settings.json):
+
+```json
+{
+  "github.copilot.chat.mcp.servers": {
+    "debugssy": {
+      "url": "http://localhost:3000/mcp"
+    }
+  }
+}
+```
+
+> ⚠️ **Note for Copilot users:** GitHub Copilot may not automatically refresh available tools when switching between automation modes. If you change `debugssy.automationLevel` in settings, **restart VS Code** to ensure Copilot sees the updated tool list.
 
 **For Cursor:**
 
@@ -71,20 +87,6 @@ Or manually add to `~/.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "debugssy": {
-      "url": "http://localhost:3000/mcp"
-    }
-  }
-}
-```
-
-**For GitHub Copilot:**
-
-Add to your VS Code `settings.json` (File → Preferences → Settings → Edit in settings.json):
-
-```json
-{
-  "github.copilot.chat.mcp.servers": {
     "debugssy": {
       "url": "http://localhost:3000/mcp"
     }
@@ -108,6 +110,8 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (Mac) o
 
 **For other MCP-compatible assistants:** Connect to `http://localhost:3000/mcp`
 
+> 💡 **How it works:** The one-click links use special URLs that automatically add the MCP server configuration to your AI assistant. After clicking, your assistant will be able to use Debugssy's debugging tools immediately!
+
 ### 3. Start Debugging
 
 1. Open your code in VS Code
@@ -127,14 +131,15 @@ Tip: Use built-in MCP prompts for guided workflows: `debug-crash`, `trace-variab
 - 📚 **Call Stack Analysis** - AI shows how you got to the current point
 - 🎯 **Conditional Breakpoints** - Only stop when specific conditions are met
 - 🚦 **Two Automation Modes** - Choose between assisted (you control) or full automation
+- ⚡ **One-Click Setup** - Installation URLs for VS Code and Cursor (no manual config!)
 - 🔒 **Secure** - Localhost-only, origin validation, follows MCP security best practices
 
 ---
 
 ## Modes
 
-- Assisted (default): You control start/step/continue in VS Code; AI inspects and manages breakpoints.
-- Full: AI may start sessions and control execution.
+- **Assisted** (default): You control start/step/continue in VS Code; AI inspects and manages breakpoints.
+- **Full**: AI may start sessions and control execution.
 
 Switch in settings:
 ```json
@@ -143,6 +148,8 @@ Switch in settings:
 ```json
 { "debugssy.automationLevel": "full" }
 ```
+
+> ⚠️ **GitHub Copilot users:** After changing automation modes, restart VS Code for Copilot to refresh the available tool list. This is a limitation of how Copilot handles dynamic MCP servers.
 
 ---
 
@@ -277,7 +284,7 @@ How to access prompts:
 - Cursor: Open the chat and type `/` to view available prompts.
 - Copilot Chat (VS Code): Open the chat panel and type `/` to view available prompts.
 
-> Recommended model: **Claude 4.5 Haiku** — fast, smart, and low-cost for interactive debugging.
+> Recommended models: **Claude 4.5 Haiku** or **Grok 4 Fast** — fast, smart, and low-cost for interactive debugging.
 
 - **`debug-crash`** - Debug crashes and exceptions
   - In full mode: Guides LLM to check launch.json resource before starting
@@ -555,6 +562,7 @@ Tools that return truncated data include `truncated: true` and `totalFrames`/`co
 
 ## Known Limitations
 
+- **GitHub Copilot dynamic tool refresh**: Copilot may not automatically detect tool changes when switching automation modes. Restart VS Code after changing `debugssy.automationLevel` to ensure the correct tool set is available.
 - Watch expressions not directly accessible (use `evaluate_expression` instead)
 - Assumes thread ID 1 for some operations (simplified for single-threaded debugging)
 - In assisted mode, AI cannot detect when you manually click continue/step (use `get_debug_state` to check)
