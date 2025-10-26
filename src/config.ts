@@ -13,7 +13,8 @@ export const DebugConfigurationSchema = z.object({
     port: z.number().int().min(1024, { message: 'Port must be >= 1024' }).max(65535, { message: 'Port must be <= 65535' }),
     automationLevel: z.enum(['assisted', 'full']),
     waitForBreakpointTimeout: z.number().int().min(1000, { message: 'Timeout must be >= 1000ms' }).max(300000, { message: 'Timeout must be <= 300000ms' }),
-    allowStepOperations: z.boolean()
+    allowStepOperations: z.boolean(),
+    maxExpressionLength: z.number().int().min(20, { message: 'Max expression length must be >= 20' }).max(400, { message: 'Max expression length must be <= 400' })
 });
 
 export type DebugConfiguration = z.infer<typeof DebugConfigurationSchema>;
@@ -38,7 +39,8 @@ export class ConfigManager {
             port: config.get<number>('mcp.port', 3000),
             automationLevel: config.get<'assisted' | 'full'>('automationLevel', 'assisted'),
             waitForBreakpointTimeout: config.get<number>('waitForBreakpointTimeout', DEFAULT_BREAKPOINT_TIMEOUT_MS),
-            allowStepOperations: config.get<boolean>('allowStepOperations', false)
+            allowStepOperations: config.get<boolean>('allowStepOperations', false),
+            maxExpressionLength: config.get<number>('maxExpressionLength', 100)
         };
 
         // Validate configuration using Zod schema
@@ -60,7 +62,8 @@ export class ConfigManager {
                 port: 3000,
                 automationLevel: 'assisted',
                 waitForBreakpointTimeout: DEFAULT_BREAKPOINT_TIMEOUT_MS,
-                allowStepOperations: false
+                allowStepOperations: false,
+                maxExpressionLength: 100
             });
         }
         

@@ -71,6 +71,13 @@
           "type": "boolean",
           "default": false,
           "description": "Enable step operations (step_over, step_into, step_out) in full automation mode. Note: For AI debugging, setting strategic breakpoints and using 'continue' is generally more efficient."
+        },
+        "debugssy.maxExpressionLength": {
+          "type": "number",
+          "default": 100,
+          "minimum": 20,
+          "maximum": 400,
+          "description": "Maximum allowed length for expressions in evaluate_expression tool. Helps prevent prompt injection attacks by limiting code execution length. Default: 100 characters, Range: 20-400."
         }
       }
     },

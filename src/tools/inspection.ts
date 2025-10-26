@@ -246,6 +246,15 @@ export class InspectionTools {
                 };
             }
 
+            // Security: Validate expression length to prevent prompt injection attacks
+            const maxLength = this.configManager.getConfig().maxExpressionLength;
+            if (args.expression.length > maxLength) {
+                return {
+                    success: false,
+                    error: `Expression exceeds maximum allowed length of ${maxLength} characters (current: ${args.expression.length}). Adjust debugssy.maxExpressionLength setting if needed (range: 20-400).`
+                };
+            }
+
             const result = await this.dapClient.evaluateExpression(
                 session,
                 args.expression,

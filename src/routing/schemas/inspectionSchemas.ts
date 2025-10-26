@@ -37,13 +37,13 @@ export const inspectionSchemas = [
     },
     {
         name: 'evaluate_expression',
-        description: 'Evaluate an expression in the current debug context. Use simple expressions (e.g., "x", "obj.prop") rather than complex ones that return large objects. For large objects, use get_variables with scope filter instead.',
+        description: 'Evaluate an expression in the current debug context. Use simple expressions (e.g., "x", "obj.prop") rather than complex ones that return large objects. For large objects, use get_variables with scope filter instead. SECURITY: Expression length is limited to prevent prompt injection attacks.',
         inputSchema: {
             type: 'object',
             properties: {
                 expression: {
                     type: 'string',
-                    description: 'Expression to evaluate (keep it simple to avoid verbose output)'
+                    description: 'Expression to evaluate (keep it simple to avoid verbose output). Length is limited for security.'
                 },
                 frameId: {
                     type: 'number',
