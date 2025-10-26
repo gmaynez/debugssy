@@ -2,6 +2,13 @@
 
 All notable changes to the "Debugssy" extension will be documented in this file.
 
+## [1.1.4] - 2025-10-26
+
+### Security
+- Added configurable expression length limit for `evaluate_expression` tool to prevent prompt injection attacks
+- New setting: `debugssy.maxExpressionLength` (default: 100 characters, range: 20-400)
+- Security constraints are enforced but not advertised in tool schemas to avoid giving attackers a blueprint
+
 ## [1.1.3] - 2025-10-25
 
 ### Changed
@@ -14,48 +21,37 @@ All notable changes to the "Debugssy" extension will be documented in this file.
 
 ## [1.1.0] - 2025
 
-## 🎉 New Features
+### Added
 
-### Console Output Capture
-- **`get_console_output`** - Read stdout, stderr, and console.log messages during debugging
-- **`clear_console_output`** - Clear the console buffer
+**Console Output Capture**
+- New `get_console_output` tool to read stdout, stderr, and console.log messages during debugging
+- New `clear_console_output` tool to clear the console buffer
 - Smart filtering by category, timestamp, and limit (default: 50 entries)
 - Automatic buffering up to 1000 most recent entries
 
-### MCP Resources Support
+**MCP Resources Support**
 - Exposes debug configurations via `debugssy:///{workspaceName}/launch.json`
 - AI assistants can now discover and read launch.json before starting debug sessions
 - Eliminates guesswork when calling `start_debugging`
 - Foundation for future workspace resources (tasks.json, settings.json)
 
-### Context Usage Optimization
-- **Call Stack**: Limited to 20 frames by default (configurable via `maxDepth`)
-- **Console Output**: Returns 50 entries by default (max: 1000)
-- **Variables**: Fixed scope filtering to use prefix matching
+**Context Usage Optimization**
+- Call stack limited to 20 frames by default (configurable via `maxDepth`)
+- Console output returns 50 entries by default (max: 1000)
 - All verbose tools now include WARNING labels and efficiency hints
 - Truncation indicators: `truncated: true`, `totalFrames`, `count` fields
 
-### Enhanced Debugging Prompts
+**Enhanced Debugging Prompts**
 - All workflows now guide LLMs to check MCP resources first
 - Embedded best practices for context efficiency
 - `auto-debug-session` includes complete resource discovery workflow
 - Mode-aware hints (assisted vs full automation)
 
-## 🐛 Bug Fixes
+### Fixed
+- Fixed `get_variables` scope filtering to use prefix matching instead of exact match
+- `scope: "Local"` now correctly matches `"Local: functionName"` with case-insensitive filtering
 
-- **Fixed `get_variables` scope filtering**: Now uses prefix matching instead of exact match
-  - `scope: "Local"` correctly matches `"Local: functionName"`
-  - Case-insensitive filtering
-
-## 📚 Documentation
-
-- Added "Available Resources" section with usage examples
-- New "Performance & Context Usage" guide
-- Updated all tool examples with optimized defaults
-- Enhanced prompt descriptions
-
-## 🔧 Technical Improvements
-
+### Changed
 - New `ResourceProvider` class for resource management
 - MCP server capabilities updated to include resources
 - Improved tool schemas with better LLM guidance
