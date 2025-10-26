@@ -74,6 +74,29 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Publishing version: $VERSION"
 
+      - name: Extract changelog for version
+        id: changelog
+        run: |
+          VERSION=${{ steps.get_version.outputs.VERSION }}
+          
+          # Extract the section for this version from CHANGELOG.md
+          # Matches from ## [VERSION] to the next ## [ or end of file
+          CHANGELOG=$(awk '/^## \['"$VERSION"'\]/{flag=1; next} /^## \[/{flag=0} flag' CHANGELOG.md)
+          
+          if [ -z "$CHANGELOG" ]; then
+            echo "⚠️ Warning: No changelog entry found for version $VERSION"
+            CHANGELOG="No changelog entry found for this version."
+          else
+            echo "✅ Extracted changelog for version $VERSION"
+          fi
+          
+          # Use EOF delimiter to handle multiline content
+          {
+            echo 'NOTES<<EOF'
+            echo "$CHANGELOG"
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
       - name: Publish to VS Code Marketplace
         if: |
           (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
@@ -103,13 +126,15 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: '*.vsix'
-          generate_release_notes: true
+          generate_release_notes: false
           draft: false
           prerelease: false
           tag_name: ${{ github.ref_name }}
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
-            ## 📦 Installation
+            ${{ steps.changelog.outputs.NOTES }}
+            
+            ## Installation
             
             Download the `.vsix` file below and install it in VS Code:
             
@@ -119,12 +144,10 @@ jobs:
             
             Or use VS Code UI: Extensions → ... → Install from VSIX
             
-            ## 🔗 Marketplace Links
+            ## Marketplace Links
             
             - [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy)
             - [Open VSX Registry](https://open-vsx.org/extension/gamag/debugssy)
-            
-            ---
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
