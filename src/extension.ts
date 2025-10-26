@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as vscode from 'vscode';
-import { ConfigManager } from './config';
+import { ConfigManager, DebugConfiguration } from './config';
 import { MCPServer } from './mcpServer';
 import { DAPClient } from './dap/client';
 import { createToolRegistry, ToolRegistry } from './tools';
@@ -59,7 +59,7 @@ class ExtensionContext {
     /**
      * Handles changes to the enabled state of the MCP server.
      */
-    private async handleServerEnabledChange(newConfig: any, _previousConfig: any): Promise<void> {
+    private async handleServerEnabledChange(newConfig: DebugConfiguration, _previousConfig: DebugConfiguration): Promise<void> {
         const mcpServer = this.getMCPServer();
         
         if (newConfig.enabled && !mcpServer) {
@@ -72,7 +72,7 @@ class ExtensionContext {
     /**
      * Handles changes to the MCP server port.
      */
-    private async handlePortChange(newConfig: any, previousConfig: any): Promise<void> {
+    private async handlePortChange(newConfig: DebugConfiguration, previousConfig: DebugConfiguration): Promise<void> {
         const mcpServer = this.getMCPServer();
         
         if (mcpServer && newConfig.port !== previousConfig.port) {
@@ -86,7 +86,7 @@ class ExtensionContext {
     /**
      * Handles changes to the automation level.
      */
-    private async handleAutomationLevelChange(newConfig: any, previousConfig: any): Promise<void> {
+    private async handleAutomationLevelChange(newConfig: DebugConfiguration, previousConfig: DebugConfiguration): Promise<void> {
         const mcpServer = this.getMCPServer();
         
         if (mcpServer && newConfig.automationLevel !== previousConfig.automationLevel) {
@@ -100,7 +100,7 @@ class ExtensionContext {
     /**
      * Handles changes to the step operations setting.
      */
-    private async handleStepOperationsChange(newConfig: any, previousConfig: any): Promise<void> {
+    private async handleStepOperationsChange(newConfig: DebugConfiguration, previousConfig: DebugConfiguration): Promise<void> {
         const mcpServer = this.getMCPServer();
         
         if (mcpServer && newConfig.allowStepOperations !== previousConfig.allowStepOperations) {
@@ -114,7 +114,7 @@ class ExtensionContext {
     /**
      * Main configuration change handler that delegates to specific handlers.
      */
-    async handleConfigChange(newConfig: any, previousConfig: any): Promise<void> {
+    async handleConfigChange(newConfig: DebugConfiguration, previousConfig: DebugConfiguration): Promise<void> {
         await this.handleServerEnabledChange(newConfig, previousConfig);
         await this.handlePortChange(newConfig, previousConfig);
         await this.handleAutomationLevelChange(newConfig, previousConfig);

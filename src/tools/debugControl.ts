@@ -12,7 +12,7 @@ export interface DebugControlResult {
 export class DebugControlTools {
     private activeSession: vscode.DebugSession | undefined;
 
-    constructor(private configManager?: ConfigManager) {
+    constructor(private configManager: ConfigManager) {
         vscode.debug.onDidStartDebugSession((session) => {
             this.activeSession = session;
         });
@@ -29,7 +29,7 @@ export class DebugControlTools {
     }): Promise<DebugControlResult> {
         try {
             // Check automation level
-            const automationLevel = this.configManager?.getConfig().automationLevel || 'assisted';
+            const automationLevel = this.configManager.getConfig().automationLevel;
             if (automationLevel === 'assisted') {
                 return {
                     success: false,
@@ -165,7 +165,7 @@ export class DebugControlTools {
         successMessage: string,
         assistedMessage: string
     ): Promise<DebugControlResult> {
-        const automationLevel = this.configManager?.getConfig().automationLevel || 'assisted';
+        const automationLevel = this.configManager.getConfig().automationLevel;
         if (automationLevel === 'assisted') {
             return {
                 success: true,
