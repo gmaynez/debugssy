@@ -1,63 +1,65 @@
 # Pull Request
 
-## Description
-<!-- Describe your changes in detail -->
+## Summary
+<!-- What is the change? Why is it needed? Keep it short. -->
 
-## Type of Change
+## Type of change
 <!-- Mark the relevant option with an "x" -->
 
-- [ ] 🐛 Bug fix (non-breaking change which fixes an issue)
-- [ ] ✨ New feature (non-breaking change which adds functionality)
-- [ ] 💥 Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] 📝 Documentation update
-- [ ] 🔧 Configuration change
-- [ ] ♻️ Code refactoring
-- [ ] ⚡ Performance improvement
-- [ ] 🔒 Security fix
+- [ ] Bug fix (non-breaking)
+- [ ] New feature (non-breaking)
+- [ ] Breaking change
+- [ ] Documentation update
+- [ ] Configuration/build change
+- [ ] Refactor
+- [ ] Performance improvement
+- [ ] Security fix
 
-## Related Issues
-<!-- Link to related issues, e.g., "Fixes #123" or "Relates to #456" -->
+## Related issues
+<!-- Link to issues, e.g., Fixes #123 or Relates to #456 -->
 
 Fixes #
 
-## Changes Made
-<!-- List the specific changes made -->
+## Changes
+<!-- List the key changes made in this PR -->
 
 - 
 - 
 - 
+
+## Screenshots (optional)
+<!-- Add screenshots if they help explain the change -->
 
 ## Testing
-<!-- Describe how you tested your changes -->
+<!-- Describe verification and check relevant boxes -->
 
-- [ ] Tested locally in VS Code Extension Development Host
-- [ ] Tested with Claude Desktop / Cursor / other MCP client
-- [ ] Tested in both assisted and full automation modes
-- [ ] Verified breakpoints work correctly
-- [ ] Verified variable inspection works
-- [ ] Checked for linting errors
-- [ ] Extension compiles without errors
+- [ ] Built and packaged locally (npm run package)
+- [ ] Lint and type-check pass (npm run lint, npm run check-types)
+- [ ] Runs in VS Code Extension Development Host
+- [ ] Tested with an MCP client (Cursor / Claude Desktop / other)
+- [ ] Core flows verified (breakpoints, variable inspection, evaluate_expression, console output)
+- [ ] Full automation flows if affected (start/stop/continue/step)
 
-## Screenshots (if applicable)
-<!-- Add screenshots to help explain your changes -->
+## Security considerations
+<!-- Note any security-relevant changes or implications -->
+
+- [ ] No secrets or tokens added/printed
+- [ ] Input validation (Zod) updated as needed
+- [ ] Config limits/ranges enforced (e.g., settings in package.json and src/config.ts)
+- [ ] Backward compatibility considered
+
+## Documentation
+<!-- Update when user-facing behavior or settings change -->
+
+- [ ] CHANGELOG.md updated (user-facing change)
+- [ ] README/docs updated (if behavior/settings changed)
+- [ ] Extension settings documented (if new/changed)
+- [ ] Version bumped in `package.json` (release PRs to main only)
 
 ## Checklist
-<!-- Mark completed items with an "x" -->
+<!-- Final pass before review/merge -->
 
-- [ ] My code follows the project's code style
-- [ ] I have performed a self-review of my code
-- [ ] I have commented my code, particularly in hard-to-understand areas
-- [ ] I have updated the documentation accordingly (README, etc.)
-- [ ] My changes generate no new warnings or errors
-- [ ] I have checked that my changes don't break existing functionality
-- [ ] I have updated the version in `package.json` (if applicable)
-
-## Additional Notes
-<!-- Any additional information or context -->
-
-
-
-
-
-
-
+- [ ] Self-review complete
+- [ ] Clear naming; comments added where non-obvious
+- [ ] No new warnings/errors in build
+- [ ] Tests/verification steps above are complete
