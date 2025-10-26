@@ -101,7 +101,7 @@ jobs:
         if: |
           (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
           (github.event_name == 'workflow_dispatch' && inputs.publish_vscode)
-        run: npx @vscode/vsce publish -p ${{ secrets.VSCE_PAT }}
+        run: npx @vscode/vsce publish -p "$VSCE_PAT"
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
@@ -109,7 +109,7 @@ jobs:
         if: |
           (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
           (github.event_name == 'workflow_dispatch' && inputs.publish_openvsx)
-        run: npx ovsx publish -p ${{ secrets.OVSX_PAT }}
+        run: npx ovsx publish -p "$OVSX_PAT"
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
 
@@ -130,7 +130,6 @@ jobs:
           draft: false
           prerelease: false
           tag_name: ${{ github.ref_name }}
-          token: ${{ secrets.GITHUB_TOKEN }}
           body: |
             ${{ steps.changelog.outputs.NOTES }}
             
@@ -148,8 +147,6 @@ jobs:
             
             - [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy)
             - [Open VSX Registry](https://open-vsx.org/extension/gamag/debugssy)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
 
