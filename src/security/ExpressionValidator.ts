@@ -170,7 +170,7 @@ export class ExpressionValidator {
         if (/\bfs\s*\.\s*(unlink|rmdir|rm|write|mkdir|rename|delete|chmod|chown|truncate|appendFile|writeFile)/i.test(expression)) {
             return {
                 allowed: false,
-                reason: 'File system operation detected (can modify/delete files)',
+                reason: 'File System Operation: can modify/delete files',
                 riskLevel: 'critical'
             };
         }
@@ -179,7 +179,7 @@ export class ExpressionValidator {
         if (/\b(child_process|exec|execSync|spawn|spawnSync|fork|execFile)\s*[.([]/i.test(expression)) {
             return {
                 allowed: false,
-                reason: 'Process execution detected (can run system commands)',
+                reason: 'Process Execution: can run system commands',
                 riskLevel: 'critical'
             };
         }
@@ -188,7 +188,7 @@ export class ExpressionValidator {
         if (/\bprocess\s*\.\s*(exit|kill|abort)\s*\(/i.test(expression)) {
             return {
                 allowed: false,
-                reason: 'Process control operation (can terminate application)',
+                reason: 'Process Control: can terminate application',
                 riskLevel: 'critical'
             };
         }
@@ -198,7 +198,7 @@ export class ExpressionValidator {
             /\bhttps?\s*\.\s*(get|post|put|delete|request)/i.test(expression)) {
             return {
                 allowed: false,
-                reason: 'Network operation detected (can make external requests)',
+                reason: 'Network Operation: can make external requests',
                 riskLevel: 'critical'
             };
         }
@@ -210,7 +210,7 @@ export class ExpressionValidator {
             if (/require\s*\(\s*['"](?:fs|child_process|net|http|https|crypto|vm)['"]/.test(expression)) {
                 return {
                     allowed: false,
-                    reason: 'System module loading detected (require with dangerous module)',
+                    reason: 'System Module Loading: dangerous module detected',
                     riskLevel: 'critical'
                 };
             }
@@ -309,7 +309,7 @@ export class ExpressionValidator {
             if (regex.test(expression)) {
                 return {
                     allowed: false,
-                    reason: `Side effect: ${method}() modifies state`,
+                    reason: `State Mutation: ${method}() modifies data`,
                     riskLevel: 'high'
                 };
             }
@@ -319,7 +319,7 @@ export class ExpressionValidator {
         if (/\beval\s*\(|\bFunction\s*\(/i.test(expression)) {
             return {
                 allowed: false,
-                reason: 'Code generation (eval/Function) not allowed',
+                reason: 'Code Execution: eval/Function not allowed',
                 riskLevel: 'high'
             };
         }
@@ -345,7 +345,7 @@ export class ExpressionValidator {
                 if (this.isGetterPattern(methodName)) {
                     return {
                         allowed: false,
-                        reason: `Getter-style method: ${call}()`,
+                        reason: `Getter Method: ${call}()`,
                         riskLevel: 'low'
                     };
                 }
@@ -353,7 +353,7 @@ export class ExpressionValidator {
                 // Unknown function call - not whitelisted
                 return {
                     allowed: false,
-                    reason: `Unknown function: ${call}()`,
+                    reason: `User-Defined Function: ${call}()`,
                     riskLevel: 'medium'
                 };
             }
@@ -379,7 +379,7 @@ export class ExpressionValidator {
             if (regex.test(expression)) {
                 return {
                     allowed: false,
-                    reason: `Side effect: ${method}() modifies state`,
+                    reason: `State Mutation: ${method}() modifies data`,
                     riskLevel: 'high'
                 };
             }
@@ -389,7 +389,7 @@ export class ExpressionValidator {
         if (/\b(eval|exec|compile|__import__)\s*\(/i.test(expression)) {
             return {
                 allowed: false,
-                reason: 'Code execution (eval/exec) not allowed',
+                reason: 'Code Execution: eval/exec not allowed',
                 riskLevel: 'high'
             };
         }
@@ -415,7 +415,7 @@ export class ExpressionValidator {
                 if (this.isGetterPattern(methodName)) {
                     return {
                         allowed: false,
-                        reason: `Getter-style method: ${call}()`,
+                        reason: `Getter Method: ${call}()`,
                         riskLevel: 'low'
                     };
                 }
@@ -423,7 +423,7 @@ export class ExpressionValidator {
                 // Unknown function call - not whitelisted
                 return {
                     allowed: false,
-                    reason: `Unknown function: ${call}()`,
+                    reason: `User-Defined Function: ${call}()`,
                     riskLevel: 'medium'
                 };
             }
@@ -489,7 +489,7 @@ export class ExpressionValidator {
                 if (this.isGetterPattern(methodName)) {
                     return {
                         allowed: false,
-                        reason: `Getter-style method: ${call}()`,
+                        reason: `Getter Method: ${call}()`,
                         riskLevel: 'low'
                     };
                 }
@@ -497,7 +497,7 @@ export class ExpressionValidator {
                 // Unknown function call - not in any whitelist
                 return {
                     allowed: false,
-                    reason: `Unknown function: ${call}()`,
+                    reason: `User-Defined Function: ${call}()`,
                     riskLevel: 'medium'
                 };
             }
@@ -511,7 +511,7 @@ export class ExpressionValidator {
         if (/(?<![=!<>])=(?!=)/.test(expression)) {
             return {
                 allowed: false,
-                reason: 'Assignment operators not allowed',
+                reason: 'State Mutation: assignment modifies variables',
                 riskLevel: 'high'
             };
         }
@@ -520,7 +520,7 @@ export class ExpressionValidator {
         if (/(\+=|-=|\*=|\/=|%=|&=|\|=|\^=|<<=|>>=)/.test(expression)) {
             return {
                 allowed: false,
-                reason: 'Compound assignment operators not allowed',
+                reason: 'State Mutation: compound assignment modifies variables',
                 riskLevel: 'high'
             };
         }
@@ -529,7 +529,7 @@ export class ExpressionValidator {
         if (/(\+\+|--)/.test(expression)) {
             return {
                 allowed: false,
-                reason: 'Increment/decrement operators not allowed',
+                reason: 'State Mutation: increment/decrement modifies variables',
                 riskLevel: 'high'
             };
         }
@@ -538,17 +538,17 @@ export class ExpressionValidator {
         if (/[&|^~](?![&|])/.test(expression) || /(<<|>>)/.test(expression)) {
             return {
                 allowed: false,
-                reason: 'Bitwise operators discouraged (use with caution)',
+                reason: 'Unusual Pattern: bitwise operators (rare in debugging)',
                 riskLevel: 'medium'
             };
         }
 
-        // LOW RISK: Lambda/arrow functions (could be used for side effects)
+        // MEDIUM RISK: Lambda/arrow functions (could be used for side effects)
         // Match: => or lambda or func
         if (/(=>|->|\blambda\b|\bfunc\b)/.test(expression)) {
             return {
                 allowed: false,
-                reason: 'Anonymous functions not allowed (potential side effects)',
+                reason: 'Anonymous Function: potential side effects',
                 riskLevel: 'medium'
             };
         }
@@ -592,8 +592,8 @@ export class ExpressionValidator {
      * Uses threshold-based logic like log levels.
      */
     shouldElicit(riskLevel: RiskLevel | undefined, validationLevel: ValidationLevel): boolean {
-        if (validationLevel === 'disabled') return false;
-        if (!riskLevel) return false;
+        if (validationLevel === 'disabled') {return false;}
+        if (!riskLevel) {return false;}
         
         // Map validation levels to minimum risk thresholds
         const thresholds: Record<ValidationLevel, RiskLevel[]> = {
