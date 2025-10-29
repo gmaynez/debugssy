@@ -184,10 +184,10 @@ export class ToolRouter {
         server: Server
     ): Promise<any> {
         const session = vscode.debug.activeDebugSession;
-        const enableValidation = this.configManager.getConfig().enableExpressionValidation;
+        const validationLevel = this.configManager.getConfig().expressionValidationLevel;
 
         // Skip validation if disabled in settings
-        if (!enableValidation) {
+        if (validationLevel === 'disabled') {
             return await this.toolRegistry.inspection.evaluateExpression(args);
         }
 
@@ -199,6 +199,17 @@ export class ToolRouter {
 
         // If validation passes, execute immediately
         if (validationResult.allowed) {
+            return await this.toolRegistry.inspection.evaluateExpression(args);
+        }
+
+        // Check if we should elicit based on validation level and risk level
+        const shouldElicit = this.expressionValidator.shouldElicit(
+            validationResult.riskLevel,
+            validationLevel
+        );
+
+        // If below threshold, allow without elicitation
+        if (!shouldElicit) {
             return await this.toolRegistry.inspection.evaluateExpression(args);
         }
 

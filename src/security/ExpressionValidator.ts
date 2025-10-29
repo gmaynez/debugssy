@@ -2,10 +2,13 @@
 
 import * as vscode from 'vscode';
 
+export type RiskLevel = 'critical' | 'high' | 'medium' | 'low';
+export type ValidationLevel = 'strict' | 'moderate' | 'permissive' | 'disabled';
+
 export interface ValidationResult {
     allowed: boolean;
     reason?: string;
-    riskLevel?: 'high' | 'medium' | 'low';
+    riskLevel?: RiskLevel;
 }
 
 /**
@@ -124,6 +127,12 @@ export class ExpressionValidator {
     /**
      * Validates an expression for potential side effects.
      * Returns whether the expression is allowed and why if blocked.
+     * 
+     * Validation order (by risk level):
+     * 1. CRITICAL - System operations (fs, process, network)
+     * 2. HIGH - State mutations (push, splice, assignments, eval)
+     * 3. MEDIUM - Unknown functions (user-defined)
+     * 4. LOW - Getter patterns (likely safe)
      */
     validateExpression(expression: string, session?: vscode.DebugSession): ValidationResult {
         // Trim whitespace for consistent validation
@@ -133,7 +142,13 @@ export class ExpressionValidator {
             return { allowed: false, reason: 'Empty expression', riskLevel: 'low' };
         }
 
-        // Try language-specific validation if we can detect the language
+        // 1. Check CRITICAL first (system-level dangers)
+        const criticalCheck = this.detectCriticalOperations(trimmed);
+        if (criticalCheck) {
+            return criticalCheck;
+        }
+
+        // 2. Try language-specific validation (HIGH risk: mutations, eval)
         if (session) {
             const language = this.detectLanguage(session);
             const languageResult = this.validateByLanguage(trimmed, language);
@@ -142,8 +157,66 @@ export class ExpressionValidator {
             }
         }
 
-        // Fall back to generic pattern-based validation
+        // 3. Fall back to generic pattern-based validation (MEDIUM/LOW)
         return this.validateGeneric(trimmed);
+    }
+
+    /**
+     * Detects CRITICAL system-level operations that can affect files, processes, or network.
+     * These are the most dangerous operations that should always require explicit approval.
+     */
+    private detectCriticalOperations(expression: string): ValidationResult | null {
+        // File system operations
+        if (/\bfs\s*\.\s*(unlink|rmdir|rm|write|mkdir|rename|delete|chmod|chown|truncate|appendFile|writeFile)/i.test(expression)) {
+            return {
+                allowed: false,
+                reason: 'File system operation detected (can modify/delete files)',
+                riskLevel: 'critical'
+            };
+        }
+        
+        // Process execution
+        if (/\b(child_process|exec|execSync|spawn|spawnSync|fork|execFile)\s*[.([]/i.test(expression)) {
+            return {
+                allowed: false,
+                reason: 'Process execution detected (can run system commands)',
+                riskLevel: 'critical'
+            };
+        }
+        
+        // Process control
+        if (/\bprocess\s*\.\s*(exit|kill|abort)\s*\(/i.test(expression)) {
+            return {
+                allowed: false,
+                reason: 'Process control operation (can terminate application)',
+                riskLevel: 'critical'
+            };
+        }
+        
+        // Network operations (fetch, axios, http)
+        if (/\b(fetch|axios|XMLHttpRequest)\s*[.([]/i.test(expression) ||
+            /\bhttps?\s*\.\s*(get|post|put|delete|request)/i.test(expression)) {
+            return {
+                allowed: false,
+                reason: 'Network operation detected (can make external requests)',
+                riskLevel: 'critical'
+            };
+        }
+        
+        // Dynamic module loading
+        if (/\brequire\s*\(/i.test(expression) && !/['"]fs['"]|['"]child_process['"]/.test(expression)) {
+            // Only flag as critical if requiring potentially dangerous modules
+            // Common debugging requires (util, path) are less risky
+            if (/require\s*\(\s*['"](?:fs|child_process|net|http|https|crypto|vm)['"]/.test(expression)) {
+                return {
+                    allowed: false,
+                    reason: 'System module loading detected (require with dangerous module)',
+                    riskLevel: 'critical'
+                };
+            }
+        }
+        
+        return null;
     }
 
     /**
@@ -268,10 +341,19 @@ export class ExpressionValidator {
                     continue; // This call is safe
                 }
                 
+                // Check if it looks like a getter (LOW risk) vs unknown function (MEDIUM risk)
+                if (this.isGetterPattern(methodName)) {
+                    return {
+                        allowed: false,
+                        reason: `Getter-style method: ${call}()`,
+                        riskLevel: 'low'
+                    };
+                }
+                
                 // Unknown function call - not whitelisted
                 return {
                     allowed: false,
-                    reason: `Unknown function call: ${call}(). Only whitelisted safe functions are allowed automatically (e.g., Array.map, Object.keys, JSON.stringify). User-defined functions require approval.`,
+                    reason: `Unknown function: ${call}()`,
                     riskLevel: 'medium'
                 };
             }
@@ -329,10 +411,19 @@ export class ExpressionValidator {
                     continue; // This call is safe
                 }
                 
+                // Check if it looks like a getter (LOW risk) vs unknown function (MEDIUM risk)
+                if (this.isGetterPattern(methodName)) {
+                    return {
+                        allowed: false,
+                        reason: `Getter-style method: ${call}()`,
+                        riskLevel: 'low'
+                    };
+                }
+                
                 // Unknown function call - not whitelisted
                 return {
                     allowed: false,
-                    reason: `Unknown function call: ${call}(). Only whitelisted safe functions are allowed automatically (e.g., len, list.copy, json.dumps). User-defined functions require approval.`,
+                    reason: `Unknown function: ${call}()`,
                     riskLevel: 'medium'
                 };
             }
@@ -394,10 +485,19 @@ export class ExpressionValidator {
                     continue; // This call is safe
                 }
                 
+                // Check if it looks like a getter (LOW risk) vs unknown function (MEDIUM risk)
+                if (this.isGetterPattern(methodName)) {
+                    return {
+                        allowed: false,
+                        reason: `Getter-style method: ${call}()`,
+                        riskLevel: 'low'
+                    };
+                }
+                
                 // Unknown function call - not in any whitelist
                 return {
                     allowed: false,
-                    reason: `Unknown function call: ${call}(). Only whitelisted safe functions are allowed automatically (e.g., filter, map, Object.keys, JSON.stringify, len). User-defined functions require approval.`,
+                    reason: `Unknown function: ${call}()`,
                     riskLevel: 'medium'
                 };
             }
@@ -467,26 +567,79 @@ export class ExpressionValidator {
     }
 
     /**
-     * Formats a validation result into a user-friendly message for elicitation.
+     * Detects getter-like patterns that are likely read-only (LOW risk).
+     * These follow common naming conventions for read-only operations.
      */
-    formatElicitationMessage(expression: string, result: ValidationResult): string {
-        const riskBadge = result.riskLevel === 'high' ? '🔴 HIGH RISK' :
-                         result.riskLevel === 'medium' ? '🟡 MEDIUM RISK' :
-                         '🟢 LOW RISK';
+    private isGetterPattern(functionName: string): boolean {
+        const name = functionName.toLowerCase();
+        
+        // Common getter prefixes
+        if (name.startsWith('get') || name.startsWith('is') || name.startsWith('has') || 
+            name.startsWith('should') || name.startsWith('can') || name.startsWith('to')) {
+            return true;
+        }
+        
+        // Common read-only property-like methods
+        if (name === 'length' || name === 'size' || name === 'count') {
+            return true;
+        }
+        
+        return false;
+    }
 
-        return `${riskBadge}: Expression validation failed
+    /**
+     * Determines if we should elicit user approval based on risk level and validation level.
+     * Uses threshold-based logic like log levels.
+     */
+    shouldElicit(riskLevel: RiskLevel | undefined, validationLevel: ValidationLevel): boolean {
+        if (validationLevel === 'disabled') return false;
+        if (!riskLevel) return false;
+        
+        // Map validation levels to minimum risk thresholds
+        const thresholds: Record<ValidationLevel, RiskLevel[]> = {
+            'strict': ['critical', 'high', 'medium', 'low'],      // Elicit for all risks
+            'moderate': ['critical', 'high', 'medium'],           // Elicit for CRITICAL + HIGH + MEDIUM
+            'permissive': ['critical', 'high'],                   // Elicit for CRITICAL + HIGH only
+            'disabled': []                                         // Never elicit
+        };
+        
+        return thresholds[validationLevel].includes(riskLevel);
+    }
 
-Expression: \`${expression}\`
+    /**
+     * Formats a validation result into a user-friendly message for elicitation.
+     * Message severity is proportionate to the actual risk level.
+     * @param _expression - The expression being validated (shown by MCP client in parameters, unused here)
+     * @param result - The validation result containing risk level and reason
+     */
+    formatElicitationMessage(_expression: string, result: ValidationResult): string {
+        // Expression is shown in the MCP client's parameter display, so we don't repeat it in the message
+        const { riskLevel, reason } = result;
+        
+        switch (riskLevel) {
+            case 'critical':
+                return `🔴 CRITICAL: ${reason}
 
-Reason: ${result.reason}
+This operation can modify files, execute processes, or make network requests.
 
-⚠️ This expression may have side effects or modify program state. Evaluating it could:
-- Change variable values
-- Execute functions with side effects
-- Modify application state
-- Cause unexpected behavior
+Only proceed if you fully understand the consequences.`;
 
-Do you want to evaluate this expression anyway?`;
+            case 'high':
+                return `⚠️ ${reason}
+
+This will modify your application's state during debugging. Changes may cause unexpected behavior or mask bugs.`;
+
+            case 'medium':
+                return `⚠️ ${reason}
+
+This function could modify state, trigger side effects, or perform unexpected operations. Safe built-in functions (Array.map, Object.keys, JSON.stringify) are allowed automatically.`;
+
+            case 'low':
+            default:
+                return `ℹ️ ${reason}
+
+Getter methods are typically safe, but custom getters may include logging or state changes. Quick confirmation recommended.`;
+        }
     }
 }
 
