@@ -142,7 +142,7 @@ export class ToolRouter {
      * For evaluate_expression, applies security validation and uses elicitation
      * to request user approval if the expression may have side effects.
      */
-    async routeToolCall(toolName: string, args: any, mcpServer?: Server): Promise<any> {
+    async routeToolCall(toolName: string, args: any, server?: Server): Promise<any> {
         const handler = this.toolHandlers.get(toolName);
         
         if (!handler) {
@@ -168,8 +168,8 @@ export class ToolRouter {
         }
         
         // Special handling for evaluate_expression with security validation
-        if (toolName === 'evaluate_expression' && mcpServer) {
-            return await this.handleEvaluateExpressionWithValidation(args as EvaluateExpressionArgs, mcpServer);
+        if (toolName === 'evaluate_expression' && server) {
+            return await this.handleEvaluateExpressionWithValidation(args as EvaluateExpressionArgs, server);
         }
         
         return await handler(args);
@@ -181,7 +181,7 @@ export class ToolRouter {
      */
     private async handleEvaluateExpressionWithValidation(
         args: EvaluateExpressionArgs,
-        mcpServer: Server
+        server: Server
     ): Promise<any> {
         const session = vscode.debug.activeDebugSession;
         const enableValidation = this.configManager.getConfig().enableExpressionValidation;
@@ -203,69 +203,50 @@ export class ToolRouter {
         }
 
         // Validation failed - request user approval via elicitation
-        // Note: MCP elicitation support depends on SDK version and client capabilities
-        // For now, we return an informative error that allows users to disable validation
+        // Use server.elicitInput() as shown in SDK examples
         try {
             const elicitationMessage = this.expressionValidator.formatElicitationMessage(
                 args.expression,
                 validationResult
             );
 
-            // Check if the server has elicitation support
-            // The requestElicitation method may not be available in all SDK versions
-            // Use any cast to avoid compile-time errors for future SDK features
-            const serverAny = mcpServer as any;
-            if ('requestElicitation' in serverAny && typeof serverAny.requestElicitation === 'function') {
-                const elicitResponse = await serverAny.requestElicitation({
-                    message: elicitationMessage,
-                    requestedSchema: {
-                        type: 'object',
-                        properties: {
-                            understood: {
-                                type: 'boolean',
-                                title: 'I understand the risks',
-                                description: 'Check this box to confirm you understand the risks and want to proceed'
-                            }
-                        },
-                        required: ['understood']
-                    }
-                });
-
-                // Handle user response
-                if (elicitResponse.action === 'accept' && elicitResponse.content?.understood) {
-                    // User approved - execute the expression
-                    const result = await this.toolRegistry.inspection.evaluateExpression(args);
-                    
-                    // Add a warning to the result
-                    return {
-                        ...result,
-                        _warning: 'Expression executed with user approval despite validation failure'
-                    };
-                } else if (elicitResponse.action === 'decline') {
-                    // User declined - return error
-                    return {
-                        success: false,
-                        error: `Expression validation failed: ${validationResult.reason}. User declined to proceed.`
-                    };
-                } else {
-                    // User cancelled or other action
-                    return {
-                        success: false,
-                        error: `Expression evaluation cancelled by user.`
-                    };
+            // Send elicitation request to client using the SDK's elicitInput helper
+            const elicitResponse = await server.elicitInput({
+                message: elicitationMessage,
+                requestedSchema: {
+                    type: 'object',
+                    properties: {
+                        understood: {
+                            type: 'boolean',
+                            title: 'I understand the risks',
+                            description: 'Check this box to confirm you understand the risks and want to proceed'
+                        }
+                    },
+                    required: ['understood']
                 }
-            } else {
-                // Elicitation not supported in this SDK version
-                // Return detailed error with validation info
-                console.warn('MCP elicitation not supported in current SDK version');
+            });
+
+            // Handle user response
+            if (elicitResponse.action === 'accept' && elicitResponse.content?.understood) {
+                // User approved - execute the expression
+                const result = await this.toolRegistry.inspection.evaluateExpression(args);
+                
+                // Add a warning to the result
+                return {
+                    ...result,
+                    _warning: 'Expression executed with user approval despite validation failure'
+                };
+            } else if (elicitResponse.action === 'decline') {
+                // User declined - return error
                 return {
                     success: false,
-                    error: `${elicitationMessage}\n\nValidation cannot be bypassed interactively in this version. To allow this expression, set debugssy.enableExpressionValidation to false in settings.`,
-                    validationFailure: {
-                        reason: validationResult.reason,
-                        riskLevel: validationResult.riskLevel,
-                        expression: args.expression
-                    }
+                    error: `Expression validation failed: ${validationResult.reason}. User declined to proceed.`
+                };
+            } else {
+                // User cancelled or other action
+                return {
+                    success: false,
+                    error: `Expression evaluation cancelled by user.`
                 };
             }
         } catch (error: any) {
@@ -278,7 +259,7 @@ export class ToolRouter {
             );
             return {
                 success: false,
-                error: `${elicitationMessage}\n\nValidation cannot be bypassed interactively. To allow this expression, set debugssy.enableExpressionValidation to false in settings.`,
+                error: `${elicitationMessage}\n\nClient does not support user confirmation (elicitation). To allow this expression, set debugssy.enableExpressionValidation to false in settings.`,
                 validationFailure: {
                     reason: validationResult.reason,
                     riskLevel: validationResult.riskLevel,

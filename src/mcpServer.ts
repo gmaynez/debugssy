@@ -96,6 +96,7 @@ export class MCPServer {
             const { name, arguments: args } = request.params;
 
             try {
+                // Pass the server instance to enable elicitation via server.elicitInput()
                 const result = await this.toolRouter.routeToolCall(name, args, this.mcpServer);
 
                 return {
