@@ -37,13 +37,13 @@ export const inspectionSchemas = [
     },
     {
         name: 'evaluate_expression',
-        description: 'Evaluate an expression in the current debug context. Use simple expressions (e.g., "x", "obj.prop") rather than complex ones that return large objects. For large objects, use get_variables with scope filter instead. SECURITY: Expression length is limited to prevent prompt injection attacks.',
+        description: 'Evaluate an expression in the current debug context. Use simple expressions (e.g., "x", "obj.prop") rather than complex ones that return large objects. For large objects, use get_variables with scope filter instead. SECURITY: Expressions are validated to prevent side effects (function calls, assignments, etc.). If validation fails, user approval is requested. Expression length is also limited to prevent prompt injection attacks. Validation can be disabled in settings.',
         inputSchema: {
             type: 'object',
             properties: {
                 expression: {
                     type: 'string',
-                    description: 'Expression to evaluate (keep it simple to avoid verbose output). Length is limited for security.'
+                    description: 'Expression to evaluate. Simple read-only expressions (variable access, property access, arithmetic, comparisons) are allowed automatically. Complex expressions with potential side effects (function calls, assignments) require user approval via elicitation. Length is limited for security.'
                 },
                 frameId: {
                     type: 'number',

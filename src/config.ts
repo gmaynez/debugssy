@@ -14,7 +14,8 @@ export const DebugConfigurationSchema = z.object({
     automationLevel: z.enum(['assisted', 'full']),
     waitForBreakpointTimeout: z.number().int().min(1000, { message: 'Timeout must be >= 1000ms' }).max(300000, { message: 'Timeout must be <= 300000ms' }),
     allowStepOperations: z.boolean(),
-    maxExpressionLength: z.number().int().min(20, { message: 'Max expression length must be >= 20' }).max(400, { message: 'Max expression length must be <= 400' })
+    maxExpressionLength: z.number().int().min(20, { message: 'Max expression length must be >= 20' }).max(400, { message: 'Max expression length must be <= 400' }),
+    enableExpressionValidation: z.boolean()
 });
 
 export type DebugConfiguration = z.infer<typeof DebugConfigurationSchema>;
@@ -40,7 +41,8 @@ export class ConfigManager {
             automationLevel: config.get<'assisted' | 'full'>('automationLevel', 'assisted'),
             waitForBreakpointTimeout: config.get<number>('waitForBreakpointTimeout', DEFAULT_BREAKPOINT_TIMEOUT_MS),
             allowStepOperations: config.get<boolean>('allowStepOperations', false),
-            maxExpressionLength: config.get<number>('maxExpressionLength', 100)
+            maxExpressionLength: config.get<number>('maxExpressionLength', 100),
+            enableExpressionValidation: config.get<boolean>('enableExpressionValidation', true)
         };
 
         // Validate configuration using Zod schema
@@ -63,7 +65,8 @@ export class ConfigManager {
                 automationLevel: 'assisted',
                 waitForBreakpointTimeout: DEFAULT_BREAKPOINT_TIMEOUT_MS,
                 allowStepOperations: false,
-                maxExpressionLength: 100
+                maxExpressionLength: 100,
+                enableExpressionValidation: true
             });
         }
         

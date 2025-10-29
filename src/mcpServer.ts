@@ -71,7 +71,9 @@ export class MCPServer {
                     tools: {},
                     prompts: {},
                     resources: {},
-                    completion: {}
+                    completion: {},
+                    // Enable elicitation for user confirmation of potentially unsafe operations
+                    elicitation: {}
                 }
             }
         );
@@ -89,12 +91,12 @@ export class MCPServer {
             return { tools };
         });
 
-        // Handle tool calls - delegated to ToolRouter
+        // Handle tool calls - delegated to ToolRouter with elicitation support
         this.mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
             const { name, arguments: args } = request.params;
 
             try {
-                const result = await this.toolRouter.routeToolCall(name, args);
+                const result = await this.toolRouter.routeToolCall(name, args, this.mcpServer);
 
                 return {
                     content: [

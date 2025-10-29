@@ -143,9 +143,9 @@ These tools control program execution and behave differently based on mode:
 
 **In Full Automation Mode**: These tools directly execute the corresponding commands automatically.
 
-### ⚠️ Code Execution (Potential Side Effects)
-This tool can execute arbitrary code:
-- `debugssy:evaluate_expression`
+### ⚠️ Code Execution (With Validation)
+This tool evaluates expressions with built-in safety:
+- `debugssy:evaluate_expression` - Now includes AST-based validation to prevent side effects. Safe expressions (variable access, property access, arithmetic) execute automatically. Unsafe expressions (function calls, assignments) require user approval via MCP elicitation. See [EXPRESSION_VALIDATION_GUIDE.md](./EXPRESSION_VALIDATION_GUIDE.md) for details.
 
 ## Why These Tools Are Safe
 
@@ -191,7 +191,7 @@ If tools aren't working as expected:
 ## Security Considerations
 
 - **Never allowlist execution control tools** unless you fully trust the AI and understand the implications
-- **Always review `evaluate_expression` calls** - they can execute arbitrary code
+- **`evaluate_expression` now has validation** - expressions are automatically validated for side effects, with user approval required for risky operations (see [EXPRESSION_VALIDATION_GUIDE.md](./EXPRESSION_VALIDATION_GUIDE.md))
 - **Use assisted mode by default** - switch to full mode only when needed
 - **The server only accepts localhost connections** - no remote access is possible
 - **Origin validation is enabled** - protects against DNS rebinding attacks

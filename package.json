@@ -78,6 +78,11 @@
           "minimum": 20,
           "maximum": 400,
           "description": "Maximum allowed length for expressions in evaluate_expression tool. Helps prevent prompt injection attacks by limiting code execution length. Default: 100 characters, Range: 20-400."
+        },
+        "debugssy.enableExpressionValidation": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable AST-based validation of expressions to prevent side effects (function calls, assignments, etc.). When validation fails, user approval is requested via MCP elicitation. Disable only if you fully trust the AI and understand the risks."
         }
       }
     },
