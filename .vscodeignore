@@ -31,6 +31,12 @@ PUBLISHING.md
 RELEASE_SETUP_SUMMARY.md
 .allowlist-summary.md
 
+# Marketplace preparation (MARKETPLACE.md is swapped to README.md during publish)
+MARKETPLACE.md
+README.md.backup
+MARKETPLACE.md.backup
+scripts/prepare-marketplace.js
+
 # Node modules - excluded since we bundle with esbuild
 node_modules
 **/.eslintrc.json

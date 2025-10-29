@@ -60,6 +60,9 @@ jobs:
       - name: Lint code
         run: npm run lint
 
+      - name: Prepare marketplace README
+        run: npm run prepare-publish
+
       - name: Build and package extension (esbuild)
         run: npm run package
 
@@ -112,6 +115,10 @@ jobs:
         run: npx ovsx publish -p "$OVSX_PAT"
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
+
+      - name: Restore original README
+        if: always()  # Always restore, even if publish failed
+        run: npm run restore-publish
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v4
