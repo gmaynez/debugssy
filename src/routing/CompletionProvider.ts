@@ -89,8 +89,8 @@ export class CompletionProvider {
                 const lowerPartial = partial.toLowerCase();
                 const aStarts = a.toLowerCase().startsWith(lowerPartial);
                 const bStarts = b.toLowerCase().startsWith(lowerPartial);
-                if (aStarts && !bStarts) return -1;
-                if (!aStarts && bStarts) return 1;
+                if (aStarts && !bStarts) {return -1;}
+                if (!aStarts && bStarts) {return 1;}
             }
             // Then alphabetically
             return a.localeCompare(b);
@@ -161,8 +161,8 @@ export class CompletionProvider {
                 const lowerPartial = partial.toLowerCase();
                 const aStarts = a.toLowerCase().startsWith(lowerPartial);
                 const bStarts = b.toLowerCase().startsWith(lowerPartial);
-                if (aStarts && !bStarts) return -1;
-                if (!aStarts && bStarts) return 1;
+                if (aStarts && !bStarts) {return -1;}
+                if (!aStarts && bStarts) {return 1;}
             }
             return a.localeCompare(b);
         });
@@ -257,8 +257,8 @@ export class CompletionProvider {
                     const lowerPartial = partial.toLowerCase();
                     const aStarts = a.toLowerCase().startsWith(lowerPartial);
                     const bStarts = b.toLowerCase().startsWith(lowerPartial);
-                    if (aStarts && !bStarts) return -1;
-                    if (!aStarts && bStarts) return 1;
+                    if (aStarts && !bStarts) {return -1;}
+                    if (!aStarts && bStarts) {return 1;}
                 }
                 return a.localeCompare(b);
             });
