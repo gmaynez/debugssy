@@ -8,7 +8,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema, ListPromptsRequestSchema, GetPromptRequestSchema, CompleteRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { ToolRegistry } from './tools';
-import { ConfigManager } from './config';
+import { ConfigManager } from './Config';
 import { MCP_SERVER_READY_DELAY_MS, CURRENT_MCP_PROTOCOL_VERSION, EXTENSION_VERSION } from './constants';
 import { SecurityValidator } from './security/SecurityValidator';
 import { ToolRouter } from './routing/ToolRouter';

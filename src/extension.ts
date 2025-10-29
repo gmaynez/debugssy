@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as vscode from 'vscode';
-import { ConfigManager, DebugConfiguration } from './config';
-import { MCPServer } from './mcpServer';
-import { DAPClient } from './dap/client';
+import { ConfigManager, DebugConfiguration } from './Config';
+import { MCPServer } from './MCPServer';
+import { DAPClient } from './dap/Client';
 import { createToolRegistry, ToolRegistry } from './tools';
 
 /**

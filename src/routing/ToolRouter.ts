@@ -3,7 +3,7 @@
 import * as vscode from 'vscode';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { ToolRegistry } from '../tools';
-import { ConfigManager } from '../config';
+import { ConfigManager } from '../Config';
 import { ExpressionValidator } from '../security/ExpressionValidator';
 import { breakpointSchemas, inspectionSchemas, debugControlSchemas, stepOperationSchemas } from './schemas';
 import {

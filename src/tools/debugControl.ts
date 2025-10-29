@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as vscode from 'vscode';
-import { ConfigManager } from '../config';
+import { ConfigManager } from '../Config';
 
 export interface DebugControlResult {
     success: boolean;

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as vscode from 'vscode';
-import { DAPClient } from '../dap/client';
-import { ConfigManager } from '../config';
+import { DAPClient } from '../dap/Client';
+import { ConfigManager } from '../Config';
 
 export interface InspectionResult {
     success: boolean;

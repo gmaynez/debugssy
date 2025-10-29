@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { ConfigManager } from '../config';
+import { ConfigManager } from '../Config';
 import { z } from 'zod';
 
 const DebugCrashArgsSchema = z.object({
