@@ -2,6 +2,44 @@
 
 All notable changes to the "Debugssy" extension will be documented in this file.
 
+## [1.2.0] - 2025-10-30
+
+### Added
+
+**Expression Validation System**
+- Intelligent expression validation for `evaluate_expression` tool with multi-language support
+- New setting: `debugssy.expressionValidationLevel` with four strictness levels:
+  - `strict` - Maximum security, only whitelisted functions allowed automatically
+  - `moderate` - Recommended balance, whitelisted + common getters allowed (default)
+  - `permissive` - Minimal interruptions, only dangerous system operations require approval
+  - `disabled` - No validation (not recommended, use only in fully trusted environments)
+- MCP elicitation integration for user approval when validation fails
+- Comprehensive whitelist of safe built-in functions:
+  - **JavaScript/TypeScript**: Array methods (`map`, `filter`, `reduce`), String methods, Object utilities, JSON, Math, Number methods
+  - **Python**: Built-in functions, json module, math module, re module, datetime module
+  - **Generic validation**: Smart pattern-based validation for Go, Java, C++, C#, Ruby, PHP, Rust, and other languages
+- Language-specific detection and validation using debug session context
+- Cross-language CRITICAL operation detection (file system, process execution, network operations)
+
+**Security Enhancements**
+- Layered defense-in-depth approach to prevent unintended side effects
+- Blocks dangerous operations: mutations, assignments, eval/exec, system calls
+- User approval workflow with clear risk communication and explanations
+- Validation happens before length checks for more precise security
+
+**Developer Experience**
+- New comprehensive guide:
+  - `EXPRESSION_VALIDATION_GUIDE.md` - User-facing configuration and usage guide
+- Clear validation failure messages with specific reasons and risk levels
+- Example expressions and patterns for each validation level
+
+### Changed
+- Improved security model: validation-first approach (validate → length check → execute)
+- Enhanced MCP server capabilities to support expression validation workflows
+- Updated tool schemas with validation-aware descriptions
+- Configuration schema now includes expression validation level validation
+
+
 ## [1.1.4] - 2025-10-26
 
 ### Security
@@ -60,7 +98,7 @@ All notable changes to the "Debugssy" extension will be documented in this file.
 ## [1.0.1] - 2024
 
 ### Fixed
-- Bug fixes and stability improvements
+- Extension was not properly packaged and MCP server won't start.
 
 ## [1.0.0] - 2024
 

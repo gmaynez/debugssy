@@ -179,7 +179,7 @@ curl http://localhost:3000/health
 {
   "status": "ok",
   "server": "debugssy-mcp",
-  "version": "1.1.4",
+  "version": "1.2.0",
   "transportInitialized": true,
   "transport": "streamable-http",
   "protocolVersion": "2025-06-18",
