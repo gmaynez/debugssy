@@ -15,6 +15,7 @@ import { ToolRouter } from './routing/ToolRouter';
 import { PromptHandler } from './routing/PromptHandler';
 import { CompletionProvider } from './routing/CompletionProvider';
 import { ResourceProvider } from './routing/ResourceProvider';
+import { Logger } from './utils/Logger';
 
 /**
  * Main MCP server class that orchestrates the debugging tools and prompts.
@@ -37,12 +38,14 @@ export class MCPServer {
     private promptHandler: PromptHandler;
     private completionProvider: CompletionProvider;
     private resourceProvider: ResourceProvider;
+    private logger: Logger;
 
     constructor(
         private port: number,
         toolRegistry: ToolRegistry,
         configManager: ConfigManager
     ) {
+        this.logger = Logger.getInstance();
         this.currentAutomationLevel = configManager.getConfig().automationLevel;
         this.app = express();
         // Note: Do NOT use express.json() middleware as it consumes the request stream
@@ -107,14 +110,15 @@ export class MCPServer {
                         }
                     ]
                 };
-            } catch (error: any) {
+            } catch (error: unknown) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
                 return {
                     content: [
                         {
                             type: 'text',
                             text: JSON.stringify({
                                 success: false,
-                                error: error.message
+                                error: errorMessage
                             }, null, 2)
                         }
                     ],
@@ -152,8 +156,9 @@ export class MCPServer {
             try {
                 const result = await this.resourceProvider.readResource(uri);
                 return result;
-            } catch (error: any) {
-                throw new Error(`Failed to read resource: ${error.message}`);
+            } catch (error: unknown) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+                throw new Error(`Failed to read resource: ${errorMessage}`);
             }
         });
     }
@@ -184,8 +189,8 @@ export class MCPServer {
                 return {
                     completion: result
                 };
-            } catch (error: any) {
-                console.error('Error providing completions:', error);
+            } catch (error: unknown) {
+                this.logger.error('Error providing completions:', error);
                 return {
                     completion: {
                         values: [],
@@ -213,10 +218,11 @@ export class MCPServer {
                 // - Handle DELETE requests for session termination
                 await this.transport!.handleRequest(req, res);
                 
-            } catch (error: any) {
-                console.error('Error handling MCP request:', error);
+            } catch (error: unknown) {
+                this.logger.error('Error handling MCP request:', error);
                 if (!res.headersSent) {
-                    res.status(500).json({ error: error.message });
+                    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+                    res.status(500).json({ error: errorMessage });
                 }
             }
         });
@@ -246,12 +252,12 @@ export class MCPServer {
             }
         });
         await this.mcpServer.connect(this.transport);
-        console.log('MCP transport initialized');
+        this.logger.info('MCP transport initialized');
 
         return new Promise((resolve, reject) => {
             try {
                 this.httpServer = this.app.listen(this.port, 'localhost', async () => {
-                    console.log(`MCP Server listening on http://localhost:${this.port}/mcp`);
+                    this.logger.info(`MCP Server listening on http://localhost:${this.port}/mcp`);
                     
                     // Small delay to ensure transport is fully ready to accept connections
                     // This prevents race conditions when connecting immediately after startup notification
@@ -263,7 +269,7 @@ export class MCPServer {
                             `Debugssy MCP Server started on port ${this.port}`
                         );
                     }
-                    console.log('MCP Server fully ready to accept connections');
+                    this.logger.info('MCP Server fully ready to accept connections');
                     resolve();
                 });
 
@@ -296,7 +302,7 @@ export class MCPServer {
         if (this.httpServer) {
             return new Promise((resolve) => {
                 this.httpServer!.close(() => {
-                    console.log('MCP Server stopped');
+                    this.logger.info('MCP Server stopped');
                     resolve();
                 });
             });
@@ -315,7 +321,7 @@ export class MCPServer {
     }
 
     async handleAutomationLevelChange(newLevel: 'assisted' | 'full'): Promise<void> {
-        console.log(`Automation level changed from '${this.currentAutomationLevel}' to '${newLevel}'`);
+        this.logger.info(`Automation level changed from '${this.currentAutomationLevel}' to '${newLevel}'`);
         
         const oldLevel = this.currentAutomationLevel;
         this.currentAutomationLevel = newLevel;
@@ -327,7 +333,7 @@ export class MCPServer {
     }
 
     async handleStepOperationsChange(enabled: boolean): Promise<void> {
-        console.log(`Step operations ${enabled ? 'enabled' : 'disabled'}`);
+        this.logger.info(`Step operations ${enabled ? 'enabled' : 'disabled'}`);
         
         // Note: ToolRouter already reads allowStepOperations dynamically from configManager
         // on each getToolSchemas() call, so no need to update it explicitly.
@@ -344,10 +350,11 @@ export class MCPServer {
                 method: 'notifications/tools/list_changed',
                 params: {}
             });
-            console.log(`Notified clients: tools changed due to ${reason}`);
-        } catch (error: any) {
+            this.logger.info(`Notified clients: tools changed due to ${reason}`);
+        } catch (error: unknown) {
             // Notification may fail if no clients are connected - this is fine
-            console.log(`Could not notify clients (likely none connected): ${error.message}`);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            this.logger.debug(`Could not notify clients (likely none connected): ${errorMessage}`);
         }
     }
 }

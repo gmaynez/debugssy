@@ -43,7 +43,7 @@ export class InspectionTools {
             if (executionState === 'paused' && stoppedInfo) {
                 // Try to get current stack frame for location
                 const stackFrames = await this.dapClient.getStackTrace(session);
-                const currentFrame = stackFrames[0];
+                const currentFrame = stackFrames.length > 0 ? stackFrames[0] : undefined;
 
                 result.stoppedInfo = {
                     reason: stoppedInfo.reason,
@@ -70,10 +70,10 @@ export class InspectionTools {
                 success: true,
                 data: result
             };
-        } catch (error: any) {
+        } catch (error: unknown) {
             return {
                 success: false,
-                error: error.message
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
             };
         }
     }
@@ -131,10 +131,10 @@ export class InspectionTools {
                     disposable.dispose();
                 }
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             return {
                 success: false,
-                error: error.message
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
             };
         }
     }
@@ -190,10 +190,10 @@ export class InspectionTools {
                 success: true,
                 data: result
             };
-        } catch (error: any) {
+        } catch (error: unknown) {
             return {
                 success: false,
-                error: error.message
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
             };
         }
     }
@@ -228,10 +228,10 @@ export class InspectionTools {
                     truncated: stackFrames.length > maxDepth
                 }
             };
-        } catch (error: any) {
+        } catch (error: unknown) {
             return {
                 success: false,
-                error: error.message
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
             };
         }
     }
@@ -269,10 +269,10 @@ export class InspectionTools {
                     type: result.type
                 }
             };
-        } catch (error: any) {
+        } catch (error: unknown) {
             return {
                 success: false,
-                error: error.message
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
             };
         }
     }
@@ -305,10 +305,10 @@ export class InspectionTools {
                     threads: response.threads || []
                 }
             };
-        } catch (error: any) {
+        } catch (error: unknown) {
             return {
                 success: false,
-                error: error.message
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
             };
         }
     }
@@ -344,10 +344,10 @@ export class InspectionTools {
                     truncated: limit < 1000 // Indicate if there might be more
                 }
             };
-        } catch (error: any) {
+        } catch (error: unknown) {
             return {
                 success: false,
-                error: error.message
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
             };
         }
     }
@@ -361,10 +361,10 @@ export class InspectionTools {
                     message: 'Console output buffer cleared'
                 }
             };
-        } catch (error: any) {
+        } catch (error: unknown) {
             return {
                 success: false,
-                error: error.message
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
             };
         }
     }

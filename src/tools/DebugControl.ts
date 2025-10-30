@@ -82,10 +82,10 @@ export class DebugControlTools {
                 success,
                 message: success ? 'Debug session started' : 'Failed to start debug session'
             };
-        } catch (error: any) {
+        } catch (error: unknown) {
             return {
                 success: false,
-                error: error.message
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
             };
         }
     }
@@ -104,10 +104,10 @@ export class DebugControlTools {
                 success: true,
                 message: 'Debug session stopped'
             };
-        } catch (error: any) {
+        } catch (error: unknown) {
             return {
                 success: false,
-                error: error.message
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
             };
         }
     }
@@ -189,10 +189,10 @@ export class DebugControlTools {
                 success: true,
                 message: successMessage
             };
-        } catch (error: any) {
+        } catch (error: unknown) {
             return {
                 success: false,
-                error: error.message
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
             };
         }
     }

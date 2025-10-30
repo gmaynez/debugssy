@@ -2,6 +2,7 @@
 
 import * as vscode from 'vscode';
 import { DEFAULT_THREAD_ID } from '../constants';
+import { Logger } from '../utils/Logger';
 
 export interface StackFrame {
     id: number;
@@ -59,8 +60,10 @@ export class DAPClient {
     private readonly MAX_CONSOLE_BUFFER_SIZE = 1000; // Keep last 1000 entries
     private stateChangeEmitter = new vscode.EventEmitter<ExecutionState>();
     public readonly onStateChange = this.stateChangeEmitter.event;
+    private logger: Logger;
 
     constructor() {
+        this.logger = Logger.getInstance();
         // Register debug adapter tracker to intercept DAP messages
         vscode.debug.registerDebugAdapterTrackerFactory('*', {
             createDebugAdapterTracker: (_session: vscode.DebugSession) => {
@@ -72,7 +75,7 @@ export class DAPClient {
                         this.handleDAPMessage(message);
                     },
                     onError: (error: Error) => {
-                        console.error('DAP Error:', error);
+                        this.logger.error('DAP Error:', error);
                     },
                     onExit: (_code: number | undefined, _signal: string | undefined) => {
                         this.reset();
@@ -146,8 +149,8 @@ export class DAPClient {
                 this.stackFrames = response.stackFrames;
                 return this.stackFrames;
             }
-        } catch (error) {
-            console.error('Error getting stack trace:', error);
+        } catch (error: unknown) {
+            this.logger.error('Error getting stack trace:', error);
         }
         return this.stackFrames;
     }
@@ -158,8 +161,8 @@ export class DAPClient {
             if (response?.scopes) {
                 return response.scopes;
             }
-        } catch (error) {
-            console.error('Error getting scopes:', error);
+        } catch (error: unknown) {
+            this.logger.error('Error getting scopes:', error);
         }
         return [];
     }
@@ -172,8 +175,8 @@ export class DAPClient {
             if (response?.variables) {
                 return response.variables;
             }
-        } catch (error) {
-            console.error('Error getting variables:', error);
+        } catch (error: unknown) {
+            this.logger.error('Error getting variables:', error);
         }
         return [];
     }
@@ -194,8 +197,9 @@ export class DAPClient {
                 type: response.type,
                 variablesReference: response.variablesReference
             };
-        } catch (error) {
-            throw new Error(`Failed to evaluate expression: ${error}`);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            throw new Error(`Failed to evaluate expression: ${errorMessage}`);
         }
     }
 

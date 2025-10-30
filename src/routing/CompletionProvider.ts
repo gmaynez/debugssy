@@ -2,6 +2,7 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
+import { Logger } from '../utils/Logger';
 
 /**
  * Provides completion suggestions for MCP prompt arguments.
@@ -9,6 +10,11 @@ import * as path from 'path';
  */
 export class CompletionProvider {
     private static readonly MAX_COMPLETIONS = 20;
+    private logger: Logger;
+
+    constructor() {
+        this.logger = Logger.getInstance();
+    }
 
     /**
      * Provides completions for a specific prompt argument.
@@ -33,8 +39,8 @@ export class CompletionProvider {
                 default:
                     return { values: [], total: 0, hasMore: false };
             }
-        } catch (error) {
-            console.error(`Error getting completions for ${argumentName}:`, error);
+        } catch (error: unknown) {
+            this.logger.error(`Error getting completions for ${argumentName}:`, error);
             return { values: [], total: 0, hasMore: false };
         }
     }
@@ -271,9 +277,9 @@ export class CompletionProvider {
                 total,
                 hasMore: total > CompletionProvider.MAX_COMPLETIONS
             };
-        } catch (error) {
+        } catch (error: unknown) {
             // Debug session might not support these requests or not be paused
-            console.log('Could not get variable completions:', error);
+            this.logger.debug('Could not get variable completions:', error);
             return { values: [], total: 0, hasMore: false };
         }
     }

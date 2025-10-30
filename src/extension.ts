@@ -5,6 +5,7 @@ import { ConfigManager, DebugConfiguration } from './Config';
 import { MCPServer } from './MCPServer';
 import { DAPClient } from './dap/Client';
 import { createToolRegistry, ToolRegistry } from './tools';
+import { Logger } from './utils/Logger';
 
 /**
  * Encapsulates all extension state and dependencies to avoid module-level mutable state.
@@ -42,8 +43,9 @@ class ExtensionContext {
         try {
             this.mcpServer = new MCPServer(port, this.toolRegistry, this.configManager);
             await this.mcpServer.start();
-        } catch (error: any) {
-            vscode.window.showErrorMessage(`Failed to start MCP Server: ${error.message}`);
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+            vscode.window.showErrorMessage(`Failed to start MCP Server: ${errorMessage}`);
             this.mcpServer = undefined;
         }
     }
@@ -133,7 +135,8 @@ class ExtensionContext {
 let extensionContext: ExtensionContext | undefined;
 
 export async function activate(context: vscode.ExtensionContext) {
-    console.log('Debugssy extension is now active');
+    const logger = Logger.getInstance();
+    logger.info('Debugssy extension is now active');
 
     // Initialize extension context
     extensionContext = new ExtensionContext();
@@ -151,7 +154,7 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         configManager.onConfigChange(async (newConfig) => {
             if (!extensionContext) {
-                console.error('Extension context is not initialized');
+                logger.error('Extension context is not initialized');
                 return;
             }
 
@@ -163,7 +166,7 @@ export async function activate(context: vscode.ExtensionContext) {
     // Track debug sessions
     context.subscriptions.push(
         vscode.debug.onDidStartDebugSession((session) => {
-            console.log('Debug session started:', session.name);
+            logger.info('Debug session started:', session.name);
             // Note: execution state will be set to 'running' by DAP 'continued' event
             // or 'paused' by DAP 'stopped' event
         })
@@ -171,7 +174,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.debug.onDidTerminateDebugSession((session) => {
-            console.log('Debug session terminated:', session.name);
+            logger.info('Debug session terminated:', session.name);
             dapClient.reset();
         })
     );
@@ -179,7 +182,7 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.debug.onDidChangeActiveDebugSession((session) => {
             if (session) {
-                console.log('Active debug session changed:', session.name);
+                logger.info('Active debug session changed:', session.name);
             }
         })
     );
@@ -257,9 +260,10 @@ export async function activate(context: vscode.ExtensionContext) {
                         vscode.window.showInformationMessage(
                             `Debugssy MCP Server restarted successfully on port ${config.port}`
                         );
-                    } catch (error: any) {
+                    } catch (error: unknown) {
+                        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
                         vscode.window.showErrorMessage(
-                            `Failed to restart MCP Server: ${error.message}`
+                            `Failed to restart MCP Server: ${errorMessage}`
                         );
                     }
                 }
@@ -273,5 +277,6 @@ export async function deactivate() {
         await extensionContext.dispose();
         extensionContext = undefined;
     }
+    Logger.getInstance().dispose();
 }
 

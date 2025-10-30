@@ -51,10 +51,10 @@ export class BreakpointTools {
                     condition: args.condition
                 }
             };
-        } catch (error: any) {
+        } catch (error: unknown) {
             return {
                 success: false,
-                error: error.message
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
             };
         }
     }
@@ -87,10 +87,10 @@ export class BreakpointTools {
                 success: true,
                 message: `Removed ${toRemove.length} breakpoint(s) at ${args.filePath}:${args.line}`
             };
-        } catch (error: any) {
+        } catch (error: unknown) {
             return {
                 success: false,
-                error: error.message
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
             };
         }
     }
@@ -118,11 +118,11 @@ export class BreakpointTools {
                 success: true,
                 breakpoints: result
             };
-        } catch (error: any) {
+        } catch (error: unknown) {
             return {
                 success: false,
                 breakpoints: [],
-                error: error.message
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
             };
         }
     }
@@ -166,10 +166,10 @@ export class BreakpointTools {
                     error: `No breakpoint found at ${args.filePath}:${args.line}`
                 };
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             return {
                 success: false,
-                error: error.message
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
             };
         }
     }
@@ -183,10 +183,10 @@ export class BreakpointTools {
                 success: true,
                 message: `Removed all ${breakpoints.length} breakpoints`
             };
-        } catch (error: any) {
+        } catch (error: unknown) {
             return {
                 success: false,
-                error: error.message
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
             };
         }
     }

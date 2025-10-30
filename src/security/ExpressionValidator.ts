@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as vscode from 'vscode';
+import { Logger } from '../utils/Logger';
 
 export type RiskLevel = 'critical' | 'high' | 'medium' | 'low';
 export type ValidationLevel = 'strict' | 'moderate' | 'permissive' | 'disabled';
@@ -83,6 +84,12 @@ export class ExpressionValidator {
         // Date constructors (when used for parsing)
         'Date.now', 'Date.parse', 'Date.UTC'
     ]);
+
+    private logger: Logger;
+
+    constructor() {
+        this.logger = Logger.getInstance();
+    }
 
     // Safe built-in Python functions and methods
     private readonly pythonSafeFunctions = new Set([
@@ -273,7 +280,7 @@ export class ExpressionValidator {
             return 'rust';
         }
         
-        console.log(`Unknown debug session type: ${type}, using generic validation with whitelists`);
+        this.logger.debug(`Unknown debug session type: ${type}, using generic validation with whitelists`);
         return type;
     }
 

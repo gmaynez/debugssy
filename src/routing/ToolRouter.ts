@@ -6,6 +6,7 @@ import { ToolRegistry } from '../tools';
 import { ConfigManager } from '../Config';
 import { ExpressionValidator } from '../security/ExpressionValidator';
 import { breakpointSchemas, inspectionSchemas, debugControlSchemas, stepOperationSchemas } from './schemas';
+import { Logger } from '../utils/Logger';
 import {
     SetBreakpointArgs,
     RemoveBreakpointArgs,
@@ -32,6 +33,7 @@ type ToolHandler = (args: any) => Promise<any>;
 export class ToolRouter {
     private toolHandlers: Map<string, ToolHandler>;
     private expressionValidator: ExpressionValidator;
+    private logger: Logger;
 
     constructor(
         private toolRegistry: ToolRegistry,
@@ -39,6 +41,7 @@ export class ToolRouter {
     ) {
         this.toolHandlers = this.initializeToolHandlers();
         this.expressionValidator = new ExpressionValidator();
+        this.logger = Logger.getInstance();
     }
 
     /**
@@ -260,10 +263,11 @@ export class ToolRouter {
                     error: `Expression evaluation cancelled by user.`
                 };
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             // Elicitation not supported by client or other error
             // Fall back to blocking the expression with detailed info
-            console.warn('Elicitation failed, blocking expression:', error.message);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            this.logger.warn('Elicitation failed, blocking expression:', errorMessage);
             const elicitationMessage = this.expressionValidator.formatElicitationMessage(
                 args.expression,
                 validationResult

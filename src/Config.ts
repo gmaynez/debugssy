@@ -3,6 +3,7 @@
 import * as vscode from 'vscode';
 import { z } from 'zod';
 import { DEFAULT_BREAKPOINT_TIMEOUT_MS } from './constants';
+import { Logger } from './utils/Logger';
 
 /**
  * Zod schema for runtime validation of configuration values.
@@ -50,7 +51,8 @@ export class ConfigManager {
         
         if (!result.success) {
             // Log validation errors but return defaults to prevent extension failure
-            console.error('Invalid configuration detected:', result.error.issues);
+            const logger = Logger.getInstance();
+            logger.error('Invalid configuration detected:', result.error.issues);
             const issues = result.error.issues.map(issue => 
                 `${issue.path.join('.')}: ${issue.message}`
             ).join(', ');
