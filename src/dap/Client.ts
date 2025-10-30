@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as vscode from 'vscode';
-import { DEFAULT_THREAD_ID } from '../constants';
+import { DEFAULT_THREAD_ID, MAX_CONSOLE_BUFFER_SIZE } from '../constants';
 import { Logger } from '../utils/Logger';
 
 export interface StackFrame {
@@ -57,7 +57,6 @@ export class DAPClient {
     private executionState: ExecutionState = 'not_started';
     private stoppedInfo: StoppedInfo | undefined;
     private consoleOutputBuffer: ConsoleOutput[] = [];
-    private readonly MAX_CONSOLE_BUFFER_SIZE = 1000; // Keep last 1000 entries
     private stateChangeEmitter = new vscode.EventEmitter<ExecutionState>();
     public readonly onStateChange = this.stateChangeEmitter.event;
     private logger: Logger;
@@ -223,7 +222,7 @@ export class DAPClient {
         this.consoleOutputBuffer.push(output);
         
         // Keep buffer size limited
-        if (this.consoleOutputBuffer.length > this.MAX_CONSOLE_BUFFER_SIZE) {
+        if (this.consoleOutputBuffer.length > MAX_CONSOLE_BUFFER_SIZE) {
             this.consoleOutputBuffer.shift(); // Remove oldest entry
         }
     }

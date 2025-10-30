@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import { DEFAULT_MAX_STACK_DEPTH, DEFAULT_CONSOLE_OUTPUT_LIMIT, MAX_CONSOLE_OUTPUT_LIMIT } from '../../constants';
+
 /**
  * Tool schemas for inspection and state query operations.
  */
@@ -30,7 +32,7 @@ export const inspectionSchemas = [
             properties: {
                 maxDepth: {
                     type: 'number',
-                    description: 'Maximum number of stack frames to return (default: 20). Use smaller values to reduce verbosity.'
+                    description: `Maximum number of stack frames to return (default: ${DEFAULT_MAX_STACK_DEPTH}). Use smaller values to reduce verbosity.`
                 }
             }
         }
@@ -71,7 +73,7 @@ export const inspectionSchemas = [
     },
     {
         name: 'get_console_output',
-        description: 'Get output from the debug console including stdout, stderr, and console.log messages. WARNING: Can be extremely verbose. Always specify a limit (default: 50 most recent entries). Use category filter to reduce output.',
+        description: `Get output from the debug console including stdout, stderr, and console.log messages. WARNING: Can be extremely verbose. Always specify a limit (default: ${DEFAULT_CONSOLE_OUTPUT_LIMIT} most recent entries). Use category filter to reduce output.`,
         inputSchema: {
             type: 'object',
             properties: {
@@ -82,7 +84,7 @@ export const inspectionSchemas = [
                 },
                 limit: {
                     type: 'number',
-                    description: 'Maximum number of recent entries to return (default: 50, max: 1000). Start with smaller values.'
+                    description: `Maximum number of recent entries to return (default: ${DEFAULT_CONSOLE_OUTPUT_LIMIT}, max: ${MAX_CONSOLE_OUTPUT_LIMIT}). Start with smaller values.`
                 },
                 since: {
                     type: 'number',

@@ -43,3 +43,97 @@ export const CURRENT_MCP_PROTOCOL_VERSION = '2025-06-18';
  */
 export const FALLBACK_MCP_PROTOCOL_VERSION = '2025-03-26';
 
+// =============================================================================
+// Debugging & Inspection Constants
+// =============================================================================
+
+/**
+ * Default maximum depth for stack traces to prevent overly verbose output.
+ * Users can override this per-request.
+ */
+export const DEFAULT_MAX_STACK_DEPTH = 20;
+
+/**
+ * Default maximum number of console output entries to return.
+ * Prevents overwhelming the client with too much output.
+ */
+export const DEFAULT_CONSOLE_OUTPUT_LIMIT = 50;
+
+/**
+ * Maximum allowed console output entries per request.
+ * Hard limit to prevent memory issues.
+ */
+export const MAX_CONSOLE_OUTPUT_LIMIT = 1000;
+
+/**
+ * Maximum size of the console output buffer.
+ * Older entries are discarded when limit is reached.
+ */
+export const MAX_CONSOLE_BUFFER_SIZE = 1000;
+
+// =============================================================================
+// Expression Validation Constants
+// =============================================================================
+
+/**
+ * Default maximum length for evaluated expressions.
+ * Prevents prompt injection attacks via excessively long expressions.
+ */
+export const DEFAULT_MAX_EXPRESSION_LENGTH = 100;
+
+/**
+ * Minimum allowed expression length setting.
+ * Must be long enough for basic expressions like variable names.
+ */
+export const MIN_EXPRESSION_LENGTH = 20;
+
+/**
+ * Maximum allowed expression length setting.
+ * Upper bound to prevent abuse while allowing complex expressions.
+ */
+export const MAX_EXPRESSION_LENGTH = 400;
+
+// =============================================================================
+// Configuration Validation Constants
+// =============================================================================
+
+/**
+ * Minimum port number for MCP server.
+ * Ports below 1024 require root/admin privileges.
+ */
+export const MIN_PORT = 1024;
+
+/**
+ * Maximum port number for MCP server.
+ * Standard maximum TCP port number.
+ */
+export const MAX_PORT = 65535;
+
+/**
+ * Minimum timeout for wait_for_breakpoint in milliseconds.
+ * Must be at least 1 second to be practical.
+ */
+export const MIN_BREAKPOINT_TIMEOUT_MS = 1000;
+
+/**
+ * Maximum timeout for wait_for_breakpoint in milliseconds.
+ * 5 minutes should be sufficient for any reasonable debugging scenario.
+ */
+export const MAX_BREAKPOINT_TIMEOUT_MS = 300000;
+
+// =============================================================================
+// Completion & Search Constants
+// =============================================================================
+
+/**
+ * Maximum number of completion suggestions to return.
+ * Prevents overwhelming the client with too many options.
+ */
+export const MAX_COMPLETIONS = 20;
+
+/**
+ * Maximum number of files to search when providing file path completions.
+ * Limits search time and memory usage.
+ */
+export const MAX_FILE_SEARCH_RESULTS = 100;
+

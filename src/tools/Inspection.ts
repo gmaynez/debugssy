@@ -3,6 +3,7 @@
 import * as vscode from 'vscode';
 import { DAPClient } from '../dap/Client';
 import { ConfigManager } from '../Config';
+import { DEFAULT_MAX_STACK_DEPTH, DEFAULT_CONSOLE_OUTPUT_LIMIT, MAX_CONSOLE_OUTPUT_LIMIT } from '../constants';
 
 export interface InspectionResult {
     success: boolean;
@@ -10,12 +11,23 @@ export interface InspectionResult {
     error?: string;
 }
 
+/**
+ * Provides tools for inspecting the current debug session state.
+ * All methods return InspectionResult with success status and data or error.
+ */
 export class InspectionTools {
     constructor(
         private dapClient: DAPClient,
         private configManager: ConfigManager
     ) {}
 
+    /**
+     * Gets the current debug session state including execution state, location, and stop reason.
+     * This is a lightweight operation that should be called first before more verbose tools.
+     * 
+     * @returns InspectionResult containing session state, execution state (running/paused), 
+     *          current location if paused, and stop reason
+     */
     async getDebugState(): Promise<InspectionResult> {
         try {
             const session = vscode.debug.activeDebugSession;
@@ -78,6 +90,15 @@ export class InspectionTools {
         }
     }
 
+    /**
+     * Waits for execution to pause at a breakpoint (full automation mode only).
+     * Uses subscribe-then-query pattern to avoid race conditions.
+     * 
+     * @param args - Object containing optional timeout and required automationLevel
+     * @param args.timeout - Maximum time to wait in milliseconds (defaults to config setting)
+     * @param args.automationLevel - Must be 'full' for this operation
+     * @returns InspectionResult with debug state when paused, or error if timeout/not full automation
+     */
     async waitForBreakpoint(args: { timeout?: number; automationLevel: 'assisted' | 'full' }): Promise<InspectionResult> {
         try {
             // Check automation level
@@ -150,6 +171,15 @@ export class InspectionTools {
         }
     }
 
+    /**
+     * Gets variables from the current or specified stack frame.
+     * Can be filtered by scope (e.g., "Local", "Global") to reduce verbosity.
+     * 
+     * @param args - Object containing optional scope filter and frame ID
+     * @param args.scope - Scope prefix to filter (e.g., "Local" matches "Local: functionName")
+     * @param args.frameId - Stack frame ID (defaults to current frame)
+     * @returns InspectionResult with variables grouped by scope
+     */
     async getVariables(args: { scope?: string; frameId?: number }): Promise<InspectionResult> {
         try {
             const session = vscode.debug.activeDebugSession;
@@ -209,6 +239,14 @@ export class InspectionTools {
         }
     }
 
+    /**
+     * Gets the current call stack with optional depth limit.
+     * Use maxDepth to prevent overly verbose output with deep stacks.
+     * 
+     * @param args - Optional object containing maxDepth
+     * @param args.maxDepth - Maximum number of frames to return (default: 20)
+     * @returns InspectionResult with stack frames, total count, and truncation flag
+     */
     async getCallStack(args?: { maxDepth?: number }): Promise<InspectionResult> {
         try {
             const session = vscode.debug.activeDebugSession;
@@ -221,8 +259,8 @@ export class InspectionTools {
 
             const stackFrames = await this.dapClient.getStackTrace(session);
             
-            // Default to 20 frames to reduce verbosity
-            const maxDepth = args?.maxDepth ?? 20;
+            // Default to DEFAULT_MAX_STACK_DEPTH frames to reduce verbosity
+            const maxDepth = args?.maxDepth ?? DEFAULT_MAX_STACK_DEPTH;
             const limitedFrames = stackFrames.slice(0, maxDepth);
 
             return {
@@ -247,6 +285,15 @@ export class InspectionTools {
         }
     }
 
+    /**
+     * Evaluates an expression in the current debug context with security validation.
+     * Expressions are validated to prevent side effects. Complex expressions may require user approval.
+     * 
+     * @param args - Object containing expression and optional frame ID
+     * @param args.expression - Expression to evaluate (length limited for security)
+     * @param args.frameId - Stack frame ID (defaults to current frame)
+     * @returns InspectionResult with expression result, type, and value
+     */
     async evaluateExpression(args: { expression: string; frameId?: number }): Promise<InspectionResult> {
         try {
             const session = vscode.debug.activeDebugSession;
@@ -288,6 +335,12 @@ export class InspectionTools {
         }
     }
 
+    /**
+     * Gets watch expressions (not currently supported by VS Code API).
+     * Returns an error indicating limitation and suggesting alternative.
+     * 
+     * @returns InspectionResult with error indicating limitation
+     */
     async getWatches(): Promise<InspectionResult> {
         // VS Code doesn't expose watch expressions via API directly
         // We would need to track them separately or access internal state
@@ -298,6 +351,11 @@ export class InspectionTools {
         };
     }
 
+    /**
+     * Gets all threads in the current debug session.
+     * 
+     * @returns InspectionResult with array of thread information
+     */
     async getThreads(): Promise<InspectionResult> {
         try {
             const session = vscode.debug.activeDebugSession;
@@ -324,6 +382,17 @@ export class InspectionTools {
         }
     }
 
+    /**
+     * Gets output from the debug console with optional filtering and limits.
+     * WARNING: Can be very verbose. Always specify a limit and consider category filtering.
+     * 
+     * @param args - Optional filtering and limiting options
+     * @param args.category - Filter by category: 'console', 'stdout', 'stderr', 'telemetry'
+     * @param args.limit - Maximum entries to return (default: 50, max: 1000)
+     * @param args.since - Unix timestamp to filter entries after this time
+     * @param args.clear - If true, clears buffer after reading
+     * @returns InspectionResult with console entries, count, and truncation flag
+     */
     async getConsoleOutput(args?: { 
         category?: string; 
         limit?: number; 
@@ -331,8 +400,8 @@ export class InspectionTools {
         clear?: boolean;
     }): Promise<InspectionResult> {
         try {
-            // Default to 50 entries to reduce verbosity
-            const limit = args?.limit ?? 50;
+            // Default to DEFAULT_CONSOLE_OUTPUT_LIMIT entries to reduce verbosity
+            const limit = args?.limit ?? DEFAULT_CONSOLE_OUTPUT_LIMIT;
             
             const output = this.dapClient.getConsoleOutput({
                 category: args?.category,
@@ -352,7 +421,7 @@ export class InspectionTools {
                         line: entry.line
                     })),
                     count: output.length,
-                    truncated: limit < 1000 // Indicate if there might be more
+                    truncated: limit < MAX_CONSOLE_OUTPUT_LIMIT // Indicate if there might be more
                 }
             };
         } catch (error: unknown) {
@@ -363,6 +432,11 @@ export class InspectionTools {
         }
     }
 
+    /**
+     * Clears the console output buffer.
+     * 
+     * @returns InspectionResult with success message
+     */
     async clearConsoleOutput(): Promise<InspectionResult> {
         try {
             this.dapClient.clearConsoleOutput();

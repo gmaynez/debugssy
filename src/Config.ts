@@ -2,7 +2,16 @@
 
 import * as vscode from 'vscode';
 import { z } from 'zod';
-import { DEFAULT_BREAKPOINT_TIMEOUT_MS } from './constants';
+import { 
+    DEFAULT_BREAKPOINT_TIMEOUT_MS, 
+    MIN_PORT, 
+    MAX_PORT,
+    MIN_BREAKPOINT_TIMEOUT_MS,
+    MAX_BREAKPOINT_TIMEOUT_MS,
+    MIN_EXPRESSION_LENGTH,
+    MAX_EXPRESSION_LENGTH,
+    DEFAULT_MAX_EXPRESSION_LENGTH
+} from './constants';
 import { Logger } from './utils/Logger';
 
 /**
@@ -11,11 +20,11 @@ import { Logger } from './utils/Logger';
  */
 export const DebugConfigurationSchema = z.object({
     enabled: z.boolean(),
-    port: z.number().int().min(1024, { message: 'Port must be >= 1024' }).max(65535, { message: 'Port must be <= 65535' }),
+    port: z.number().int().min(MIN_PORT, { message: `Port must be >= ${MIN_PORT}` }).max(MAX_PORT, { message: `Port must be <= ${MAX_PORT}` }),
     automationLevel: z.enum(['assisted', 'full']),
-    waitForBreakpointTimeout: z.number().int().min(1000, { message: 'Timeout must be >= 1000ms' }).max(300000, { message: 'Timeout must be <= 300000ms' }),
+    waitForBreakpointTimeout: z.number().int().min(MIN_BREAKPOINT_TIMEOUT_MS, { message: `Timeout must be >= ${MIN_BREAKPOINT_TIMEOUT_MS}ms` }).max(MAX_BREAKPOINT_TIMEOUT_MS, { message: `Timeout must be <= ${MAX_BREAKPOINT_TIMEOUT_MS}ms` }),
     allowStepOperations: z.boolean(),
-    maxExpressionLength: z.number().int().min(20, { message: 'Max expression length must be >= 20' }).max(400, { message: 'Max expression length must be <= 400' }),
+    maxExpressionLength: z.number().int().min(MIN_EXPRESSION_LENGTH, { message: `Max expression length must be >= ${MIN_EXPRESSION_LENGTH}` }).max(MAX_EXPRESSION_LENGTH, { message: `Max expression length must be <= ${MAX_EXPRESSION_LENGTH}` }),
     expressionValidationLevel: z.enum(['strict', 'moderate', 'permissive', 'disabled'])
 });
 
@@ -42,7 +51,7 @@ export class ConfigManager {
             automationLevel: config.get<'assisted' | 'full'>('automationLevel', 'assisted'),
             waitForBreakpointTimeout: config.get<number>('waitForBreakpointTimeout', DEFAULT_BREAKPOINT_TIMEOUT_MS),
             allowStepOperations: config.get<boolean>('allowStepOperations', false),
-            maxExpressionLength: config.get<number>('maxExpressionLength', 100),
+            maxExpressionLength: config.get<number>('maxExpressionLength', DEFAULT_MAX_EXPRESSION_LENGTH),
             expressionValidationLevel: config.get<'strict' | 'moderate' | 'permissive' | 'disabled'>('expressionValidationLevel', 'moderate')
         };
 
@@ -67,7 +76,7 @@ export class ConfigManager {
                 automationLevel: 'assisted',
                 waitForBreakpointTimeout: DEFAULT_BREAKPOINT_TIMEOUT_MS,
                 allowStepOperations: false,
-                maxExpressionLength: 100,
+                maxExpressionLength: DEFAULT_MAX_EXPRESSION_LENGTH,
                 expressionValidationLevel: 'moderate'
             });
         }

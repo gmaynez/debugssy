@@ -3,13 +3,13 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { Logger } from '../utils/Logger';
+import { MAX_COMPLETIONS, MAX_FILE_SEARCH_RESULTS } from '../constants';
 
 /**
  * Provides completion suggestions for MCP prompt arguments.
  * Helps users autocomplete file paths, function names, variable names, etc.
  */
 export class CompletionProvider {
-    private static readonly MAX_COMPLETIONS = 20;
     private logger: Logger;
 
     constructor() {
@@ -70,7 +70,7 @@ export class CompletionProvider {
         const files = await vscode.workspace.findFiles(
             searchPattern,
             excludePattern,
-            100 // Limit to 100 files for performance
+            MAX_FILE_SEARCH_RESULTS
         );
 
         // Convert URIs to relative paths
@@ -103,12 +103,12 @@ export class CompletionProvider {
         });
 
         const total = filePaths.length;
-        const values = filePaths.slice(0, CompletionProvider.MAX_COMPLETIONS);
+        const values = filePaths.slice(0, MAX_COMPLETIONS);
 
         return {
             values,
             total,
-            hasMore: total > CompletionProvider.MAX_COMPLETIONS
+            hasMore: total > MAX_COMPLETIONS
         };
     }
 
@@ -174,12 +174,12 @@ export class CompletionProvider {
         });
 
         const total = functions.length;
-        const values = functions.slice(0, CompletionProvider.MAX_COMPLETIONS);
+        const values = functions.slice(0, MAX_COMPLETIONS);
 
         return {
             values,
             total,
-            hasMore: total > CompletionProvider.MAX_COMPLETIONS
+            hasMore: total > MAX_COMPLETIONS
         };
     }
 
@@ -270,12 +270,12 @@ export class CompletionProvider {
             });
 
             const total = vars.length;
-            const values = vars.slice(0, CompletionProvider.MAX_COMPLETIONS);
+            const values = vars.slice(0, MAX_COMPLETIONS);
 
             return {
                 values,
                 total,
-                hasMore: total > CompletionProvider.MAX_COMPLETIONS
+                hasMore: total > MAX_COMPLETIONS
             };
         } catch (error: unknown) {
             // Debug session might not support these requests or not be paused

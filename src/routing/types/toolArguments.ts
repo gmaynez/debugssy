@@ -6,6 +6,7 @@
  */
 
 import { z } from 'zod';
+import { MAX_CONSOLE_OUTPUT_LIMIT } from '../../constants';
 
 export const SetBreakpointArgsSchema = z.object({
     filePath: z.string().min(1, { error: 'filePath must be a non-empty string' }),
@@ -49,8 +50,8 @@ export const GetConsoleOutputArgsSchema = z.object({
     category: z.enum(['console', 'stdout', 'stderr', 'telemetry'], {
         error: 'category must be one of: console, stdout, stderr, telemetry'
     }).optional(),
-    limit: z.number().int().positive().max(1000, {
-        error: 'limit must be between 1 and 1000'
+    limit: z.number().int().positive().max(MAX_CONSOLE_OUTPUT_LIMIT, {
+        error: `limit must be between 1 and ${MAX_CONSOLE_OUTPUT_LIMIT}`
     }).optional(),
     since: z.number().int().nonnegative().optional(),
     clear: z.boolean().optional()
