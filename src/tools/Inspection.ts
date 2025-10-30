@@ -96,29 +96,40 @@ export class InspectionTools {
                 };
             }
 
-            // CRITICAL: Check if already paused to avoid race condition
-            // If we're already paused, return immediately with current state
-            const currentState = this.dapClient.getExecutionState();
-            if (currentState === 'paused') {
-                return await this.getDebugState();
-            }
-
             // Use provided timeout, fallback to config, then default
             const defaultTimeout = this.configManager.getConfig().waitForBreakpointTimeout;
             const timeout = args.timeout || defaultTimeout;
 
-            // Wait for the next paused state
+            // CRITICAL: Avoid race condition by setting up listener BEFORE checking state
+            // This ensures we don't miss events that occur between check and setup
             let disposable: vscode.Disposable | undefined;
+            let stateCheckPromise: Promise<InspectionResult>;
+            
             try {
+                // Set up event listener first
+                const eventPromise = new Promise<InspectionResult>((resolve) => {
+                    disposable = this.dapClient.onStateChange((state) => {
+                        if (state === 'paused') {
+                            // Get the current state info
+                            this.getDebugState().then(resolve);
+                        }
+                    });
+                });
+
+                // Now check current state - if already paused, resolve immediately
+                // If state changed after listener setup, the event will still fire
+                const currentState = this.dapClient.getExecutionState();
+                if (currentState === 'paused') {
+                    // Already paused - return immediately without waiting for events
+                    stateCheckPromise = this.getDebugState();
+                } else {
+                    // Not paused - wait for event
+                    stateCheckPromise = eventPromise;
+                }
+
+                // Race between state check/event and timeout
                 const result = await Promise.race([
-                    new Promise<InspectionResult>((resolve) => {
-                        disposable = this.dapClient.onStateChange((state) => {
-                            if (state === 'paused') {
-                                // Get the current state info
-                                this.getDebugState().then(resolve);
-                            }
-                        });
-                    }),
+                    stateCheckPromise,
                     new Promise<InspectionResult>((_, reject) => {
                         setTimeout(() => reject(new Error(`Timeout waiting for breakpoint after ${timeout}ms`)), timeout);
                     })

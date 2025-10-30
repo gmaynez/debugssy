@@ -13,6 +13,11 @@ export class DebugControlTools {
     private activeSession: vscode.DebugSession | undefined;
 
     constructor(private configManager: ConfigManager) {
+        // Initialize with current active session (if any) to avoid race condition
+        // where extension loads after debug session has already started
+        this.activeSession = vscode.debug.activeDebugSession;
+
+        // Then subscribe to future changes
         vscode.debug.onDidStartDebugSession((session) => {
             this.activeSession = session;
         });
