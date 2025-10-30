@@ -966,7 +966,6 @@ Every contribution helps maintain and improve Debugssy. Thank you! 🙏
 - **[MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md)** - Security implementation details
 - **[DEBUGSSY_PROMPT.md](./DEBUGSSY_PROMPT.md)** - Comprehensive guide for AI assistants
 - **[COMPACT_PROMPT.txt](./COMPACT_PROMPT.txt)** - Quick AI assistant reference
-- **[PUBLISHING_WORKFLOW.md](./PUBLISHING_WORKFLOW.md)** - Publishing guide for maintainers
 
 ### External Links
 
