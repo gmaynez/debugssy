@@ -2,6 +2,26 @@
 
 All notable changes to the "Debugssy" extension will be documented in this file.
 
+## [1.2.1] - 2025-10-31
+
+### Added
+- Centralized logging system with structured output channel for better debugging and error tracking
+- Multi-language support for expression validation extended to C#, Java, C++, and Go
+- Language-specific critical operation detection across JavaScript, Python, C++, C#, and Java
+- Whitelisting of safe functions and methods for each supported language
+
+### Fixed
+- Race condition in DebugControl when extension loads after a debug session has already started
+- Race condition in Inspection tool's state checking mechanism by ensuring event listeners are set up before checking execution state
+- Improved state transitions to prevent missed events during debugging
+
+### Changed
+- Refactored configuration constants for port, timeout, and expression length validation for better maintainability
+- Standardized configuration values across the extension using centralized constants
+- Replaced console logging with Logger utility across all components (ConfigManager, MCPServer, DAPClient, etc.)
+- Enhanced error handling with clearer messages and consistent logging practices
+- Improved documentation within ExpressionValidator for detection methods and risk assessment
+
 ## [1.2.0] - 2025-10-30
 
 ### Added
