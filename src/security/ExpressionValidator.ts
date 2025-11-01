@@ -859,7 +859,7 @@ export class ExpressionValidator {
     for (const method of allMutationMethods) {
       this.mutationRegexCache.set(
         method,
-        new RegExp(`\\.${method}\\s*\\(`, "i"),
+        new RegExp(`(?:\\.|\\?\\.)${method}\\s*\\(`, "i"),
       );
     }
 
@@ -1140,8 +1140,14 @@ Getter methods are typically safe, but custom getters may include logging or sta
     }
 
     // Python file operations with write modes
+    const openPositionalWritePattern =
+      /\bopen\s*\(\s*[^,]+,\s*(?:mode\s*=\s*)?['"][^'"]*(?:[wax]|\+)[^'"]*['"]/i;
+    const openNamedModeWritePattern =
+      /\bopen\s*\([^)]*mode\s*=\s*['"][^'"]*(?:[wax]|\+)[^'"]*['"]/i;
+
     if (
-      /\bopen\s*\([^)]*['"][wa]/i.test(expression) ||
+      openPositionalWritePattern.test(expression) ||
+      openNamedModeWritePattern.test(expression) ||
       /\bPath\s*\([^)]*\)\s*\.\s*(write_text|write_bytes|unlink|rmdir|mkdir|rename|replace|chmod)\s*\(/i.test(
         expression,
       )
@@ -1725,8 +1731,36 @@ Getter methods are typically safe, but custom getters may include logging or sta
    * Uses JavaScript whitelists as a reasonable default since many languages share similar syntax.
    */
   private validateGeneric(expression: string): ValidationResult {
-    // Check if expression contains function calls
-    if (/[\w_\]]\s*\(/.test(expression)) {
+    // HIGH RISK: Assignment operators
+    // Match: = but not ==, !=, <=, >=, ===, !==
+    if (/(?<![=!<>])=(?!=)/.test(expression)) {
+      return {
+        allowed: false,
+        reason: "State Mutation: assignment modifies variables",
+        riskLevel: "high",
+      };
+    }
+
+    // HIGH RISK: Compound assignment operators
+    if (/(\+=|-=|\*=|\/=|%=|&=|\|=|\^=|<<=|>>=)/.test(expression)) {
+      return {
+        allowed: false,
+        reason: "State Mutation: compound assignment modifies variables",
+        riskLevel: "high",
+      };
+    }
+
+    // HIGH RISK: Increment/decrement operators
+    if (/(\+\+|--)/.test(expression)) {
+      return {
+        allowed: false,
+        reason: "State Mutation: increment/decrement modifies variables",
+        riskLevel: "high",
+      };
+    }
+
+    const hasFunctionCalls = /[\w_\]]\s*\(/.test(expression);
+    if (hasFunctionCalls) {
       // Even for unknown languages, check against JavaScript whitelists
       // since many languages (TypeScript, C#, Java, Go, etc.) have similar built-in functions
       const calls = this.extractFunctionCalls(expression);
@@ -1770,36 +1804,8 @@ Getter methods are typically safe, but custom getters may include logging or sta
         };
       }
 
-      // All function calls are whitelisted
+      // All function calls are whitelisted (high-risk operators handled above)
       return { allowed: true };
-    }
-
-    // HIGH RISK: Assignment operators
-    // Match: = but not ==, !=, <=, >=, ===, !==
-    if (/(?<![=!<>])=(?!=)/.test(expression)) {
-      return {
-        allowed: false,
-        reason: "State Mutation: assignment modifies variables",
-        riskLevel: "high",
-      };
-    }
-
-    // HIGH RISK: Compound assignment operators
-    if (/(\+=|-=|\*=|\/=|%=|&=|\|=|\^=|<<=|>>=)/.test(expression)) {
-      return {
-        allowed: false,
-        reason: "State Mutation: compound assignment modifies variables",
-        riskLevel: "high",
-      };
-    }
-
-    // HIGH RISK: Increment/decrement operators
-    if (/(\+\+|--)/.test(expression)) {
-      return {
-        allowed: false,
-        reason: "State Mutation: increment/decrement modifies variables",
-        riskLevel: "high",
-      };
     }
 
     // MEDIUM RISK: Bitwise operators (unusual in debugging, could be obfuscation)
