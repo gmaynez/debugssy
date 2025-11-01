@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as vscode from 'vscode';
-import { Logger } from '../utils/Logger';
+import {Logger} from '../utils/Logger';
 
 export type RiskLevel = 'critical' | 'high' | 'medium' | 'low';
 export type ValidationLevel = 'strict' | 'moderate' | 'permissive' | 'disabled';
@@ -15,12 +15,12 @@ export interface ValidationResult {
 /**
  * Validates expressions for potential side effects before evaluation.
  * Uses pattern-based validation with whitelists of known-safe functions.
- * 
+ *
  * This provides defense-in-depth against:
  * - Unintended side effects (function calls, assignments)
  * - Code execution that modifies program state
  * - Potentially expensive operations
- * 
+ *
  * Approach:
  * - Whitelists known-safe built-in functions (Array.map, Object.keys, JSON.stringify, etc.)
  * - Blocks assignments, mutations, and unknown function calls
@@ -86,59 +86,15 @@ export class ExpressionValidator {
     ]);
 
     private logger: Logger;
-    
+
     // Pre-compiled regex patterns for mutation detection to avoid repeated compilation
     private readonly mutationRegexCache: Map<string, RegExp>;
-    
+
     // Language detection cache per session to avoid redundant lookups
     private readonly languageCache: Map<string, string>;
-    
+
     // Disposable for the session termination listener
     private readonly sessionTerminationDisposable: vscode.Disposable | undefined;
-
-    constructor() {
-        this.logger = Logger.getInstance();
-        
-        // Pre-compile all mutation regex patterns to avoid repeated compilation
-        this.mutationRegexCache = new Map();
-        const allMutationMethods = [
-            // JavaScript/TypeScript
-            'push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse',
-            'fill', 'copyWithin', 'delete', 'clear', 'set', 'add',
-            // Python
-            'append', 'extend', 'insert', 'remove', 'clear', 'discard', 'update',
-            // C#
-            'Add', 'Remove', 'RemoveAt', 'RemoveAll', 'Insert', 'Sort', 'Reverse',
-            'AddRange', 'InsertRange', 'RemoveRange', 'Push', 'Pop', 'Enqueue', 'Dequeue',
-            // Java
-            'addAll', 'removeAll', 'retainAll', 'put', 'putAll', 'replaceAll', 'shuffle'
-        ];
-        
-        for (const method of allMutationMethods) {
-            this.mutationRegexCache.set(method, new RegExp(`\\.${method}\\s*\\(`, 'i'));
-        }
-        
-        // Initialize language cache
-        this.languageCache = new Map();
-        
-        // Listen for debug session termination to clear cache entries
-        // Store the disposable for proper cleanup when validator is disposed
-        if (typeof vscode !== 'undefined') {
-            this.sessionTerminationDisposable = vscode.debug.onDidTerminateDebugSession((session) => {
-                this.languageCache.delete(session.id);
-            });
-        }
-    }
-    
-    /**
-     * Disposes resources and cleans up event listeners.
-     * Should be called when the validator is no longer needed.
-     */
-    dispose(): void {
-        this.sessionTerminationDisposable?.dispose();
-        this.languageCache.clear();
-    }
-
     // Safe built-in Python functions and methods
     private readonly pythonSafeFunctions = new Set([
         // List read-only methods
@@ -164,7 +120,6 @@ export class ExpressionValidator {
         // Common getters pattern
         'get', 'has', 'size'
     ]);
-
     // Safe built-in Python module functions (module.function)
     private readonly pythonSafeStaticFunctions = new Set([
         // json module
@@ -179,7 +134,6 @@ export class ExpressionValidator {
         // datetime parsing
         'datetime.datetime.now', 'datetime.datetime.strptime', 'datetime.date.today'
     ]);
-
     // Safe C# methods (LINQ, Collections, String)
     private readonly csharpSafeFunctions = new Set([
         // LINQ read-only methods
@@ -199,7 +153,6 @@ export class ExpressionValidator {
         // Object methods
         'ToString', 'GetHashCode', 'GetType', 'Equals'
     ]);
-
     // Safe C# static functions (System namespace)
     private readonly csharpSafeStaticFunctions = new Set([
         // Math (all pure)
@@ -217,7 +170,6 @@ export class ExpressionValidator {
         // Enumerable static methods
         'Enumerable.Range', 'Enumerable.Repeat', 'Enumerable.Empty'
     ]);
-
     // Safe Java methods (Stream API, Collections, String)
     private readonly javaSafeFunctions = new Set([
         // Stream API (read-only)
@@ -236,7 +188,6 @@ export class ExpressionValidator {
         // Object methods
         'toString', 'hashCode', 'equals', 'getClass'
     ]);
-
     // Safe Java static functions
     private readonly javaSafeStaticFunctions = new Set([
         // Math (all pure)
@@ -256,7 +207,6 @@ export class ExpressionValidator {
         // System read-only
         'System.currentTimeMillis', 'System.nanoTime', 'System.getProperty'
     ]);
-
     // Safe C/C++ functions (standard library read-only)
     private readonly cppSafeFunctions = new Set([
         // String functions (read-only)
@@ -274,7 +224,6 @@ export class ExpressionValidator {
         // Time functions (read-only)
         'time', 'clock', 'difftime', 'strftime', 'localtime', 'gmtime'
     ]);
-
     // Safe Go functions (standard library read-only)
     private readonly goSafeFunctions = new Set([
         // String functions
@@ -291,10 +240,54 @@ export class ExpressionValidator {
         // Conversion
         'strconv.Atoi', 'strconv.Itoa', 'strconv.ParseInt', 'strconv.ParseFloat', 'strconv.FormatInt'
     ]);
+
+    constructor() {
+        this.logger = Logger.getInstance();
+
+        // Pre-compile all mutation regex patterns to avoid repeated compilation
+        this.mutationRegexCache = new Map();
+        const allMutationMethods = [
+            // JavaScript/TypeScript
+            'push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse',
+            'fill', 'copyWithin', 'delete', 'clear', 'set', 'add',
+            // Python
+            'append', 'extend', 'insert', 'remove', 'clear', 'discard', 'update',
+            // C#
+            'Add', 'Remove', 'RemoveAt', 'RemoveAll', 'Insert', 'Sort', 'Reverse',
+            'AddRange', 'InsertRange', 'RemoveRange', 'Push', 'Pop', 'Enqueue', 'Dequeue',
+            // Java
+            'addAll', 'removeAll', 'retainAll', 'put', 'putAll', 'replaceAll', 'shuffle'
+        ];
+
+        for (const method of allMutationMethods) {
+            this.mutationRegexCache.set(method, new RegExp(`\\.${method}\\s*\\(`, 'i'));
+        }
+
+        // Initialize language cache
+        this.languageCache = new Map();
+
+        // Listen for debug session termination to clear cache entries
+        // Store the disposable for proper cleanup when validator is disposed
+        if (typeof vscode !== 'undefined') {
+            this.sessionTerminationDisposable = vscode.debug.onDidTerminateDebugSession((session) => {
+                this.languageCache.delete(session.id);
+            });
+        }
+    }
+
+    /**
+     * Disposes resources and cleans up event listeners.
+     * Should be called when the validator is no longer needed.
+     */
+    dispose(): void {
+        this.sessionTerminationDisposable?.dispose();
+        this.languageCache.clear();
+    }
+
     /**
      * Validates an expression for potential side effects.
      * Returns whether the expression is allowed and why if blocked.
-     * 
+     *
      * Validation order (by risk level):
      * 1. CRITICAL - System operations (fs, process, network)
      * 2. HIGH - State mutations (push, splice, assignments, eval)
@@ -304,9 +297,9 @@ export class ExpressionValidator {
     validateExpression(expression: string, session?: vscode.DebugSession): ValidationResult {
         // Trim whitespace for consistent validation
         const trimmed = expression.trim();
-        
+
         if (!trimmed) {
-            return { allowed: false, reason: 'Empty expression', riskLevel: 'low' };
+            return {allowed: false, reason: 'Empty expression', riskLevel: 'low'};
         }
 
         // Detect language once if session is provided to optimize subsequent checks
@@ -332,9 +325,68 @@ export class ExpressionValidator {
     }
 
     /**
+     * Determines if we should elicit user approval based on risk level and validation level.
+     * Uses threshold-based logic like log levels.
+     */
+    shouldElicit(riskLevel: RiskLevel | undefined, validationLevel: ValidationLevel): boolean {
+        if (validationLevel === 'disabled') {
+            return false;
+        }
+        if (!riskLevel) {
+            return false;
+        }
+
+        // Map validation levels to minimum risk thresholds
+        const thresholds: Record<ValidationLevel, RiskLevel[]> = {
+            'strict': ['critical', 'high', 'medium', 'low'],      // Elicit for all risks
+            'moderate': ['critical', 'high', 'medium'],           // Elicit for CRITICAL + HIGH + MEDIUM
+            'permissive': ['critical', 'high'],                   // Elicit for CRITICAL + HIGH only
+            'disabled': []                                         // Never elicit
+        };
+
+        return thresholds[validationLevel].includes(riskLevel);
+    }
+
+    /**
+     * Formats a validation result into a user-friendly message for elicitation.
+     * Message severity is proportionate to the actual risk level.
+     * @param _expression - The expression being validated (shown by MCP client in parameters, unused here)
+     * @param result - The validation result containing risk level and reason
+     */
+    formatElicitationMessage(_expression: string, result: ValidationResult): string {
+        // Expression is shown in the MCP client's parameter display, so we don't repeat it in the message
+        const {riskLevel, reason} = result;
+
+        switch (riskLevel) {
+            case 'critical':
+                return `🔴 CRITICAL: ${reason}
+
+This operation can modify files, execute processes, or make network requests.
+
+Only proceed if you fully understand the consequences.`;
+
+            case 'high':
+                return `⚠️ ${reason}
+
+This will modify your application's state during debugging. Changes may cause unexpected behavior or mask bugs.`;
+
+            case 'medium':
+                return `⚠️ ${reason}
+
+This function could modify state, trigger side effects, or perform unexpected operations. Safe built-in functions (Array.map, Object.keys, JSON.stringify) are allowed automatically.`;
+
+            case 'low':
+            default:
+                return `ℹ️ ${reason}
+
+Getter methods are typically safe, but custom getters may include logging or state changes. Quick confirmation recommended.`;
+        }
+    }
+
+    /**
      * Detects CRITICAL system-level operations that can affect files, processes, or network.
      * These are the most dangerous operations that should always require explicit approval.
-     * 
+     *
      * If language is known, only checks language-specific patterns for efficiency.
      * Otherwise, checks all patterns as a safety measure for unknown languages.
      */
@@ -361,7 +413,7 @@ export class ExpressionValidator {
                         || this.detectJavaCritical(expression);
             }
         }
-        
+
         // No language provided (no session), check all patterns
         return this.detectJavaScriptCritical(expression)
             || this.detectPythonCritical(expression)
@@ -382,7 +434,7 @@ export class ExpressionValidator {
                 riskLevel: 'critical'
             };
         }
-        
+
         // Process execution
         if (/\b(child_process|exec|execSync|spawn|spawnSync|fork|execFile)\s*[.([]/i.test(expression)) {
             return {
@@ -391,7 +443,7 @@ export class ExpressionValidator {
                 riskLevel: 'critical'
             };
         }
-        
+
         // Process control
         if (/\bprocess\s*\.\s*(exit|kill|abort)\s*\(/i.test(expression)) {
             return {
@@ -400,7 +452,7 @@ export class ExpressionValidator {
                 riskLevel: 'critical'
             };
         }
-        
+
         // Network operations (fetch, axios, http)
         if (/\b(fetch|axios|XMLHttpRequest)\s*[.([]/i.test(expression) ||
             /\bhttps?\s*\.\s*(get|post|put|delete|request)/i.test(expression)) {
@@ -410,7 +462,7 @@ export class ExpressionValidator {
                 riskLevel: 'critical'
             };
         }
-        
+
         // Dynamic module loading - only flag dangerous modules
         if (/\brequire\s*\(\s*['"](?:fs|child_process|net|http|https|crypto|vm)['"]/.test(expression)) {
             return {
@@ -419,7 +471,7 @@ export class ExpressionValidator {
                 riskLevel: 'critical'
             };
         }
-        
+
         return null;
     }
 
@@ -435,7 +487,7 @@ export class ExpressionValidator {
                 riskLevel: 'critical'
             };
         }
-        
+
         // Python subprocess module
         if (/\bsubprocess\s*\.\s*(run|call|check_call|check_output|Popen|getoutput|getstatusoutput)\s*\(/i.test(expression)) {
             return {
@@ -444,9 +496,9 @@ export class ExpressionValidator {
                 riskLevel: 'critical'
             };
         }
-        
+
         // Python file operations with write modes
-        if (/\bopen\s*\([^)]*['"][wa]/i.test(expression) || 
+        if (/\bopen\s*\([^)]*['"][wa]/i.test(expression) ||
             /\bPath\s*\([^)]*\)\s*\.\s*(write_text|write_bytes|unlink|rmdir|mkdir|rename|replace|chmod)\s*\(/i.test(expression)) {
             return {
                 allowed: false,
@@ -454,7 +506,7 @@ export class ExpressionValidator {
                 riskLevel: 'critical'
             };
         }
-        
+
         return null;
     }
 
@@ -470,7 +522,7 @@ export class ExpressionValidator {
                 riskLevel: 'critical'
             };
         }
-        
+
         // File operations
         if (/\b(remove|unlink|rmdir|rename|chmod|chown|creat|mkdir)\s*\(/i.test(expression) ||
             /\b(fopen|freopen)\s*\([^)]*['"][wa]/i.test(expression)) {
@@ -480,7 +532,7 @@ export class ExpressionValidator {
                 riskLevel: 'critical'
             };
         }
-        
+
         return null;
     }
 
@@ -496,7 +548,7 @@ export class ExpressionValidator {
                 riskLevel: 'critical'
             };
         }
-        
+
         // File and Directory operations
         if (/\b(File|Directory)\s*\.\s*(Delete|WriteAllText|WriteAllBytes|Create|Move|Replace|Copy|AppendAllText|CreateDirectory)\s*\(/i.test(expression)) {
             return {
@@ -505,7 +557,7 @@ export class ExpressionValidator {
                 riskLevel: 'critical'
             };
         }
-        
+
         // FileStream/StreamWriter with write modes
         if (/\b(FileStream|StreamWriter|FileInfo|DirectoryInfo)\s*\(/i.test(expression) &&
             /\b(FileMode\s*\.\s*(Create|Append|Truncate|OpenOrCreate)|FileAccess\s*\.\s*Write)/i.test(expression)) {
@@ -515,7 +567,7 @@ export class ExpressionValidator {
                 riskLevel: 'critical'
             };
         }
-        
+
         // Network operations
         if (/\b(HttpClient|WebClient|HttpWebRequest)\s*[.([]/i.test(expression)) {
             return {
@@ -524,7 +576,7 @@ export class ExpressionValidator {
                 riskLevel: 'critical'
             };
         }
-        
+
         return null;
     }
 
@@ -540,7 +592,7 @@ export class ExpressionValidator {
                 riskLevel: 'critical'
             };
         }
-        
+
         // File operations
         if (/\b(File|Files)\s*\.\s*(delete|createNewFile|mkdir|mkdirs|renameTo|write|writeString|writeBytes|move|copy|deleteIfExists)\s*\(/i.test(expression) ||
             /\bnew\s+File(Writer|OutputStream|Reader|InputStream)\s*\(/i.test(expression)) {
@@ -550,7 +602,7 @@ export class ExpressionValidator {
                 riskLevel: 'critical'
             };
         }
-        
+
         // Network operations
         if (/\b(HttpClient|HttpURLConnection|URL\s*\([^)]*\)\s*\.\s*openConnection|URLConnection)\s*[.([]/i.test(expression)) {
             return {
@@ -559,7 +611,7 @@ export class ExpressionValidator {
                 riskLevel: 'critical'
             };
         }
-        
+
         return null;
     }
 
@@ -573,13 +625,13 @@ export class ExpressionValidator {
         if (cached) {
             return cached;
         }
-        
+
         const type = session.type.toLowerCase();
         let language: string;
-        
+
         // Common debug adapter types
         // JavaScript/TypeScript family
-        if (type === 'node' || type === 'chrome' || type === 'pwa-node' || type === 'pwa-chrome' || 
+        if (type === 'node' || type === 'chrome' || type === 'pwa-node' || type === 'pwa-chrome' ||
             type === 'node2' || type === 'extensionhost' || type === 'pwa-extensionhost' ||
             type === 'msedge' || type === 'pwa-msedge' || type === 'webkit') {
             language = 'javascript';
@@ -615,12 +667,11 @@ export class ExpressionValidator {
         // PHP
         else if (type === 'php' || type === 'php-debug') {
             language = 'php';
-        }
-        else {
+        } else {
             this.logger.debug(`Unknown debug session type: ${type}, using generic validation with whitelists`);
             language = type;
         }
-        
+
         // Store in cache for future calls
         this.languageCache.set(session.id, language);
         return language;
@@ -683,13 +734,13 @@ export class ExpressionValidator {
             if (staticWhitelist.has(call)) {
                 continue;
             }
-            
+
             // Check if it's a whitelisted method
             const methodName = call.split('.').pop() || call;
             if (methodWhitelist.has(methodName)) {
                 continue;
             }
-            
+
             // Check if it looks like a getter (LOW risk)
             if (this.isGetterPattern(methodName)) {
                 return {
@@ -698,7 +749,7 @@ export class ExpressionValidator {
                     riskLevel: 'low'
                 };
             }
-            
+
             // Unknown function call
             return {
                 allowed: false,
@@ -872,18 +923,18 @@ export class ExpressionValidator {
      */
     private extractFunctionCalls(expression: string): string[] {
         const calls: string[] = [];
-        
+
         // Match: identifier( or object.method( or module.function(
         // This regex captures the function/method name before the opening parenthesis
         const regex = /([\w.]+)\s*\(/g;
         let match;
-        
+
         while ((match = regex.exec(expression)) !== null) {
             if (match[1]) {
                 calls.push(match[1]);
             }
         }
-        
+
         return calls;
     }
 
@@ -898,26 +949,26 @@ export class ExpressionValidator {
             // Even for unknown languages, check against JavaScript whitelists
             // since many languages (TypeScript, C#, Java, Go, etc.) have similar built-in functions
             const calls = this.extractFunctionCalls(expression);
-            
+
             for (const call of calls) {
                 // Check JavaScript static functions (Object.keys, JSON.stringify, Math.*)
                 // These are common across many C-style languages
                 if (this.jsSafeStaticFunctions.has(call)) {
                     continue; // This call is safe
                 }
-                
+
                 // Check JavaScript methods (filter, map, etc.)
                 // Many languages have similar collection methods
                 const methodName = call.split('.').pop() || call;
                 if (this.jsSafeFunctions.has(methodName)) {
                     continue; // This call is safe
                 }
-                
+
                 // Also check Python built-ins as they're common debugging functions
                 if (this.pythonSafeFunctions.has(methodName) || this.pythonSafeStaticFunctions.has(call)) {
                     continue; // This call is safe
                 }
-                
+
                 // Check if it looks like a getter (LOW risk) vs unknown function (MEDIUM risk)
                 if (this.isGetterPattern(methodName)) {
                     return {
@@ -926,7 +977,7 @@ export class ExpressionValidator {
                         riskLevel: 'low'
                     };
                 }
-                
+
                 // Unknown function call - not in any whitelist
                 return {
                     allowed: false,
@@ -934,9 +985,9 @@ export class ExpressionValidator {
                     riskLevel: 'medium'
                 };
             }
-            
+
             // All function calls are whitelisted
-            return { allowed: true };
+            return {allowed: true};
         }
 
         // HIGH RISK: Assignment operators
@@ -996,7 +1047,7 @@ export class ExpressionValidator {
         // - Logical: &&, ||, !
         // - Ternary: ? :
         // - Literals: 123, "string", true, null
-        return { allowed: true };
+        return {allowed: true};
     }
 
     /**
@@ -1005,78 +1056,19 @@ export class ExpressionValidator {
      */
     private isGetterPattern(functionName: string): boolean {
         const name = functionName.toLowerCase();
-        
+
         // Common getter prefixes
-        if (name.startsWith('get') || name.startsWith('is') || name.startsWith('has') || 
+        if (name.startsWith('get') || name.startsWith('is') || name.startsWith('has') ||
             name.startsWith('should') || name.startsWith('can') || name.startsWith('to')) {
             return true;
         }
-        
+
         // Common read-only property-like methods
         if (name === 'length' || name === 'size' || name === 'count') {
             return true;
         }
-        
+
         return false;
-    }
-
-    /**
-     * Determines if we should elicit user approval based on risk level and validation level.
-     * Uses threshold-based logic like log levels.
-     */
-    shouldElicit(riskLevel: RiskLevel | undefined, validationLevel: ValidationLevel): boolean {
-        if (validationLevel === 'disabled') {
-            return false;
-        }
-        if (!riskLevel) {
-            return false;
-        }
-        
-        // Map validation levels to minimum risk thresholds
-        const thresholds: Record<ValidationLevel, RiskLevel[]> = {
-            'strict': ['critical', 'high', 'medium', 'low'],      // Elicit for all risks
-            'moderate': ['critical', 'high', 'medium'],           // Elicit for CRITICAL + HIGH + MEDIUM
-            'permissive': ['critical', 'high'],                   // Elicit for CRITICAL + HIGH only
-            'disabled': []                                         // Never elicit
-        };
-        
-        return thresholds[validationLevel].includes(riskLevel);
-    }
-
-    /**
-     * Formats a validation result into a user-friendly message for elicitation.
-     * Message severity is proportionate to the actual risk level.
-     * @param _expression - The expression being validated (shown by MCP client in parameters, unused here)
-     * @param result - The validation result containing risk level and reason
-     */
-    formatElicitationMessage(_expression: string, result: ValidationResult): string {
-        // Expression is shown in the MCP client's parameter display, so we don't repeat it in the message
-        const { riskLevel, reason } = result;
-        
-        switch (riskLevel) {
-            case 'critical':
-                return `🔴 CRITICAL: ${reason}
-
-This operation can modify files, execute processes, or make network requests.
-
-Only proceed if you fully understand the consequences.`;
-
-            case 'high':
-                return `⚠️ ${reason}
-
-This will modify your application's state during debugging. Changes may cause unexpected behavior or mask bugs.`;
-
-            case 'medium':
-                return `⚠️ ${reason}
-
-This function could modify state, trigger side effects, or perform unexpected operations. Safe built-in functions (Array.map, Object.keys, JSON.stringify) are allowed automatically.`;
-
-            case 'low':
-            default:
-                return `ℹ️ ${reason}
-
-Getter methods are typically safe, but custom getters may include logging or state changes. Quick confirmation recommended.`;
-        }
     }
 }
 

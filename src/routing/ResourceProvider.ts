@@ -28,7 +28,7 @@ export class ResourceProvider {
         // Add launch.json from each workspace folder
         for (const folder of workspaceFolders) {
             const launchPath = path.join(folder.uri.fsPath, '.vscode', 'launch.json');
-            
+
             // Check if launch.json exists
             if (fs.existsSync(launchPath)) {
                 const uri = `debugssy:///${folder.name}/launch.json`;
@@ -56,7 +56,7 @@ export class ResourceProvider {
     }> {
         // Parse URI: debugssy:///workspaceName/launch.json
         const match = uri.match(/^debugssy:\/\/\/([^/]+)\/launch\.json$/);
-        
+
         if (!match) {
             throw new Error(`Invalid resource URI: ${uri}. Expected format: debugssy:///workspaceName/launch.json`);
         }

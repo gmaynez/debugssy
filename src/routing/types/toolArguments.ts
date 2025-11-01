@@ -5,12 +5,12 @@
  * These interfaces provide type safety for tool calls.
  */
 
-import { z } from 'zod';
-import { MAX_CONSOLE_OUTPUT_LIMIT } from '../../constants';
+import {z} from 'zod';
+import {MAX_CONSOLE_OUTPUT_LIMIT} from '../../constants';
 
 export const SetBreakpointArgsSchema = z.object({
-    filePath: z.string().min(1, { error: 'filePath must be a non-empty string' }),
-    line: z.number().int().positive({ error: 'line must be a positive integer' }),
+    filePath: z.string().min(1, {error: 'filePath must be a non-empty string'}),
+    line: z.number().int().positive({error: 'line must be a positive integer'}),
     condition: z.string().optional(),
     hitCondition: z.string().optional(),
     logMessage: z.string().optional()
@@ -36,7 +36,7 @@ export const GetVariablesArgsSchema = z.object({
 export type GetVariablesArgs = z.infer<typeof GetVariablesArgsSchema>;
 
 export const EvaluateExpressionArgsSchema = z.object({
-    expression: z.string().min(1, { error: 'expression must be a non-empty string' }),
+    expression: z.string().min(1, {error: 'expression must be a non-empty string'}),
     frameId: z.number().int().nonnegative().optional()
 });
 export type EvaluateExpressionArgs = z.infer<typeof EvaluateExpressionArgsSchema>;
@@ -75,7 +75,7 @@ export type StartDebuggingArgs = z.infer<typeof StartDebuggingArgsSchema>;
 /**
  * Union type for all possible tool arguments
  */
-export type ToolArgs = 
+export type ToolArgs =
     | SetBreakpointArgs
     | RemoveBreakpointArgs
     | ToggleBreakpointArgs

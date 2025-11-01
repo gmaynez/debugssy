@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as vscode from 'vscode';
-import { ConfigManager, DebugConfiguration } from './Config';
-import { MCPServer } from './MCPServer';
-import { DAPClient } from './dap/Client';
-import { createToolRegistry, ToolRegistry } from './tools';
-import { Logger } from './utils/Logger';
+import {ConfigManager, DebugConfiguration} from './Config';
+import {MCPServer} from './MCPServer';
+import {DAPClient} from './dap/Client';
+import {createToolRegistry, ToolRegistry} from './tools';
+import {Logger} from './utils/Logger';
 
 /**
  * Encapsulates all extension state and dependencies to avoid module-level mutable state.
@@ -60,61 +60,6 @@ class ExtensionContext {
     }
 
     /**
-     * Handles changes to the enabled state of the MCP server.
-     */
-    private async handleServerEnabledChange(newConfig: DebugConfiguration, _previousConfig: DebugConfiguration): Promise<void> {
-        const mcpServer = this.getMCPServer();
-        
-        if (newConfig.enabled && !mcpServer) {
-            await this.startMCPServer(newConfig.port);
-        } else if (!newConfig.enabled && mcpServer) {
-            await this.stopMCPServer();
-        }
-    }
-
-    /**
-     * Handles changes to the MCP server port.
-     */
-    private async handlePortChange(newConfig: DebugConfiguration, previousConfig: DebugConfiguration): Promise<void> {
-        const mcpServer = this.getMCPServer();
-        
-        if (mcpServer && newConfig.port !== previousConfig.port) {
-            await mcpServer.updatePort(newConfig.port);
-            vscode.window.showInformationMessage(
-                `Debugssy: MCP server restarted on port ${newConfig.port}`
-            );
-        }
-    }
-
-    /**
-     * Handles changes to the automation level.
-     */
-    private async handleAutomationLevelChange(newConfig: DebugConfiguration, previousConfig: DebugConfiguration): Promise<void> {
-        const mcpServer = this.getMCPServer();
-        
-        if (mcpServer && newConfig.automationLevel !== previousConfig.automationLevel) {
-            await mcpServer.handleAutomationLevelChange(newConfig.automationLevel);
-            vscode.window.showInformationMessage(
-                `Debugssy: Mode set to '${newConfig.automationLevel}'`
-            );
-        }
-    }
-
-    /**
-     * Handles changes to the step operations setting.
-     */
-    private async handleStepOperationsChange(newConfig: DebugConfiguration, previousConfig: DebugConfiguration): Promise<void> {
-        const mcpServer = this.getMCPServer();
-        
-        if (mcpServer && newConfig.allowStepOperations !== previousConfig.allowStepOperations) {
-            await mcpServer.handleStepOperationsChange(newConfig.allowStepOperations);
-            vscode.window.showInformationMessage(
-                `Debugssy: Step operations ${newConfig.allowStepOperations ? 'enabled' : 'disabled'}`
-            );
-        }
-    }
-
-    /**
      * Main configuration change handler that delegates to specific handlers.
      */
     async handleConfigChange(newConfig: DebugConfiguration, previousConfig: DebugConfiguration): Promise<void> {
@@ -131,6 +76,61 @@ class ExtensionContext {
         }
         this.dapClient.dispose();
         this.configManager.dispose();
+    }
+
+    /**
+     * Handles changes to the enabled state of the MCP server.
+     */
+    private async handleServerEnabledChange(newConfig: DebugConfiguration, _previousConfig: DebugConfiguration): Promise<void> {
+        const mcpServer = this.getMCPServer();
+
+        if (newConfig.enabled && !mcpServer) {
+            await this.startMCPServer(newConfig.port);
+        } else if (!newConfig.enabled && mcpServer) {
+            await this.stopMCPServer();
+        }
+    }
+
+    /**
+     * Handles changes to the MCP server port.
+     */
+    private async handlePortChange(newConfig: DebugConfiguration, previousConfig: DebugConfiguration): Promise<void> {
+        const mcpServer = this.getMCPServer();
+
+        if (mcpServer && newConfig.port !== previousConfig.port) {
+            await mcpServer.updatePort(newConfig.port);
+            vscode.window.showInformationMessage(
+                `Debugssy: MCP server restarted on port ${newConfig.port}`
+            );
+        }
+    }
+
+    /**
+     * Handles changes to the automation level.
+     */
+    private async handleAutomationLevelChange(newConfig: DebugConfiguration, previousConfig: DebugConfiguration): Promise<void> {
+        const mcpServer = this.getMCPServer();
+
+        if (mcpServer && newConfig.automationLevel !== previousConfig.automationLevel) {
+            await mcpServer.handleAutomationLevelChange(newConfig.automationLevel);
+            vscode.window.showInformationMessage(
+                `Debugssy: Mode set to '${newConfig.automationLevel}'`
+            );
+        }
+    }
+
+    /**
+     * Handles changes to the step operations setting.
+     */
+    private async handleStepOperationsChange(newConfig: DebugConfiguration, previousConfig: DebugConfiguration): Promise<void> {
+        const mcpServer = this.getMCPServer();
+
+        if (mcpServer && newConfig.allowStepOperations !== previousConfig.allowStepOperations) {
+            await mcpServer.handleStepOperationsChange(newConfig.allowStepOperations);
+            vscode.window.showInformationMessage(
+                `Debugssy: Step operations ${newConfig.allowStepOperations ? 'enabled' : 'disabled'}`
+            );
+        }
     }
 }
 
@@ -199,7 +199,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
             const mcpServer = extensionContext.getMCPServer();
             const config = configManager.getConfig();
-            
+
             if (mcpServer) {
                 vscode.window.showInformationMessage('MCP Server is already running');
             } else {
@@ -235,7 +235,7 @@ export async function activate(context: vscode.ExtensionContext) {
             const extContext = extensionContext;
             const mcpServer = extContext.getMCPServer();
             const config = configManager.getConfig();
-            
+
             // Show status message during restart
             await vscode.window.withProgress(
                 {
@@ -245,20 +245,20 @@ export async function activate(context: vscode.ExtensionContext) {
                 },
                 async (progress) => {
                     try {
-                        progress.report({ increment: 30, message: 'Stopping server...' });
-                        
+                        progress.report({increment: 30, message: 'Stopping server...'});
+
                         if (mcpServer) {
                             await extContext.stopMCPServer();
                         }
-                        
-                        progress.report({ increment: 30, message: 'Starting server...' });
+
+                        progress.report({increment: 30, message: 'Starting server...'});
                         await extContext.startMCPServer(config.port);
-                        
-                        progress.report({ increment: 40, message: 'Done!' });
-                        
+
+                        progress.report({increment: 40, message: 'Done!'});
+
                         // Give user a moment to see the completion
                         await new Promise(resolve => setTimeout(resolve, 500));
-                        
+
                         vscode.window.showInformationMessage(
                             `Debugssy MCP Server restarted successfully on port ${config.port}`
                         );

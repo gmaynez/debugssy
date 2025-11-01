@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as vscode from 'vscode';
-import { DEFAULT_THREAD_ID, MAX_CONSOLE_BUFFER_SIZE } from '../constants';
-import { Logger } from '../utils/Logger';
+import {DEFAULT_THREAD_ID, MAX_CONSOLE_BUFFER_SIZE} from '../constants';
+import {Logger} from '../utils/Logger';
 
 export interface StackFrame {
     id: number;
@@ -84,61 +84,6 @@ export class DAPClient {
         });
     }
 
-    private handleDAPMessage(message: any): void {
-        if (message.type === 'response') {
-            switch (message.command) {
-                case 'stackTrace':
-                    if (message.success && message.body?.stackFrames) {
-                        this.stackFrames = message.body.stackFrames;
-                        if (this.stackFrames.length > 0 && this.stackFrames[0]) {
-                            this.currentFrameId = this.stackFrames[0].id;
-                        }
-                    }
-                    break;
-                // Note: We don't cache scopes or variables because request_seq doesn't map
-                // to the actual frameId/variablesReference. Instead, we fetch them on-demand
-                // via getScopes() and getVariables() methods.
-            }
-        } else if (message.type === 'event') {
-            switch (message.event) {
-                case 'stopped':
-                    this.executionState = 'paused';
-                    this.stoppedInfo = {
-                        threadId: message.body?.threadId,
-                        reason: message.body?.reason || 'unknown',
-                        description: message.body?.description,
-                        text: message.body?.text,
-                        allThreadsStopped: message.body?.allThreadsStopped,
-                        hitBreakpointIds: message.body?.hitBreakpointIds
-                    };
-                    this.stateChangeEmitter.fire('paused');
-                    break;
-                case 'continued':
-                    this.executionState = 'running';
-                    this.stoppedInfo = undefined;
-                    this.stateChangeEmitter.fire('running');
-                    break;
-                case 'terminated':
-                    this.executionState = 'terminated';
-                    this.stoppedInfo = undefined;
-                    this.stateChangeEmitter.fire('terminated');
-                    break;
-                case 'output':
-                    if (message.body?.output) {
-                        this.captureConsoleOutput({
-                            category: message.body.category || 'console',
-                            output: message.body.output,
-                            timestamp: Date.now(),
-                            variablesReference: message.body.variablesReference,
-                            source: message.body.source,
-                            line: message.body.line
-                        });
-                    }
-                    break;
-            }
-        }
-    }
-
     async getStackTrace(session: vscode.DebugSession): Promise<StackFrame[]> {
         try {
             const response = await session.customRequest('stackTrace', {
@@ -156,7 +101,7 @@ export class DAPClient {
 
     async getScopes(session: vscode.DebugSession, frameId: number): Promise<Scope[]> {
         try {
-            const response = await session.customRequest('scopes', { frameId });
+            const response = await session.customRequest('scopes', {frameId});
             if (response?.scopes) {
                 return response.scopes;
             }
@@ -218,44 +163,35 @@ export class DAPClient {
         return this.executionState === 'paused' && this.stoppedInfo !== undefined;
     }
 
-    private captureConsoleOutput(output: ConsoleOutput): void {
-        this.consoleOutputBuffer.push(output);
-        
-        // Keep buffer size limited
-        if (this.consoleOutputBuffer.length > MAX_CONSOLE_BUFFER_SIZE) {
-            this.consoleOutputBuffer.shift(); // Remove oldest entry
-        }
-    }
-
-    getConsoleOutput(options?: { 
-        category?: string; 
-        limit?: number; 
+    getConsoleOutput(options?: {
+        category?: string;
+        limit?: number;
         since?: number;
         clear?: boolean;
     }): ConsoleOutput[] {
         let output = [...this.consoleOutputBuffer];
-        
+
         // Filter by category if specified
         if (options?.category) {
             output = output.filter(o => o.category === options.category);
         }
-        
+
         // Filter by timestamp if specified
         if (options?.since !== undefined) {
             const sinceTimestamp = options.since;
             output = output.filter(o => o.timestamp >= sinceTimestamp);
         }
-        
+
         // Limit results if specified
         if (options?.limit && options.limit > 0) {
             output = output.slice(-options.limit); // Get last N entries
         }
-        
+
         // Clear buffer if requested
         if (options?.clear) {
             this.consoleOutputBuffer = [];
         }
-        
+
         return output;
     }
 
@@ -273,6 +209,70 @@ export class DAPClient {
 
     dispose(): void {
         this.stateChangeEmitter.dispose();
+    }
+
+    private handleDAPMessage(message: any): void {
+        if (message.type === 'response') {
+            switch (message.command) {
+                case 'stackTrace':
+                    if (message.success && message.body?.stackFrames) {
+                        this.stackFrames = message.body.stackFrames;
+                        if (this.stackFrames.length > 0 && this.stackFrames[0]) {
+                            this.currentFrameId = this.stackFrames[0].id;
+                        }
+                    }
+                    break;
+                // Note: We don't cache scopes or variables because request_seq doesn't map
+                // to the actual frameId/variablesReference. Instead, we fetch them on-demand
+                // via getScopes() and getVariables() methods.
+            }
+        } else if (message.type === 'event') {
+            switch (message.event) {
+                case 'stopped':
+                    this.executionState = 'paused';
+                    this.stoppedInfo = {
+                        threadId: message.body?.threadId,
+                        reason: message.body?.reason || 'unknown',
+                        description: message.body?.description,
+                        text: message.body?.text,
+                        allThreadsStopped: message.body?.allThreadsStopped,
+                        hitBreakpointIds: message.body?.hitBreakpointIds
+                    };
+                    this.stateChangeEmitter.fire('paused');
+                    break;
+                case 'continued':
+                    this.executionState = 'running';
+                    this.stoppedInfo = undefined;
+                    this.stateChangeEmitter.fire('running');
+                    break;
+                case 'terminated':
+                    this.executionState = 'terminated';
+                    this.stoppedInfo = undefined;
+                    this.stateChangeEmitter.fire('terminated');
+                    break;
+                case 'output':
+                    if (message.body?.output) {
+                        this.captureConsoleOutput({
+                            category: message.body.category || 'console',
+                            output: message.body.output,
+                            timestamp: Date.now(),
+                            variablesReference: message.body.variablesReference,
+                            source: message.body.source,
+                            line: message.body.line
+                        });
+                    }
+                    break;
+            }
+        }
+    }
+
+    private captureConsoleOutput(output: ConsoleOutput): void {
+        this.consoleOutputBuffer.push(output);
+
+        // Keep buffer size limited
+        if (this.consoleOutputBuffer.length > MAX_CONSOLE_BUFFER_SIZE) {
+            this.consoleOutputBuffer.shift(); // Remove oldest entry
+        }
     }
 }
 

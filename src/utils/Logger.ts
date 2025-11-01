@@ -61,6 +61,13 @@ export class Logger {
     }
 
     /**
+     * Dispose of the output channel
+     */
+    dispose(): void {
+        this.outputChannel.dispose();
+    }
+
+    /**
      * Format log message with timestamp and level
      */
     private formatMessage(level: string, message: string, args: unknown[]): string {
@@ -73,27 +80,28 @@ export class Logger {
      * Safely stringify any value for logging
      */
     private stringify(value: unknown): string {
-        if (value === null) {return 'null';}
-        if (value === undefined) {return 'undefined';}
-        if (typeof value === 'string') {return value;}
-        if (typeof value === 'number' || typeof value === 'boolean') {return String(value);}
-        
+        if (value === null) {
+            return 'null';
+        }
+        if (value === undefined) {
+            return 'undefined';
+        }
+        if (typeof value === 'string') {
+            return value;
+        }
+        if (typeof value === 'number' || typeof value === 'boolean') {
+            return String(value);
+        }
+
         if (value instanceof Error) {
             return `${value.name}: ${value.message}${value.stack ? '\n' + value.stack : ''}`;
         }
-        
+
         try {
             return JSON.stringify(value, null, 2);
         } catch {
             return String(value);
         }
-    }
-
-    /**
-     * Dispose of the output channel
-     */
-    dispose(): void {
-        this.outputChannel.dispose();
     }
 }
 

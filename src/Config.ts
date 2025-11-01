@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as vscode from 'vscode';
-import { z } from 'zod';
-import { 
-    DEFAULT_BREAKPOINT_TIMEOUT_MS, 
-    MIN_PORT, 
+import {z} from 'zod';
+import {
+    DEFAULT_BREAKPOINT_TIMEOUT_MS,
+    MIN_PORT,
     MAX_PORT,
     MIN_BREAKPOINT_TIMEOUT_MS,
     MAX_BREAKPOINT_TIMEOUT_MS,
@@ -12,7 +12,7 @@ import {
     MAX_EXPRESSION_LENGTH,
     DEFAULT_MAX_EXPRESSION_LENGTH
 } from './constants';
-import { Logger } from './utils/Logger';
+import {Logger} from './utils/Logger';
 
 /**
  * Zod schema for runtime validation of configuration values.
@@ -20,11 +20,11 @@ import { Logger } from './utils/Logger';
  */
 export const DebugConfigurationSchema = z.object({
     enabled: z.boolean(),
-    port: z.number().int().min(MIN_PORT, { message: `Port must be >= ${MIN_PORT}` }).max(MAX_PORT, { message: `Port must be <= ${MAX_PORT}` }),
+    port: z.number().int().min(MIN_PORT, {message: `Port must be >= ${MIN_PORT}`}).max(MAX_PORT, {message: `Port must be <= ${MAX_PORT}`}),
     automationLevel: z.enum(['assisted', 'full']),
-    waitForBreakpointTimeout: z.number().int().min(MIN_BREAKPOINT_TIMEOUT_MS, { message: `Timeout must be >= ${MIN_BREAKPOINT_TIMEOUT_MS}ms` }).max(MAX_BREAKPOINT_TIMEOUT_MS, { message: `Timeout must be <= ${MAX_BREAKPOINT_TIMEOUT_MS}ms` }),
+    waitForBreakpointTimeout: z.number().int().min(MIN_BREAKPOINT_TIMEOUT_MS, {message: `Timeout must be >= ${MIN_BREAKPOINT_TIMEOUT_MS}ms`}).max(MAX_BREAKPOINT_TIMEOUT_MS, {message: `Timeout must be <= ${MAX_BREAKPOINT_TIMEOUT_MS}ms`}),
     allowStepOperations: z.boolean(),
-    maxExpressionLength: z.number().int().min(MIN_EXPRESSION_LENGTH, { message: `Max expression length must be >= ${MIN_EXPRESSION_LENGTH}` }).max(MAX_EXPRESSION_LENGTH, { message: `Max expression length must be <= ${MAX_EXPRESSION_LENGTH}` }),
+    maxExpressionLength: z.number().int().min(MIN_EXPRESSION_LENGTH, {message: `Max expression length must be >= ${MIN_EXPRESSION_LENGTH}`}).max(MAX_EXPRESSION_LENGTH, {message: `Max expression length must be <= ${MAX_EXPRESSION_LENGTH}`}),
     expressionValidationLevel: z.enum(['strict', 'moderate', 'permissive', 'disabled'])
 });
 
@@ -57,18 +57,18 @@ export class ConfigManager {
 
         // Validate configuration using Zod schema
         const result = DebugConfigurationSchema.safeParse(rawConfig);
-        
+
         if (!result.success) {
             // Log validation errors but return defaults to prevent extension failure
             const logger = Logger.getInstance();
             logger.error('Invalid configuration detected:', result.error.issues);
-            const issues = result.error.issues.map(issue => 
+            const issues = result.error.issues.map(issue =>
                 `${issue.path.join('.')}: ${issue.message}`
             ).join(', ');
             vscode.window.showWarningMessage(
                 `Debugssy: Invalid configuration (${issues}). Using defaults.`
             );
-            
+
             // Return validated defaults
             return DebugConfigurationSchema.parse({
                 enabled: true,
@@ -80,7 +80,7 @@ export class ConfigManager {
                 expressionValidationLevel: 'moderate'
             });
         }
-        
+
         return result.data;
     }
 

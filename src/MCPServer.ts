@@ -2,20 +2,28 @@
 
 import * as vscode from 'vscode';
 import express from 'express';
-import { Server as HTTPServer } from 'http';
-import { randomUUID } from 'crypto';
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { CallToolRequestSchema, ListToolsRequestSchema, ListPromptsRequestSchema, GetPromptRequestSchema, CompleteRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { ToolRegistry } from './tools';
-import { ConfigManager } from './Config';
-import { MCP_SERVER_READY_DELAY_MS, CURRENT_MCP_PROTOCOL_VERSION, EXTENSION_VERSION } from './constants';
-import { SecurityValidator } from './security/SecurityValidator';
-import { ToolRouter } from './routing/ToolRouter';
-import { PromptHandler } from './routing/PromptHandler';
-import { CompletionProvider } from './routing/CompletionProvider';
-import { ResourceProvider } from './routing/ResourceProvider';
-import { Logger } from './utils/Logger';
+import {Server as HTTPServer} from 'http';
+import {randomUUID} from 'crypto';
+import {Server} from '@modelcontextprotocol/sdk/server/index.js';
+import {StreamableHTTPServerTransport} from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import {
+    CallToolRequestSchema,
+    CompleteRequestSchema,
+    GetPromptRequestSchema,
+    ListPromptsRequestSchema,
+    ListResourcesRequestSchema,
+    ListToolsRequestSchema,
+    ReadResourceRequestSchema
+} from '@modelcontextprotocol/sdk/types.js';
+import {ToolRegistry} from './tools';
+import {ConfigManager} from './Config';
+import {CURRENT_MCP_PROTOCOL_VERSION, EXTENSION_VERSION, MCP_SERVER_READY_DELAY_MS} from './constants';
+import {SecurityValidator} from './security/SecurityValidator';
+import {ToolRouter} from './routing/ToolRouter';
+import {PromptHandler} from './routing/PromptHandler';
+import {CompletionProvider} from './routing/CompletionProvider';
+import {ResourceProvider} from './routing/ResourceProvider';
+import {Logger} from './utils/Logger';
 
 /**
  * Main MCP server class that orchestrates the debugging tools and prompts.
@@ -25,25 +33,25 @@ import { Logger } from './utils/Logger';
  * - PromptHandler: Manages prompt schemas and generation
  * - CompletionProvider: Provides autocomplete suggestions for prompt arguments
  * - ResourceProvider: Provides resource listing and reading
- * 
+ *
  * Race Condition Handling:
  * The server includes comprehensive protection against race conditions:
- * 
+ *
  * 1. Early Connection Attempts:
  *    - Requests arriving before transport initialization receive HTTP 503
  *    - Triggers MCP client retry logic with exponential backoff
- * 
+ *
  * 2. Concurrent Initialization Requests:
  *    - Detects multiple simultaneous initialization attempts (no Mcp-Session-Id header)
  *    - First request processes immediately; subsequent ones receive HTTP 503 with a retry hint
  *    - SSE fallback requests are permitted even when another initialization is running
  *    - Prevents "Server already initialized" errors while keeping fallback mechanisms responsive
- * 
+ *
  * 3. Multiple Client Instances:
  *    - Some MCP clients (like Cursor) create multiple client instances for the same server
  *    - When "Server already initialized" is reported by the transport, we return HTTP 503 to trigger client backoff
  *    - Avoids tearing down established sessions while nudging clients to retry instead of spinning up extra instances
- * 
+ *
  * This handles the common scenario where MCP clients like Cursor start before the
  * VS Code extension has fully initialized, and make multiple rapid retry attempts.
  */
@@ -55,7 +63,7 @@ export class MCPServer {
     private currentAutomationLevel: 'assisted' | 'full';
     private isTransportReady: boolean = false;
     private initializationInProgress: boolean = false;
-    
+
     // Extracted components for better separation of concerns
     private securityValidator: SecurityValidator;
     private toolRouter: ToolRouter;
@@ -84,6 +92,126 @@ export class MCPServer {
 
         this.initializeMCPServer();
         this.setupHTTPRoutes();
+    }
+
+    async start(options?: { silent?: boolean }): Promise<void> {
+        // Reset ready flag during initialization
+        this.isTransportReady = false;
+
+        // Initialize transport before starting HTTP server
+        this.transport = new StreamableHTTPServerTransport({
+            // Generate cryptographically secure session IDs using crypto.randomUUID()
+            // Per MCP Security Best Practices 2025-06-18: "Generated session IDs (e.g., UUIDs) SHOULD use secure random number generators"
+            // Session IDs must contain only visible ASCII characters (0x21 to 0x7E)
+            sessionIdGenerator: () => {
+                return `mcp-session-${randomUUID()}`;
+            }
+        });
+        await this.mcpServer.connect(this.transport);
+        this.logger.info('MCP transport initialized');
+
+        return new Promise((resolve, reject) => {
+            try {
+                this.httpServer = this.app.listen(this.port, 'localhost', async () => {
+                    this.logger.info(`MCP Server listening on http://localhost:${this.port}/mcp`);
+
+                    // Small delay to ensure transport is fully ready to accept connections
+                    // This prevents race conditions when connecting immediately after startup notification
+                    await new Promise(r => setTimeout(r, MCP_SERVER_READY_DELAY_MS));
+
+                    // Mark transport as ready - now safe to accept MCP requests
+                    this.isTransportReady = true;
+
+                    // Only show notification if not in silent mode (e.g., during initial startup)
+                    if (!options?.silent) {
+                        vscode.window.showInformationMessage(
+                            `Debugssy MCP Server started on port ${this.port}`
+                        );
+                    }
+                    this.logger.info('MCP Server fully ready to accept connections');
+                    resolve();
+                });
+
+                this.httpServer.on('error', (error: any) => {
+                    this.isTransportReady = false;
+                    if (error.code === 'EADDRINUSE') {
+                        vscode.window.showErrorMessage(
+                            `Port ${this.port} is already in use. Please change the port in settings.`
+                        );
+                    }
+                    reject(error);
+                });
+            } catch (error) {
+                this.isTransportReady = false;
+                reject(error);
+            }
+        });
+    }
+
+    async stop(): Promise<void> {
+        // Mark as not ready immediately to stop accepting new requests
+        this.isTransportReady = false;
+        this.initializationInProgress = false;
+
+        // Close MCP Server and transport
+        if (this.transport) {
+            await this.transport.close();
+            this.transport = undefined;
+        }
+
+        // Note: We don't call mcpServer.close() here because the MCP SDK Server
+        // doesn't have a close method. Instead, we recreate the instance on restart
+        // via initializeMCPServer() to ensure clean state.
+
+        // Close HTTP server
+        if (this.httpServer) {
+            return new Promise((resolve) => {
+                this.httpServer!.close(() => {
+                    this.logger.info('MCP Server stopped');
+                    resolve();
+                });
+            });
+        }
+    }
+
+    /**
+     * Disposes all resources including ToolRouter and its ExpressionValidator.
+     * Should be called when the MCP server is being permanently shut down.
+     */
+    dispose(): void {
+        this.toolRouter.dispose();
+    }
+
+    async updatePort(newPort: number): Promise<void> {
+        await this.stop();
+        this.port = newPort;
+        this.initializeMCPServer(); // Recreate MCP Server instance with fresh state
+        await this.start({silent: true}); // Silent mode - caller will show notification
+    }
+
+    getCurrentAutomationLevel(): 'assisted' | 'full' {
+        return this.currentAutomationLevel;
+    }
+
+    async handleAutomationLevelChange(newLevel: 'assisted' | 'full'): Promise<void> {
+        this.logger.info(`Automation level changed from '${this.currentAutomationLevel}' to '${newLevel}'`);
+
+        const oldLevel = this.currentAutomationLevel;
+        this.currentAutomationLevel = newLevel;
+
+        // Note: ToolRouter already reads automation level dynamically from configManager
+        // on each getToolSchemas() call, so no need to update it explicitly.
+
+        await this.notifyToolListChanged(`automation level ${oldLevel} → ${newLevel}`);
+    }
+
+    async handleStepOperationsChange(enabled: boolean): Promise<void> {
+        this.logger.info(`Step operations ${enabled ? 'enabled' : 'disabled'}`);
+
+        // Note: ToolRouter already reads allowStepOperations dynamically from configManager
+        // on each getToolSchemas() call, so no need to update it explicitly.
+
+        await this.notifyToolListChanged(`step operations ${enabled ? 'enabled' : 'disabled'}`);
     }
 
     private initializeMCPServer(): void {
@@ -115,12 +243,12 @@ export class MCPServer {
         // List available tools - delegated to ToolRouter
         this.mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
             const tools = this.toolRouter.getToolSchemas();
-            return { tools };
+            return {tools};
         });
 
         // Handle tool calls - delegated to ToolRouter with elicitation support
         this.mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
-            const { name, arguments: args } = request.params;
+            const {name, arguments: args} = request.params;
 
             try {
                 // Pass the server instance to enable elicitation via server.elicitInput()
@@ -156,12 +284,12 @@ export class MCPServer {
         // List available prompts - delegated to PromptHandler
         this.mcpServer.setRequestHandler(ListPromptsRequestSchema, async () => {
             const prompts = this.promptHandler.getPromptSchemas();
-            return { prompts };
+            return {prompts};
         });
 
         // Get a specific prompt - delegated to PromptHandler
         this.mcpServer.setRequestHandler(GetPromptRequestSchema, async (request) => {
-            const { name, arguments: args } = request.params;
+            const {name, arguments: args} = request.params;
             return this.promptHandler.generatePrompt(name, args);
         });
     }
@@ -170,16 +298,15 @@ export class MCPServer {
         // List available resources - delegated to ResourceProvider
         this.mcpServer.setRequestHandler(ListResourcesRequestSchema, async () => {
             const resources = await this.resourceProvider.listResources();
-            return { resources };
+            return {resources};
         });
 
         // Handle resource reading - delegated to ResourceProvider
         this.mcpServer.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-            const { uri } = request.params;
+            const {uri} = request.params;
 
             try {
-                const result = await this.resourceProvider.readResource(uri);
-                return result;
+                return await this.resourceProvider.readResource(uri);
             } catch (error: unknown) {
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
                 throw new Error(`Failed to read resource: ${errorMessage}`);
@@ -190,7 +317,7 @@ export class MCPServer {
     private setupCompletionHandler(): void {
         // Provide completions for prompt arguments - delegated to CompletionProvider
         this.mcpServer.setRequestHandler(CompleteRequestSchema, async (request) => {
-            const { ref, argument } = request.params;
+            const {ref, argument} = request.params;
 
             // Only provide completions for prompts (not resources or other ref types)
             if (ref.type !== 'ref/prompt') {
@@ -238,7 +365,7 @@ export class MCPServer {
                 if (!this.isTransportReady || !this.transport) {
                     this.logger.warn('MCP request received before transport is ready');
                     if (!res.headersSent) {
-                        res.status(503).json({ 
+                        res.status(503).json({
                             error: 'Service temporarily unavailable - transport initializing',
                             jsonrpc: '2.0',
                             id: null,
@@ -252,7 +379,7 @@ export class MCPServer {
                 // and serialize them to prevent "Server already initialized" errors
                 const sessionId = req.headers['mcp-session-id'] as string | undefined;
                 const isInitRequest = !sessionId;
-                
+
                 // Check if this is an SSE request (fallback mechanism)
                 // SSE requests should always be allowed, even during initialization
                 const acceptHeader = req.headers['accept'] as string | undefined;
@@ -261,7 +388,7 @@ export class MCPServer {
                 if (isInitRequest) {
                     const requestId = Math.random().toString(36).substring(7);
                     this.logger.info(`[${requestId}] Init request received, flag=${this.initializationInProgress}, isSSE=${isSSERequest}`);
-                    
+
                     // Allow SSE requests to bypass concurrent initialization check
                     // SSE is a fallback mechanism that should always work
                     if (!isSSERequest && this.initializationInProgress) {
@@ -276,7 +403,7 @@ export class MCPServer {
                         }
                         return;
                     }
-                    
+
                     // Set flag immediately before any async operations (only for non-SSE requests)
                     // SSE requests don't set the flag as they're meant to be concurrent-safe fallbacks
                     if (!isSSERequest) {
@@ -293,7 +420,7 @@ export class MCPServer {
                     } catch (error: unknown) {
                         const errorMessage = error instanceof Error ? error.message : String(error);
                         this.logger.error(`[${requestId}] Transport error:`, errorMessage);
-                        
+
                         // Check if this is a "Server already initialized" error from the MCP transport
                         // This can happen when MCP clients create multiple instances for the same server
                         if (errorMessage.includes('Server already initialized')) {
@@ -331,13 +458,13 @@ export class MCPServer {
                 // Handle non-initialization requests (with session ID) normally
                 // These bypass the queue and process immediately
                 await this.transport.handleRequest(req, res);
-                
+
             } catch (error: unknown) {
                 this.logger.error('Error handling MCP request:', error);
 
                 if (!res.headersSent) {
                     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-                    res.status(500).json({ 
+                    res.status(500).json({
                         error: errorMessage,
                         jsonrpc: '2.0',
                         id: null
@@ -360,126 +487,6 @@ export class MCPServer {
                 supportedProtocolVersions: ['2025-03-26', '2025-06-18']
             });
         });
-    }
-
-    async start(options?: { silent?: boolean }): Promise<void> {
-        // Reset ready flag during initialization
-        this.isTransportReady = false;
-        
-        // Initialize transport before starting HTTP server
-        this.transport = new StreamableHTTPServerTransport({
-            // Generate cryptographically secure session IDs using crypto.randomUUID()
-            // Per MCP Security Best Practices 2025-06-18: "Generated session IDs (e.g., UUIDs) SHOULD use secure random number generators"
-            // Session IDs must contain only visible ASCII characters (0x21 to 0x7E)
-            sessionIdGenerator: () => {
-                return `mcp-session-${randomUUID()}`;
-            }
-        });
-        await this.mcpServer.connect(this.transport);
-        this.logger.info('MCP transport initialized');
-
-        return new Promise((resolve, reject) => {
-            try {
-                this.httpServer = this.app.listen(this.port, 'localhost', async () => {
-                    this.logger.info(`MCP Server listening on http://localhost:${this.port}/mcp`);
-                    
-                    // Small delay to ensure transport is fully ready to accept connections
-                    // This prevents race conditions when connecting immediately after startup notification
-                    await new Promise(r => setTimeout(r, MCP_SERVER_READY_DELAY_MS));
-                    
-                    // Mark transport as ready - now safe to accept MCP requests
-                    this.isTransportReady = true;
-                    
-                    // Only show notification if not in silent mode (e.g., during initial startup)
-                    if (!options?.silent) {
-                        vscode.window.showInformationMessage(
-                            `Debugssy MCP Server started on port ${this.port}`
-                        );
-                    }
-                    this.logger.info('MCP Server fully ready to accept connections');
-                    resolve();
-                });
-
-                this.httpServer.on('error', (error: any) => {
-                    this.isTransportReady = false;
-                    if (error.code === 'EADDRINUSE') {
-                        vscode.window.showErrorMessage(
-                            `Port ${this.port} is already in use. Please change the port in settings.`
-                        );
-                    }
-                    reject(error);
-                });
-            } catch (error) {
-                this.isTransportReady = false;
-                reject(error);
-            }
-        });
-    }
-
-    async stop(): Promise<void> {
-        // Mark as not ready immediately to stop accepting new requests
-        this.isTransportReady = false;
-        this.initializationInProgress = false;
-        
-        // Close MCP Server and transport
-        if (this.transport) {
-            await this.transport.close();
-            this.transport = undefined;
-        }
-        
-        // Note: We don't call mcpServer.close() here because the MCP SDK Server
-        // doesn't have a close method. Instead, we recreate the instance on restart
-        // via initializeMCPServer() to ensure clean state.
-
-        // Close HTTP server
-        if (this.httpServer) {
-            return new Promise((resolve) => {
-                this.httpServer!.close(() => {
-                    this.logger.info('MCP Server stopped');
-                    resolve();
-                });
-            });
-        }
-    }
-    
-    /**
-     * Disposes all resources including ToolRouter and its ExpressionValidator.
-     * Should be called when the MCP server is being permanently shut down.
-     */
-    dispose(): void {
-        this.toolRouter.dispose();
-    }
-
-    async updatePort(newPort: number): Promise<void> {
-        await this.stop();
-        this.port = newPort;
-        this.initializeMCPServer(); // Recreate MCP Server instance with fresh state
-        await this.start({ silent: true }); // Silent mode - caller will show notification
-    }
-
-    getCurrentAutomationLevel(): 'assisted' | 'full' {
-        return this.currentAutomationLevel;
-    }
-
-    async handleAutomationLevelChange(newLevel: 'assisted' | 'full'): Promise<void> {
-        this.logger.info(`Automation level changed from '${this.currentAutomationLevel}' to '${newLevel}'`);
-        
-        const oldLevel = this.currentAutomationLevel;
-        this.currentAutomationLevel = newLevel;
-        
-        // Note: ToolRouter already reads automation level dynamically from configManager
-        // on each getToolSchemas() call, so no need to update it explicitly.
-        
-        await this.notifyToolListChanged(`automation level ${oldLevel} → ${newLevel}`);
-    }
-
-    async handleStepOperationsChange(enabled: boolean): Promise<void> {
-        this.logger.info(`Step operations ${enabled ? 'enabled' : 'disabled'}`);
-        
-        // Note: ToolRouter already reads allowStepOperations dynamically from configManager
-        // on each getToolSchemas() call, so no need to update it explicitly.
-        
-        await this.notifyToolListChanged(`step operations ${enabled ? 'enabled' : 'disabled'}`);
     }
 
     private async notifyToolListChanged(reason: string): Promise<void> {

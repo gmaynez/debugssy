@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { DebugControlTools } from './DebugControl';
-import { BreakpointTools } from './Breakpoints';
-import { InspectionTools } from './Inspection';
-import { DAPClient } from '../dap/Client';
-import { ConfigManager } from '../Config';
+import {DebugControlTools} from './DebugControl';
+import {BreakpointTools} from './Breakpoints';
+import {InspectionTools} from './Inspection';
+import {DAPClient} from '../dap/Client';
+import {ConfigManager} from '../Config';
 
 export interface ToolRegistry {
     debugControl: DebugControlTools;

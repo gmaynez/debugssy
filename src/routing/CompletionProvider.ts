@@ -2,8 +2,8 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { Logger } from '../utils/Logger';
-import { MAX_COMPLETIONS, MAX_FILE_SEARCH_RESULTS } from '../constants';
+import {Logger} from '../utils/Logger';
+import {MAX_COMPLETIONS, MAX_FILE_SEARCH_RESULTS} from '../constants';
 
 /**
  * Provides completion suggestions for MCP prompt arguments.
@@ -37,11 +37,11 @@ export class CompletionProvider {
                     return await this.getVariableNameCompletions(partialValue);
 
                 default:
-                    return { values: [], total: 0, hasMore: false };
+                    return {values: [], total: 0, hasMore: false};
             }
         } catch (error: unknown) {
             this.logger.error(`Error getting completions for ${argumentName}:`, error);
-            return { values: [], total: 0, hasMore: false };
+            return {values: [], total: 0, hasMore: false};
         }
     }
 
@@ -53,20 +53,20 @@ export class CompletionProvider {
     ): Promise<{ values: string[]; total: number; hasMore: boolean }> {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (!workspaceFolders || workspaceFolders.length === 0) {
-            return { values: [], total: 0, hasMore: false };
+            return {values: [], total: 0, hasMore: false};
         }
 
         const workspaceFolder = workspaceFolders[0];
         if (!workspaceFolder) {
-            return { values: [], total: 0, hasMore: false };
+            return {values: [], total: 0, hasMore: false};
         }
 
         // Search for files matching the partial string
         const searchPattern = partial ? `**/*${partial}*` : '**/*';
-        
+
         // Exclude common directories to improve performance
         const excludePattern = '{**/node_modules/**,**/out/**,**/dist/**,**/.git/**,**/build/**}';
-        
+
         const files = await vscode.workspace.findFiles(
             searchPattern,
             excludePattern,
@@ -84,7 +84,7 @@ export class CompletionProvider {
         // Filter by partial match (case-insensitive)
         if (partial) {
             const lowerPartial = partial.toLowerCase();
-            filePaths = filePaths.filter(p => 
+            filePaths = filePaths.filter(p =>
                 p.toLowerCase().includes(lowerPartial)
             );
         }
@@ -95,8 +95,12 @@ export class CompletionProvider {
                 const lowerPartial = partial.toLowerCase();
                 const aStarts = a.toLowerCase().startsWith(lowerPartial);
                 const bStarts = b.toLowerCase().startsWith(lowerPartial);
-                if (aStarts && !bStarts) {return -1;}
-                if (!aStarts && bStarts) {return 1;}
+                if (aStarts && !bStarts) {
+                    return -1;
+                }
+                if (!aStarts && bStarts) {
+                    return 1;
+                }
             }
             // Then alphabetically
             return a.localeCompare(b);
@@ -143,7 +147,7 @@ export class CompletionProvider {
 
             if (workspaceSymbols) {
                 for (const symbol of workspaceSymbols) {
-                    if (symbol.kind === vscode.SymbolKind.Function || 
+                    if (symbol.kind === vscode.SymbolKind.Function ||
                         symbol.kind === vscode.SymbolKind.Method) {
                         functionNames.add(symbol.name);
                     }
@@ -156,7 +160,7 @@ export class CompletionProvider {
         // Filter by partial match
         if (partial) {
             const lowerPartial = partial.toLowerCase();
-            functions = functions.filter(name => 
+            functions = functions.filter(name =>
                 name.toLowerCase().includes(lowerPartial)
             );
         }
@@ -167,8 +171,12 @@ export class CompletionProvider {
                 const lowerPartial = partial.toLowerCase();
                 const aStarts = a.toLowerCase().startsWith(lowerPartial);
                 const bStarts = b.toLowerCase().startsWith(lowerPartial);
-                if (aStarts && !bStarts) {return -1;}
-                if (!aStarts && bStarts) {return 1;}
+                if (aStarts && !bStarts) {
+                    return -1;
+                }
+                if (!aStarts && bStarts) {
+                    return 1;
+                }
             }
             return a.localeCompare(b);
         });
@@ -191,7 +199,7 @@ export class CompletionProvider {
         functionNames: Set<string>
     ): void {
         for (const symbol of symbols) {
-            if (symbol.kind === vscode.SymbolKind.Function || 
+            if (symbol.kind === vscode.SymbolKind.Function ||
                 symbol.kind === vscode.SymbolKind.Method) {
                 functionNames.add(symbol.name);
             }
@@ -212,7 +220,7 @@ export class CompletionProvider {
     ): Promise<{ values: string[]; total: number; hasMore: boolean }> {
         const session = vscode.debug.activeDebugSession;
         if (!session) {
-            return { values: [], total: 0, hasMore: false };
+            return {values: [], total: 0, hasMore: false};
         }
 
         try {
@@ -222,15 +230,15 @@ export class CompletionProvider {
             });
 
             if (!stackTrace || !stackTrace.stackFrames || stackTrace.stackFrames.length === 0) {
-                return { values: [], total: 0, hasMore: false };
+                return {values: [], total: 0, hasMore: false};
             }
 
             const frameId = stackTrace.stackFrames[0].id;
 
             // Get scopes for the frame
-            const scopes = await session.customRequest('scopes', { frameId });
+            const scopes = await session.customRequest('scopes', {frameId});
             if (!scopes || !scopes.scopes) {
-                return { values: [], total: 0, hasMore: false };
+                return {values: [], total: 0, hasMore: false};
             }
 
             // Collect all variable names from all scopes
@@ -252,7 +260,7 @@ export class CompletionProvider {
             // Filter by partial match
             if (partial) {
                 const lowerPartial = partial.toLowerCase();
-                vars = vars.filter(name => 
+                vars = vars.filter(name =>
                     name.toLowerCase().includes(lowerPartial)
                 );
             }
@@ -263,8 +271,12 @@ export class CompletionProvider {
                     const lowerPartial = partial.toLowerCase();
                     const aStarts = a.toLowerCase().startsWith(lowerPartial);
                     const bStarts = b.toLowerCase().startsWith(lowerPartial);
-                    if (aStarts && !bStarts) {return -1;}
-                    if (!aStarts && bStarts) {return 1;}
+                    if (aStarts && !bStarts) {
+                        return -1;
+                    }
+                    if (!aStarts && bStarts) {
+                        return 1;
+                    }
                 }
                 return a.localeCompare(b);
             });
@@ -280,7 +292,7 @@ export class CompletionProvider {
         } catch (error: unknown) {
             // Debug session might not support these requests or not be paused
             this.logger.debug('Could not get variable completions:', error);
-            return { values: [], total: 0, hasMore: false };
+            return {values: [], total: 0, hasMore: false};
         }
     }
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as vscode from 'vscode';
-import { ConfigManager } from '../Config';
+import {ConfigManager} from '../Config';
 
 export interface DebugControlResult {
     success: boolean;
@@ -58,7 +58,7 @@ export class DebugControlTools {
                     error: 'No workspace folder available'
                 };
             }
-            
+
             if (args.workspaceFolder) {
                 const found = workspaceFolders.find(
                     (f) => f.name === args.workspaceFolder || f.uri.fsPath === args.workspaceFolder
@@ -165,6 +165,10 @@ export class DebugControlTools {
         );
     }
 
+    getActiveSession(): vscode.DebugSession | undefined {
+        return this.activeSession;
+    }
+
     private async executeCommandWithAutomationCheck(
         command: string,
         successMessage: string,
@@ -200,10 +204,6 @@ export class DebugControlTools {
                 error: error instanceof Error ? error.message : 'Unknown error occurred'
             };
         }
-    }
-
-    getActiveSession(): vscode.DebugSession | undefined {
-        return this.activeSession;
     }
 }
 

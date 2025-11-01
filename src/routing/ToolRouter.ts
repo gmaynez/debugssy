@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as vscode from 'vscode';
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { ToolRegistry } from '../tools';
-import { ConfigManager } from '../Config';
-import { ExpressionValidator } from '../security/ExpressionValidator';
-import { breakpointSchemas, inspectionSchemas, debugControlSchemas, stepOperationSchemas } from './schemas';
-import { Logger } from '../utils/Logger';
+import {Server} from '@modelcontextprotocol/sdk/server/index.js';
+import {ToolRegistry} from '../tools';
+import {ConfigManager} from '../Config';
+import {ExpressionValidator} from '../security/ExpressionValidator';
+import {breakpointSchemas, inspectionSchemas, debugControlSchemas, stepOperationSchemas} from './schemas';
+import {Logger} from '../utils/Logger';
 import {
     SetBreakpointArgs,
     RemoveBreakpointArgs,
@@ -43,12 +43,83 @@ export class ToolRouter {
         this.expressionValidator = new ExpressionValidator();
         this.logger = Logger.getInstance();
     }
-    
+
     /**
      * Disposes resources and cleans up the expression validator.
      */
     dispose(): void {
         this.expressionValidator.dispose();
+    }
+
+    /**
+     * Returns the list of available tools based on automation level.
+     * Schemas are now organized in separate modules for better maintainability.
+     */
+    getToolSchemas(): any[] {
+        const automationLevel = this.configManager.getConfig().automationLevel;
+        const allowStepOperations = this.configManager.getConfig().allowStepOperations;
+
+        // Tools available in all modes (inspection and breakpoints)
+        const commonTools = [
+            ...breakpointSchemas,
+            ...inspectionSchemas
+        ];
+
+        // Tools only available in full automation mode
+        const fullAutomationTools = [
+            ...debugControlSchemas
+        ];
+
+        // Conditionally add step operations if enabled
+        if (allowStepOperations) {
+            fullAutomationTools.push(...stepOperationSchemas);
+        }
+
+        // Return tools based on automation level
+        return automationLevel === 'full'
+            ? [...commonTools, ...fullAutomationTools]
+            : commonTools;
+    }
+
+    /**
+     * Routes a tool call to the appropriate handler and returns the result.
+     * Uses Map-based lookup for O(1) performance and better maintainability.
+     * Validates arguments using Zod schemas per MCP security best practices.
+     *
+     * For evaluate_expression, applies security validation and uses elicitation
+     * to request user approval if the expression may have side effects.
+     */
+    async routeToolCall(toolName: string, args: any, server?: Server): Promise<any> {
+        const handler = this.toolHandlers.get(toolName);
+
+        if (!handler) {
+            throw new Error(`Unknown tool: ${toolName}`);
+        }
+
+        // Validate input against Zod schema if available (type-safe lookup)
+        if (toolName in Validators) {
+            const validator = Validators[toolName as ValidatorKey];
+            const parsed = validator.safeParse(args || {});
+
+            if (!parsed.success) {
+                // Format validation errors for MCP clients
+                const issues = parsed.error.issues.map(issue => {
+                    const path = issue.path.length > 0 ? ` at "${issue.path.join('.')}"` : '';
+                    return `${issue.message}${path}`;
+                }).join('; ');
+
+                throw new Error(`Invalid arguments for tool '${toolName}': ${issues}`);
+            }
+
+            args = parsed.data;
+        }
+
+        // Special handling for evaluate_expression with security validation
+        if (toolName === 'evaluate_expression' && server) {
+            return await this.handleEvaluateExpressionWithValidation(args as EvaluateExpressionArgs, server);
+        }
+
+        return await handler(args);
     }
 
     /**
@@ -58,43 +129,43 @@ export class ToolRouter {
     private initializeToolHandlers(): Map<string, ToolHandler> {
         return new Map<string, ToolHandler>([
             // Breakpoint tools
-            ['set_breakpoint', (args: SetBreakpointArgs) => 
+            ['set_breakpoint', (args: SetBreakpointArgs) =>
                 this.toolRegistry.breakpoints.setBreakpoint(args)],
-            ['remove_breakpoint', (args: RemoveBreakpointArgs) => 
+            ['remove_breakpoint', (args: RemoveBreakpointArgs) =>
                 this.toolRegistry.breakpoints.removeBreakpoint(args)],
-            ['list_breakpoints', () => 
+            ['list_breakpoints', () =>
                 this.toolRegistry.breakpoints.listBreakpoints()],
-            ['toggle_breakpoint', (args: ToggleBreakpointArgs) => 
+            ['toggle_breakpoint', (args: ToggleBreakpointArgs) =>
                 this.toolRegistry.breakpoints.toggleBreakpoint(args)],
-            ['remove_all_breakpoints', () => 
+            ['remove_all_breakpoints', () =>
                 this.toolRegistry.breakpoints.removeAllBreakpoints()],
 
             // Inspection tools
-            ['get_variables', (args: GetVariablesArgs) => 
+            ['get_variables', (args: GetVariablesArgs) =>
                 this.toolRegistry.inspection.getVariables(args)],
-            ['get_call_stack', (args: GetCallStackArgs) => 
+            ['get_call_stack', (args: GetCallStackArgs) =>
                 this.toolRegistry.inspection.getCallStack(args)],
-            ['evaluate_expression', (args: EvaluateExpressionArgs) => 
+            ['evaluate_expression', (args: EvaluateExpressionArgs) =>
                 this.toolRegistry.inspection.evaluateExpression(args)],
-            ['get_threads', () => 
+            ['get_threads', () =>
                 this.toolRegistry.inspection.getThreads()],
-            ['get_debug_state', () => 
+            ['get_debug_state', () =>
                 this.toolRegistry.inspection.getDebugState()],
-            ['get_console_output', (args: GetConsoleOutputArgs) => 
+            ['get_console_output', (args: GetConsoleOutputArgs) =>
                 this.toolRegistry.inspection.getConsoleOutput(args)],
-            ['clear_console_output', () => 
+            ['clear_console_output', () =>
                 this.toolRegistry.inspection.clearConsoleOutput()],
 
             // Debug control tools (full automation only)
-            ['start_debugging', (args: StartDebuggingArgs) => 
+            ['start_debugging', (args: StartDebuggingArgs) =>
                 this.toolRegistry.debugControl.startDebugging(args)],
-            ['stop_debugging', () => 
+            ['stop_debugging', () =>
                 this.toolRegistry.debugControl.stopDebugging()],
-            ['continue', () => 
+            ['continue', () =>
                 this.toolRegistry.debugControl.continueExecution()],
-            ['pause', () => 
+            ['pause', () =>
                 this.toolRegistry.debugControl.pause()],
-            ['restart', () => 
+            ['restart', () =>
                 this.toolRegistry.debugControl.restart()],
             ['wait_for_breakpoint', (args: WaitForBreakpointArgs) => {
                 const automationLevel = this.configManager.getConfig().automationLevel;
@@ -105,84 +176,13 @@ export class ToolRouter {
             }],
 
             // Step operations (opt-in)
-            ['step_over', () => 
+            ['step_over', () =>
                 this.toolRegistry.debugControl.stepOver()],
-            ['step_into', () => 
+            ['step_into', () =>
                 this.toolRegistry.debugControl.stepInto()],
-            ['step_out', () => 
+            ['step_out', () =>
                 this.toolRegistry.debugControl.stepOut()]
         ]);
-    }
-
-    /**
-     * Returns the list of available tools based on automation level.
-     * Schemas are now organized in separate modules for better maintainability.
-     */
-    getToolSchemas(): any[] {
-        const automationLevel = this.configManager.getConfig().automationLevel;
-        const allowStepOperations = this.configManager.getConfig().allowStepOperations;
-        
-        // Tools available in all modes (inspection and breakpoints)
-        const commonTools = [
-            ...breakpointSchemas,
-            ...inspectionSchemas
-        ];
-        
-        // Tools only available in full automation mode
-        const fullAutomationTools = [
-            ...debugControlSchemas
-        ];
-        
-        // Conditionally add step operations if enabled
-        if (allowStepOperations) {
-            fullAutomationTools.push(...stepOperationSchemas);
-        }
-        
-        // Return tools based on automation level
-        return automationLevel === 'full' 
-            ? [...commonTools, ...fullAutomationTools]
-            : commonTools;
-    }
-
-    /**
-     * Routes a tool call to the appropriate handler and returns the result.
-     * Uses Map-based lookup for O(1) performance and better maintainability.
-     * Validates arguments using Zod schemas per MCP security best practices.
-     * 
-     * For evaluate_expression, applies security validation and uses elicitation
-     * to request user approval if the expression may have side effects.
-     */
-    async routeToolCall(toolName: string, args: any, server?: Server): Promise<any> {
-        const handler = this.toolHandlers.get(toolName);
-        
-        if (!handler) {
-            throw new Error(`Unknown tool: ${toolName}`);
-        }
-        
-        // Validate input against Zod schema if available (type-safe lookup)
-        if (toolName in Validators) {
-            const validator = Validators[toolName as ValidatorKey];
-            const parsed = validator.safeParse(args || {});
-            
-            if (!parsed.success) {
-                // Format validation errors for MCP clients
-                const issues = parsed.error.issues.map(issue => {
-                    const path = issue.path.length > 0 ? ` at "${issue.path.join('.')}"` : '';
-                    return `${issue.message}${path}`;
-                }).join('; ');
-                
-                throw new Error(`Invalid arguments for tool '${toolName}': ${issues}`);
-            }
-            
-            args = parsed.data;
-        }
-        
-        // Special handling for evaluate_expression with security validation
-        if (toolName === 'evaluate_expression' && server) {
-            return await this.handleEvaluateExpressionWithValidation(args as EvaluateExpressionArgs, server);
-        }
-        
-        return await handler(args);
     }
 
     /**
@@ -251,7 +251,7 @@ export class ToolRouter {
             if (elicitResponse.action === 'accept' && elicitResponse.content?.understood) {
                 // User approved - execute the expression
                 const result = await this.toolRegistry.inspection.evaluateExpression(args);
-                
+
                 // Add a warning to the result
                 return {
                     ...result,

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { DEFAULT_MAX_STACK_DEPTH, DEFAULT_CONSOLE_OUTPUT_LIMIT, MAX_CONSOLE_OUTPUT_LIMIT } from '../../constants';
+import {DEFAULT_MAX_STACK_DEPTH, DEFAULT_CONSOLE_OUTPUT_LIMIT, MAX_CONSOLE_OUTPUT_LIMIT} from '../../constants';
 
 /**
  * Tool schemas for inspection and state query operations.
