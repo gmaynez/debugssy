@@ -127,6 +127,7 @@ class ExtensionContext {
     async dispose(): Promise<void> {
         if (this.mcpServer) {
             await this.mcpServer.stop();
+            this.mcpServer.dispose(); // Clean up event listeners
         }
         this.dapClient.dispose();
         this.configManager.dispose();
