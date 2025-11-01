@@ -285,6 +285,17 @@ export class ExpressionValidator {
      * These are the most dangerous operations that should always require explicit approval.
      */
     private detectCriticalOperations(expression: string): ValidationResult | null {
+        return this.detectJavaScriptCritical(expression)
+            || this.detectPythonCritical(expression)
+            || this.detectCppCritical(expression)
+            || this.detectCSharpCritical(expression)
+            || this.detectJavaCritical(expression);
+    }
+
+    /**
+     * Detects critical JavaScript/Node.js operations (file system, process, network).
+     */
+    private detectJavaScriptCritical(expression: string): ValidationResult | null {
         // File system operations
         if (/\bfs\s*\.\s*(unlink|rmdir|rm|write|mkdir|rename|delete|chmod|chown|truncate|appendFile|writeFile)/i.test(expression)) {
             return {
@@ -322,20 +333,23 @@ export class ExpressionValidator {
             };
         }
         
-        // Dynamic module loading
-        if (/\brequire\s*\(/i.test(expression) && !/['"]fs['"]|['"]child_process['"]/.test(expression)) {
-            // Only flag as critical if requiring potentially dangerous modules
-            // Common debugging requires (util, path) are less risky
-            if (/require\s*\(\s*['"](?:fs|child_process|net|http|https|crypto|vm)['"]/.test(expression)) {
-                return {
-                    allowed: false,
-                    reason: 'System Module Loading: dangerous module detected',
-                    riskLevel: 'critical'
-                };
-            }
+        // Dynamic module loading - only flag dangerous modules
+        if (/\brequire\s*\(\s*['"](?:fs|child_process|net|http|https|crypto|vm)['"]/.test(expression)) {
+            return {
+                allowed: false,
+                reason: 'System Module Loading: dangerous module detected',
+                riskLevel: 'critical'
+            };
         }
         
-        // Python os module operations (system commands and file operations)
+        return null;
+    }
+
+    /**
+     * Detects critical Python operations (os, subprocess, file operations).
+     */
+    private detectPythonCritical(expression: string): ValidationResult | null {
+        // Python os module operations
         if (/\bos\s*\.\s*(system|popen|exec[lv]?p?e?|spawn[lv]?p?e?|remove|unlink|rmdir|rename|chmod|chown|kill|mkdir|makedirs)\s*\(/i.test(expression)) {
             return {
                 allowed: false,
@@ -344,7 +358,7 @@ export class ExpressionValidator {
             };
         }
         
-        // Python subprocess module (command execution)
+        // Python subprocess module
         if (/\bsubprocess\s*\.\s*(run|call|check_call|check_output|Popen|getoutput|getstatusoutput)\s*\(/i.test(expression)) {
             return {
                 allowed: false,
@@ -353,7 +367,7 @@ export class ExpressionValidator {
             };
         }
         
-        // Python file operations (open with write modes, pathlib operations)
+        // Python file operations with write modes
         if (/\bopen\s*\([^)]*['"][wa]/i.test(expression) || 
             /\bPath\s*\([^)]*\)\s*\.\s*(write_text|write_bytes|unlink|rmdir|mkdir|rename|replace|chmod)\s*\(/i.test(expression)) {
             return {
@@ -363,7 +377,14 @@ export class ExpressionValidator {
             };
         }
         
-        // C/C++ system and process operations
+        return null;
+    }
+
+    /**
+     * Detects critical C/C++ operations (system, file operations).
+     */
+    private detectCppCritical(expression: string): ValidationResult | null {
+        // System and process operations
         if (/\b(system|exec[lv]?p?e?|popen|_popen|_wsystem)\s*\(/i.test(expression)) {
             return {
                 allowed: false,
@@ -372,8 +393,7 @@ export class ExpressionValidator {
             };
         }
         
-        // C/C++ file operations (remove, unlink, etc.)
-        // Check for destructive operations or file open with write modes
+        // File operations
         if (/\b(remove|unlink|rmdir|rename|chmod|chown|creat|mkdir)\s*\(/i.test(expression) ||
             /\b(fopen|freopen)\s*\([^)]*['"][wa]/i.test(expression)) {
             return {
@@ -383,7 +403,14 @@ export class ExpressionValidator {
             };
         }
         
-        // C# Process operations
+        return null;
+    }
+
+    /**
+     * Detects critical C# operations (Process, File, Directory, Network).
+     */
+    private detectCSharpCritical(expression: string): ValidationResult | null {
+        // Process operations
         if (/\b(Process\s*\.\s*Start|ProcessStartInfo|System\s*\.\s*Diagnostics\s*\.\s*Process)\s*[.([]/i.test(expression)) {
             return {
                 allowed: false,
@@ -392,7 +419,7 @@ export class ExpressionValidator {
             };
         }
         
-        // C# File and Directory operations
+        // File and Directory operations
         if (/\b(File|Directory)\s*\.\s*(Delete|WriteAllText|WriteAllBytes|Create|Move|Replace|Copy|AppendAllText|CreateDirectory)\s*\(/i.test(expression)) {
             return {
                 allowed: false,
@@ -401,7 +428,7 @@ export class ExpressionValidator {
             };
         }
         
-        // C# FileStream/StreamWriter with write modes
+        // FileStream/StreamWriter with write modes
         if (/\b(FileStream|StreamWriter|FileInfo|DirectoryInfo)\s*\(/i.test(expression) &&
             /\b(FileMode\s*\.\s*(Create|Append|Truncate|OpenOrCreate)|FileAccess\s*\.\s*Write)/i.test(expression)) {
             return {
@@ -411,7 +438,7 @@ export class ExpressionValidator {
             };
         }
         
-        // C# Network operations
+        // Network operations
         if (/\b(HttpClient|WebClient|HttpWebRequest)\s*[.([]/i.test(expression)) {
             return {
                 allowed: false,
@@ -420,7 +447,14 @@ export class ExpressionValidator {
             };
         }
         
-        // Java Runtime.exec and ProcessBuilder
+        return null;
+    }
+
+    /**
+     * Detects critical Java operations (Runtime.exec, File, Network).
+     */
+    private detectJavaCritical(expression: string): ValidationResult | null {
+        // Process execution
         if (/\b(Runtime\s*\.\s*getRuntime\s*\(\s*\)\s*\.\s*exec|ProcessBuilder)\s*[.([]/i.test(expression)) {
             return {
                 allowed: false,
@@ -429,7 +463,7 @@ export class ExpressionValidator {
             };
         }
         
-        // Java File operations (java.io.File and java.nio.file.Files)
+        // File operations
         if (/\b(File|Files)\s*\.\s*(delete|createNewFile|mkdir|mkdirs|renameTo|write|writeString|writeBytes|move|copy|deleteIfExists)\s*\(/i.test(expression) ||
             /\bnew\s+File(Writer|OutputStream|Reader|InputStream)\s*\(/i.test(expression)) {
             return {
@@ -439,7 +473,7 @@ export class ExpressionValidator {
             };
         }
         
-        // Java Network operations
+        // Network operations
         if (/\b(HttpClient|HttpURLConnection|URL\s*\([^)]*\)\s*\.\s*openConnection|URLConnection)\s*[.([]/i.test(expression)) {
             return {
                 allowed: false,
@@ -480,7 +514,12 @@ export class ExpressionValidator {
             return 'java';
         }
         
-        // C/C++ family
+        // Rust (check before C++ since lldb is ambiguous)
+        if (type === 'rust' || type === 'rust-lldb') {
+            return 'rust';
+        }
+        
+        // C/C++ family (includes lldb which could be Rust, but Rust-specific is checked above)
         if (type === 'cppdbg' || type === 'lldb' || type === 'gdb' || type === 'cppvsdbg') {
             return 'cpp';
         }
@@ -498,11 +537,6 @@ export class ExpressionValidator {
         // PHP
         if (type === 'php' || type === 'php-debug') {
             return 'php';
-        }
-        
-        // Rust
-        if (type === 'rust' || type === 'lldb' || type === 'rust-lldb') {
-            return 'rust';
         }
         
         this.logger.debug(`Unknown debug session type: ${type}, using generic validation with whitelists`);
@@ -534,16 +568,10 @@ export class ExpressionValidator {
     }
 
     /**
-     * JavaScript/TypeScript specific validation.
-     * Allows whitelisted safe functions, blocks mutation methods and code generation.
+     * Helper: Checks if expression contains any mutation methods from the given list.
+     * Returns validation result if mutation detected, null otherwise.
      */
-    private validateJavaScript(expression: string): ValidationResult | null {
-        // Block common mutation methods explicitly (high priority check)
-        const mutationMethods = [
-            'push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse',
-            'fill', 'copyWithin', 'delete', 'clear', 'set', 'add'
-        ];
-        
+    private checkMutationMethods(expression: string, mutationMethods: string[]): ValidationResult | null {
         for (const method of mutationMethods) {
             const regex = new RegExp(`\\.${method}\\s*\\(`, 'i');
             if (regex.test(expression)) {
@@ -553,6 +581,62 @@ export class ExpressionValidator {
                     riskLevel: 'high'
                 };
             }
+        }
+        return null;
+    }
+
+    /**
+     * Helper: Checks function calls against whitelists.
+     * Returns validation result if unsafe call detected, null if all calls are safe.
+     */
+    private checkAgainstWhitelists(
+        calls: string[],
+        staticWhitelist: Set<string>,
+        methodWhitelist: Set<string>
+    ): ValidationResult | null {
+        for (const call of calls) {
+            // Check if it's a whitelisted static function
+            if (staticWhitelist.has(call)) {
+                continue;
+            }
+            
+            // Check if it's a whitelisted method
+            const methodName = call.split('.').pop() || call;
+            if (methodWhitelist.has(methodName)) {
+                continue;
+            }
+            
+            // Check if it looks like a getter (LOW risk)
+            if (this.isGetterPattern(methodName)) {
+                return {
+                    allowed: false,
+                    reason: `Getter Method: ${call}()`,
+                    riskLevel: 'low'
+                };
+            }
+            
+            // Unknown function call
+            return {
+                allowed: false,
+                reason: `User-Defined Function: ${call}()`,
+                riskLevel: 'medium'
+            };
+        }
+        return null;
+    }
+
+    /**
+     * JavaScript/TypeScript specific validation.
+     * Allows whitelisted safe functions, blocks mutation methods and code generation.
+     */
+    private validateJavaScript(expression: string): ValidationResult | null {
+        // Block common mutation methods
+        const mutationCheck = this.checkMutationMethods(expression, [
+            'push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse',
+            'fill', 'copyWithin', 'delete', 'clear', 'set', 'add'
+        ]);
+        if (mutationCheck) {
+            return mutationCheck;
         }
 
         // Block eval, Function constructor, etc. (code generation)
@@ -564,42 +648,12 @@ export class ExpressionValidator {
             };
         }
 
-        // Check if expression contains function calls
+        // Check function calls against whitelists
         if (/[\w_\]]\s*\(/.test(expression)) {
-            // Extract all function/method calls
             const calls = this.extractFunctionCalls(expression);
-            
-            for (const call of calls) {
-                // Check if it's a whitelisted static function (e.g., Object.keys, JSON.stringify)
-                if (this.jsSafeStaticFunctions.has(call)) {
-                    continue; // This call is safe
-                }
-                
-                // Check if it's a whitelisted method (e.g., .map, .filter)
-                const methodName = call.split('.').pop() || call;
-                if (this.jsSafeFunctions.has(methodName)) {
-                    continue; // This call is safe
-                }
-                
-                // Check if it looks like a getter (LOW risk) vs unknown function (MEDIUM risk)
-                if (this.isGetterPattern(methodName)) {
-                    return {
-                        allowed: false,
-                        reason: `Getter Method: ${call}()`,
-                        riskLevel: 'low'
-                    };
-                }
-                
-                // Unknown function call - not whitelisted
-                return {
-                    allowed: false,
-                    reason: `User-Defined Function: ${call}()`,
-                    riskLevel: 'medium'
-                };
-            }
+            return this.checkAgainstWhitelists(calls, this.jsSafeStaticFunctions, this.jsSafeFunctions);
         }
 
-        // All checks passed
         return null;
     }
 
@@ -608,21 +662,13 @@ export class ExpressionValidator {
      * Allows whitelisted safe functions, blocks mutation methods and code execution.
      */
     private validatePython(expression: string): ValidationResult | null {
-        // Block common mutation methods explicitly (high priority check)
-        const mutationMethods = [
+        // Block common mutation methods
+        const mutationCheck = this.checkMutationMethods(expression, [
             'append', 'extend', 'insert', 'remove', 'pop', 'clear',
             'sort', 'reverse', 'update', 'add', 'discard'
-        ];
-        
-        for (const method of mutationMethods) {
-            const regex = new RegExp(`\\.${method}\\s*\\(`, 'i');
-            if (regex.test(expression)) {
-                return {
-                    allowed: false,
-                    reason: `State Mutation: ${method}() modifies data`,
-                    riskLevel: 'high'
-                };
-            }
+        ]);
+        if (mutationCheck) {
+            return mutationCheck;
         }
 
         // Block eval, exec, compile, __import__ (code execution)
@@ -634,42 +680,12 @@ export class ExpressionValidator {
             };
         }
 
-        // Check if expression contains function calls
+        // Check function calls against whitelists
         if (/[\w_\]]\s*\(/.test(expression)) {
-            // Extract all function/method calls
             const calls = this.extractFunctionCalls(expression);
-            
-            for (const call of calls) {
-                // Check if it's a whitelisted module function (e.g., json.dumps, math.sqrt)
-                if (this.pythonSafeStaticFunctions.has(call)) {
-                    continue; // This call is safe
-                }
-                
-                // Check if it's a whitelisted built-in or method (e.g., len, .split)
-                const methodName = call.split('.').pop() || call;
-                if (this.pythonSafeFunctions.has(methodName)) {
-                    continue; // This call is safe
-                }
-                
-                // Check if it looks like a getter (LOW risk) vs unknown function (MEDIUM risk)
-                if (this.isGetterPattern(methodName)) {
-                    return {
-                        allowed: false,
-                        reason: `Getter Method: ${call}()`,
-                        riskLevel: 'low'
-                    };
-                }
-                
-                // Unknown function call - not whitelisted
-                return {
-                    allowed: false,
-                    reason: `User-Defined Function: ${call}()`,
-                    riskLevel: 'medium'
-                };
-            }
+            return this.checkAgainstWhitelists(calls, this.pythonSafeStaticFunctions, this.pythonSafeFunctions);
         }
 
-        // All checks passed
         return null;
     }
 
@@ -678,21 +694,13 @@ export class ExpressionValidator {
      * Allows whitelisted LINQ, collections, and safe functions, blocks mutation and reflection.
      */
     private validateCSharp(expression: string): ValidationResult | null {
-        // Block common mutation methods explicitly (high priority check)
-        const mutationMethods = [
+        // Block common mutation methods
+        const mutationCheck = this.checkMutationMethods(expression, [
             'Add', 'Remove', 'RemoveAt', 'RemoveAll', 'Clear', 'Insert', 'Sort', 'Reverse',
             'AddRange', 'InsertRange', 'RemoveRange', 'Push', 'Pop', 'Enqueue', 'Dequeue'
-        ];
-        
-        for (const method of mutationMethods) {
-            const regex = new RegExp(`\\.${method}\\s*\\(`, 'i');
-            if (regex.test(expression)) {
-                return {
-                    allowed: false,
-                    reason: `State Mutation: ${method}() modifies data`,
-                    riskLevel: 'high'
-                };
-            }
+        ]);
+        if (mutationCheck) {
+            return mutationCheck;
         }
 
         // Block reflection and dynamic code execution
@@ -704,38 +712,10 @@ export class ExpressionValidator {
             };
         }
 
-        // Check if expression contains function calls
+        // Check function calls against whitelists
         if (/[\w_\]]\s*\(/.test(expression)) {
             const calls = this.extractFunctionCalls(expression);
-            
-            for (const call of calls) {
-                // Check if it's a whitelisted static function
-                if (this.csharpSafeStaticFunctions.has(call)) {
-                    continue;
-                }
-                
-                // Check if it's a whitelisted method
-                const methodName = call.split('.').pop() || call;
-                if (this.csharpSafeFunctions.has(methodName)) {
-                    continue;
-                }
-                
-                // Check if it looks like a getter (LOW risk)
-                if (this.isGetterPattern(methodName)) {
-                    return {
-                        allowed: false,
-                        reason: `Getter Method: ${call}()`,
-                        riskLevel: 'low'
-                    };
-                }
-                
-                // Unknown function call
-                return {
-                    allowed: false,
-                    reason: `User-Defined Function: ${call}()`,
-                    riskLevel: 'medium'
-                };
-            }
+            return this.checkAgainstWhitelists(calls, this.csharpSafeStaticFunctions, this.csharpSafeFunctions);
         }
 
         return null;
@@ -746,21 +726,13 @@ export class ExpressionValidator {
      * Allows whitelisted Stream API, collections, and safe functions, blocks mutation and reflection.
      */
     private validateJava(expression: string): ValidationResult | null {
-        // Block common mutation methods explicitly (high priority check)
-        const mutationMethods = [
+        // Block common mutation methods
+        const mutationCheck = this.checkMutationMethods(expression, [
             'add', 'remove', 'clear', 'set', 'addAll', 'removeAll', 'retainAll',
             'put', 'putAll', 'replaceAll', 'sort', 'shuffle'
-        ];
-        
-        for (const method of mutationMethods) {
-            const regex = new RegExp(`\\.${method}\\s*\\(`, 'i');
-            if (regex.test(expression)) {
-                return {
-                    allowed: false,
-                    reason: `State Mutation: ${method}() modifies data`,
-                    riskLevel: 'high'
-                };
-            }
+        ]);
+        if (mutationCheck) {
+            return mutationCheck;
         }
 
         // Block reflection and dynamic class loading
@@ -772,38 +744,10 @@ export class ExpressionValidator {
             };
         }
 
-        // Check if expression contains function calls
+        // Check function calls against whitelists
         if (/[\w_\]]\s*\(/.test(expression)) {
             const calls = this.extractFunctionCalls(expression);
-            
-            for (const call of calls) {
-                // Check if it's a whitelisted static function
-                if (this.javaSafeStaticFunctions.has(call)) {
-                    continue;
-                }
-                
-                // Check if it's a whitelisted method
-                const methodName = call.split('.').pop() || call;
-                if (this.javaSafeFunctions.has(methodName)) {
-                    continue;
-                }
-                
-                // Check if it looks like a getter (LOW risk)
-                if (this.isGetterPattern(methodName)) {
-                    return {
-                        allowed: false,
-                        reason: `Getter Method: ${call}()`,
-                        riskLevel: 'low'
-                    };
-                }
-                
-                // Unknown function call
-                return {
-                    allowed: false,
-                    reason: `User-Defined Function: ${call}()`,
-                    riskLevel: 'medium'
-                };
-            }
+            return this.checkAgainstWhitelists(calls, this.javaSafeStaticFunctions, this.javaSafeFunctions);
         }
 
         return null;
@@ -814,33 +758,11 @@ export class ExpressionValidator {
      * Allows whitelisted standard library functions, blocks dangerous operations.
      */
     private validateCpp(expression: string): ValidationResult | null {
-        // Check if expression contains function calls
+        // Check function calls against whitelist (C/C++ doesn't use separate static/method sets)
         if (/[\w_\]]\s*\(/.test(expression)) {
             const calls = this.extractFunctionCalls(expression);
-            
-            for (const call of calls) {
-                // Check if it's a whitelisted function
-                const methodName = call.split('.').pop() || call;
-                if (this.cppSafeFunctions.has(methodName)) {
-                    continue;
-                }
-                
-                // Check if it looks like a getter (LOW risk)
-                if (this.isGetterPattern(methodName)) {
-                    return {
-                        allowed: false,
-                        reason: `Getter Method: ${call}()`,
-                        riskLevel: 'low'
-                    };
-                }
-                
-                // Unknown function call
-                return {
-                    allowed: false,
-                    reason: `User-Defined Function: ${call}()`,
-                    riskLevel: 'medium'
-                };
-            }
+            // Use empty set for static functions since C/C++ functions are in cppSafeFunctions
+            return this.checkAgainstWhitelists(calls, new Set(), this.cppSafeFunctions);
         }
 
         return null;
@@ -851,38 +773,10 @@ export class ExpressionValidator {
      * Allows whitelisted standard library functions, blocks dangerous operations.
      */
     private validateGo(expression: string): ValidationResult | null {
-        // Check if expression contains function calls
+        // Check function calls against whitelist (Go uses goSafeFunctions for both static and methods)
         if (/[\w_\]]\s*\(/.test(expression)) {
             const calls = this.extractFunctionCalls(expression);
-            
-            for (const call of calls) {
-                // Check if it's a whitelisted function (includes package.Function)
-                if (this.goSafeFunctions.has(call)) {
-                    continue;
-                }
-                
-                // Check if it's a whitelisted method
-                const methodName = call.split('.').pop() || call;
-                if (this.goSafeFunctions.has(methodName)) {
-                    continue;
-                }
-                
-                // Check if it looks like a getter (LOW risk)
-                if (this.isGetterPattern(methodName)) {
-                    return {
-                        allowed: false,
-                        reason: `Getter Method: ${call}()`,
-                        riskLevel: 'low'
-                    };
-                }
-                
-                // Unknown function call
-                return {
-                    allowed: false,
-                    reason: `User-Defined Function: ${call}()`,
-                    riskLevel: 'medium'
-                };
-            }
+            return this.checkAgainstWhitelists(calls, this.goSafeFunctions, this.goSafeFunctions);
         }
 
         return null;
@@ -1047,8 +941,12 @@ export class ExpressionValidator {
      * Uses threshold-based logic like log levels.
      */
     shouldElicit(riskLevel: RiskLevel | undefined, validationLevel: ValidationLevel): boolean {
-        if (validationLevel === 'disabled') {return false;}
-        if (!riskLevel) {return false;}
+        if (validationLevel === 'disabled') {
+            return false;
+        }
+        if (!riskLevel) {
+            return false;
+        }
         
         // Map validation levels to minimum risk thresholds
         const thresholds: Record<ValidationLevel, RiskLevel[]> = {
