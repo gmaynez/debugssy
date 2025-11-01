@@ -2,6 +2,17 @@
 
 All notable changes to the "Debugssy" extension will be documented in this file.
 
+## [1.2.2] - 2025-11-01
+
+### Fixed
+- Memory leaks by implementing proper resource disposal throughout the extension
+- Event listener cleanup in MCPServer during server shutdown
+- Resource management in ToolRouter and ExpressionValidator with dispose methods
+
+### Changed
+- Enhanced ExtensionContext to properly dispose MCPServer resources when stopping the server
+- Improved overall memory management with comprehensive disposal pattern implementation
+
 ## [1.2.1] - 2025-10-31
 
 ### Added
