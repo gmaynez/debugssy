@@ -131,6 +131,118 @@ export class ExpressionValidator {
         // datetime parsing
         'datetime.datetime.now', 'datetime.datetime.strptime', 'datetime.date.today'
     ]);
+
+    // Safe C# methods (LINQ, Collections, String)
+    private readonly csharpSafeFunctions = new Set([
+        // LINQ read-only methods
+        'Select', 'Where', 'OrderBy', 'OrderByDescending', 'ThenBy', 'ThenByDescending',
+        'First', 'FirstOrDefault', 'Last', 'LastOrDefault', 'Single', 'SingleOrDefault',
+        'ElementAt', 'ElementAtOrDefault', 'Any', 'All', 'Contains', 'Count', 'Sum', 'Average',
+        'Min', 'Max', 'Aggregate', 'Take', 'Skip', 'TakeWhile', 'SkipWhile', 'Distinct',
+        'GroupBy', 'Join', 'Concat', 'Union', 'Intersect', 'Except', 'Zip', 'OfType', 'Cast',
+        'ToList', 'ToArray', 'ToDictionary', 'ToHashSet', 'AsEnumerable', 'AsQueryable',
+        // String methods (read-only)
+        'Substring', 'Contains', 'StartsWith', 'EndsWith', 'IndexOf', 'LastIndexOf', 'Split',
+        'Join', 'Replace', 'Trim', 'TrimStart', 'TrimEnd', 'ToUpper', 'ToLower', 'ToUpperInvariant',
+        'ToLowerInvariant', 'PadLeft', 'PadRight', 'Format', 'IsNullOrEmpty', 'IsNullOrWhiteSpace',
+        // Collection read-only methods
+        'GetEnumerator', 'Count', 'Length', 'Contains', 'IndexOf', 'Find', 'FindAll', 'FindIndex',
+        'FindLast', 'FindLastIndex', 'Exists', 'TrueForAll', 'BinarySearch', 'CopyTo',
+        // Object methods
+        'ToString', 'GetHashCode', 'GetType', 'Equals'
+    ]);
+
+    // Safe C# static functions (System namespace)
+    private readonly csharpSafeStaticFunctions = new Set([
+        // Math (all pure)
+        'Math.Abs', 'Math.Acos', 'Math.Asin', 'Math.Atan', 'Math.Atan2', 'Math.Ceiling', 'Math.Cos',
+        'Math.Cosh', 'Math.Exp', 'Math.Floor', 'Math.Log', 'Math.Log10', 'Math.Max', 'Math.Min',
+        'Math.Pow', 'Math.Round', 'Math.Sign', 'Math.Sin', 'Math.Sinh', 'Math.Sqrt', 'Math.Tan',
+        'Math.Tanh', 'Math.Truncate',
+        // Convert (type conversions)
+        'Convert.ToInt32', 'Convert.ToInt64', 'Convert.ToDouble', 'Convert.ToDecimal', 'Convert.ToString',
+        'Convert.ToBoolean', 'Convert.ToDateTime', 'Convert.ToBase64String', 'Convert.FromBase64String',
+        // String static methods
+        'String.Join', 'String.Concat', 'String.Format', 'String.IsNullOrEmpty', 'String.IsNullOrWhiteSpace',
+        // DateTime (read-only)
+        'DateTime.Now', 'DateTime.UtcNow', 'DateTime.Today', 'DateTime.Parse', 'DateTime.TryParse',
+        // Enumerable static methods
+        'Enumerable.Range', 'Enumerable.Repeat', 'Enumerable.Empty'
+    ]);
+
+    // Safe Java methods (Stream API, Collections, String)
+    private readonly javaSafeFunctions = new Set([
+        // Stream API (read-only)
+        'stream', 'parallelStream', 'filter', 'map', 'flatMap', 'distinct', 'sorted', 'peek',
+        'limit', 'skip', 'forEach', 'forEachOrdered', 'toArray', 'reduce', 'collect',
+        'min', 'max', 'count', 'anyMatch', 'allMatch', 'noneMatch', 'findFirst', 'findAny',
+        'mapToInt', 'mapToLong', 'mapToDouble', 'flatMapToInt', 'flatMapToLong', 'flatMapToDouble',
+        // Collection read-only methods
+        'size', 'isEmpty', 'contains', 'containsAll', 'get', 'indexOf', 'lastIndexOf',
+        'iterator', 'listIterator', 'subList', 'toArray', 'stream',
+        // String methods (read-only)
+        'length', 'charAt', 'substring', 'indexOf', 'lastIndexOf', 'startsWith', 'endsWith',
+        'contains', 'toLowerCase', 'toUpperCase', 'trim', 'strip', 'split', 'join', 'replace',
+        'replaceAll', 'replaceFirst', 'matches', 'format', 'valueOf', 'concat', 'isEmpty',
+        'isBlank', 'repeat', 'lines', 'chars', 'codePoints',
+        // Object methods
+        'toString', 'hashCode', 'equals', 'getClass'
+    ]);
+
+    // Safe Java static functions
+    private readonly javaSafeStaticFunctions = new Set([
+        // Math (all pure)
+        'Math.abs', 'Math.acos', 'Math.asin', 'Math.atan', 'Math.atan2', 'Math.ceil', 'Math.cos',
+        'Math.cosh', 'Math.exp', 'Math.floor', 'Math.log', 'Math.log10', 'Math.max', 'Math.min',
+        'Math.pow', 'Math.round', 'Math.signum', 'Math.sin', 'Math.sinh', 'Math.sqrt', 'Math.tan',
+        'Math.tanh', 'Math.toDegrees', 'Math.toRadians',
+        // Collections utilities (read-only)
+        'Collections.max', 'Collections.min', 'Collections.frequency', 'Collections.binarySearch',
+        'Collections.indexOfSubList', 'Collections.lastIndexOfSubList', 'Collections.unmodifiableList',
+        'Collections.unmodifiableSet', 'Collections.unmodifiableMap',
+        // Arrays utilities (read-only)
+        'Arrays.toString', 'Arrays.asList', 'Arrays.binarySearch', 'Arrays.equals', 'Arrays.stream',
+        'Arrays.copyOf', 'Arrays.copyOfRange',
+        // String static methods
+        'String.valueOf', 'String.format', 'String.join',
+        // System read-only
+        'System.currentTimeMillis', 'System.nanoTime', 'System.getProperty'
+    ]);
+
+    // Safe C/C++ functions (standard library read-only)
+    private readonly cppSafeFunctions = new Set([
+        // String functions (read-only)
+        'strlen', 'strcmp', 'strncmp', 'strchr', 'strrchr', 'strstr', 'strcpy', 'strncpy',
+        'strcat', 'strncat', 'strcspn', 'strspn', 'strpbrk', 'strtok',
+        // Math functions (all pure)
+        'abs', 'fabs', 'ceil', 'floor', 'sqrt', 'pow', 'exp', 'log', 'log10', 'sin', 'cos',
+        'tan', 'asin', 'acos', 'atan', 'atan2', 'sinh', 'cosh', 'tanh', 'fmod', 'round',
+        // Memory read operations (safe in debugging)
+        'memcmp', 'strlen', 'sizeof',
+        // Type conversion
+        'atoi', 'atof', 'atol', 'strtol', 'strtod', 'strtoul',
+        // Character functions
+        'isalpha', 'isdigit', 'isalnum', 'isspace', 'isupper', 'islower', 'toupper', 'tolower',
+        // Time functions (read-only)
+        'time', 'clock', 'difftime', 'strftime', 'localtime', 'gmtime'
+    ]);
+
+    // Safe Go functions (standard library read-only)
+    private readonly goSafeFunctions = new Set([
+        // String functions
+        'len', 'cap', 'append', 'copy', 'strings.Contains', 'strings.HasPrefix', 'strings.HasSuffix',
+        'strings.Index', 'strings.LastIndex', 'strings.Split', 'strings.Join', 'strings.Replace',
+        'strings.ToUpper', 'strings.ToLower', 'strings.Trim', 'strings.TrimSpace',
+        // Math functions
+        'math.Abs', 'math.Ceil', 'math.Floor', 'math.Max', 'math.Min', 'math.Sqrt', 'math.Pow',
+        'math.Sin', 'math.Cos', 'math.Tan', 'math.Log', 'math.Exp', 'math.Round',
+        // fmt (read-only formatting)
+        'fmt.Sprintf', 'fmt.Sprint', 'fmt.Sprintln',
+        // Time (read-only)
+        'time.Now', 'time.Since', 'time.Until', 'time.Parse', 'time.Format',
+        // Conversion
+        'strconv.Atoi', 'strconv.Itoa', 'strconv.ParseInt', 'strconv.ParseFloat', 'strconv.FormatInt'
+    ]);
     /**
      * Validates an expression for potential side effects.
      * Returns whether the expression is allowed and why if blocked.
@@ -223,6 +335,119 @@ export class ExpressionValidator {
             }
         }
         
+        // Python os module operations (system commands and file operations)
+        if (/\bos\s*\.\s*(system|popen|exec[lv]?p?e?|spawn[lv]?p?e?|remove|unlink|rmdir|rename|chmod|chown|kill|mkdir|makedirs)\s*\(/i.test(expression)) {
+            return {
+                allowed: false,
+                reason: 'System Operation: os module can execute commands or modify files',
+                riskLevel: 'critical'
+            };
+        }
+        
+        // Python subprocess module (command execution)
+        if (/\bsubprocess\s*\.\s*(run|call|check_call|check_output|Popen|getoutput|getstatusoutput)\s*\(/i.test(expression)) {
+            return {
+                allowed: false,
+                reason: 'Process Execution: subprocess module can run system commands',
+                riskLevel: 'critical'
+            };
+        }
+        
+        // Python file operations (open with write modes, pathlib operations)
+        if (/\bopen\s*\([^)]*['"][wa]/i.test(expression) || 
+            /\bPath\s*\([^)]*\)\s*\.\s*(write_text|write_bytes|unlink|rmdir|mkdir|rename|replace|chmod)\s*\(/i.test(expression)) {
+            return {
+                allowed: false,
+                reason: 'File System Operation: can modify or delete files',
+                riskLevel: 'critical'
+            };
+        }
+        
+        // C/C++ system and process operations
+        if (/\b(system|exec[lv]?p?e?|popen|_popen|_wsystem)\s*\(/i.test(expression)) {
+            return {
+                allowed: false,
+                reason: 'System Command: can execute shell commands (C/C++)',
+                riskLevel: 'critical'
+            };
+        }
+        
+        // C/C++ file operations (remove, unlink, etc.)
+        // Check for destructive operations or file open with write modes
+        if (/\b(remove|unlink|rmdir|rename|chmod|chown|creat|mkdir)\s*\(/i.test(expression) ||
+            /\b(fopen|freopen)\s*\([^)]*['"][wa]/i.test(expression)) {
+            return {
+                allowed: false,
+                reason: 'File System Operation: can modify or delete files (C/C++)',
+                riskLevel: 'critical'
+            };
+        }
+        
+        // C# Process operations
+        if (/\b(Process\s*\.\s*Start|ProcessStartInfo|System\s*\.\s*Diagnostics\s*\.\s*Process)\s*[.([]/i.test(expression)) {
+            return {
+                allowed: false,
+                reason: 'Process Execution: can run system commands (C#)',
+                riskLevel: 'critical'
+            };
+        }
+        
+        // C# File and Directory operations
+        if (/\b(File|Directory)\s*\.\s*(Delete|WriteAllText|WriteAllBytes|Create|Move|Replace|Copy|AppendAllText|CreateDirectory)\s*\(/i.test(expression)) {
+            return {
+                allowed: false,
+                reason: 'File System Operation: can modify/delete files (C#)',
+                riskLevel: 'critical'
+            };
+        }
+        
+        // C# FileStream/StreamWriter with write modes
+        if (/\b(FileStream|StreamWriter|FileInfo|DirectoryInfo)\s*\(/i.test(expression) &&
+            /\b(FileMode\s*\.\s*(Create|Append|Truncate|OpenOrCreate)|FileAccess\s*\.\s*Write)/i.test(expression)) {
+            return {
+                allowed: false,
+                reason: 'File System Operation: opening file for writing (C#)',
+                riskLevel: 'critical'
+            };
+        }
+        
+        // C# Network operations
+        if (/\b(HttpClient|WebClient|HttpWebRequest)\s*[.([]/i.test(expression)) {
+            return {
+                allowed: false,
+                reason: 'Network Operation: can make external requests (C#)',
+                riskLevel: 'critical'
+            };
+        }
+        
+        // Java Runtime.exec and ProcessBuilder
+        if (/\b(Runtime\s*\.\s*getRuntime\s*\(\s*\)\s*\.\s*exec|ProcessBuilder)\s*[.([]/i.test(expression)) {
+            return {
+                allowed: false,
+                reason: 'Process Execution: can run system commands (Java)',
+                riskLevel: 'critical'
+            };
+        }
+        
+        // Java File operations (java.io.File and java.nio.file.Files)
+        if (/\b(File|Files)\s*\.\s*(delete|createNewFile|mkdir|mkdirs|renameTo|write|writeString|writeBytes|move|copy|deleteIfExists)\s*\(/i.test(expression) ||
+            /\bnew\s+File(Writer|OutputStream|Reader|InputStream)\s*\(/i.test(expression)) {
+            return {
+                allowed: false,
+                reason: 'File System Operation: can modify/delete files (Java)',
+                riskLevel: 'critical'
+            };
+        }
+        
+        // Java Network operations
+        if (/\b(HttpClient|HttpURLConnection|URL\s*\([^)]*\)\s*\.\s*openConnection|URLConnection)\s*[.([]/i.test(expression)) {
+            return {
+                allowed: false,
+                reason: 'Network Operation: can make external requests (Java)',
+                riskLevel: 'critical'
+            };
+        }
+        
         return null;
     }
 
@@ -294,6 +519,14 @@ export class ExpressionValidator {
                 return this.validateJavaScript(expression);
             case 'python':
                 return this.validatePython(expression);
+            case 'csharp':
+                return this.validateCSharp(expression);
+            case 'java':
+                return this.validateJava(expression);
+            case 'cpp':
+                return this.validateCpp(expression);
+            case 'go':
+                return this.validateGo(expression);
             default:
                 // No specific rules for this language
                 return null;
@@ -437,6 +670,221 @@ export class ExpressionValidator {
         }
 
         // All checks passed
+        return null;
+    }
+
+    /**
+     * C# specific validation.
+     * Allows whitelisted LINQ, collections, and safe functions, blocks mutation and reflection.
+     */
+    private validateCSharp(expression: string): ValidationResult | null {
+        // Block common mutation methods explicitly (high priority check)
+        const mutationMethods = [
+            'Add', 'Remove', 'RemoveAt', 'RemoveAll', 'Clear', 'Insert', 'Sort', 'Reverse',
+            'AddRange', 'InsertRange', 'RemoveRange', 'Push', 'Pop', 'Enqueue', 'Dequeue'
+        ];
+        
+        for (const method of mutationMethods) {
+            const regex = new RegExp(`\\.${method}\\s*\\(`, 'i');
+            if (regex.test(expression)) {
+                return {
+                    allowed: false,
+                    reason: `State Mutation: ${method}() modifies data`,
+                    riskLevel: 'high'
+                };
+            }
+        }
+
+        // Block reflection and dynamic code execution
+        if (/\b(Activator\.CreateInstance|Assembly\.Load|Invoke|GetType\(\)|typeof\(|nameof\()/i.test(expression)) {
+            return {
+                allowed: false,
+                reason: 'Code Execution: reflection/dynamic invocation not allowed',
+                riskLevel: 'high'
+            };
+        }
+
+        // Check if expression contains function calls
+        if (/[\w_\]]\s*\(/.test(expression)) {
+            const calls = this.extractFunctionCalls(expression);
+            
+            for (const call of calls) {
+                // Check if it's a whitelisted static function
+                if (this.csharpSafeStaticFunctions.has(call)) {
+                    continue;
+                }
+                
+                // Check if it's a whitelisted method
+                const methodName = call.split('.').pop() || call;
+                if (this.csharpSafeFunctions.has(methodName)) {
+                    continue;
+                }
+                
+                // Check if it looks like a getter (LOW risk)
+                if (this.isGetterPattern(methodName)) {
+                    return {
+                        allowed: false,
+                        reason: `Getter Method: ${call}()`,
+                        riskLevel: 'low'
+                    };
+                }
+                
+                // Unknown function call
+                return {
+                    allowed: false,
+                    reason: `User-Defined Function: ${call}()`,
+                    riskLevel: 'medium'
+                };
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Java specific validation.
+     * Allows whitelisted Stream API, collections, and safe functions, blocks mutation and reflection.
+     */
+    private validateJava(expression: string): ValidationResult | null {
+        // Block common mutation methods explicitly (high priority check)
+        const mutationMethods = [
+            'add', 'remove', 'clear', 'set', 'addAll', 'removeAll', 'retainAll',
+            'put', 'putAll', 'replaceAll', 'sort', 'shuffle'
+        ];
+        
+        for (const method of mutationMethods) {
+            const regex = new RegExp(`\\.${method}\\s*\\(`, 'i');
+            if (regex.test(expression)) {
+                return {
+                    allowed: false,
+                    reason: `State Mutation: ${method}() modifies data`,
+                    riskLevel: 'high'
+                };
+            }
+        }
+
+        // Block reflection and dynamic class loading
+        if (/\b(Class\.forName|Method\.invoke|Field\.set|Constructor\.newInstance|ClassLoader\.loadClass)/i.test(expression)) {
+            return {
+                allowed: false,
+                reason: 'Code Execution: reflection/dynamic class loading not allowed',
+                riskLevel: 'high'
+            };
+        }
+
+        // Check if expression contains function calls
+        if (/[\w_\]]\s*\(/.test(expression)) {
+            const calls = this.extractFunctionCalls(expression);
+            
+            for (const call of calls) {
+                // Check if it's a whitelisted static function
+                if (this.javaSafeStaticFunctions.has(call)) {
+                    continue;
+                }
+                
+                // Check if it's a whitelisted method
+                const methodName = call.split('.').pop() || call;
+                if (this.javaSafeFunctions.has(methodName)) {
+                    continue;
+                }
+                
+                // Check if it looks like a getter (LOW risk)
+                if (this.isGetterPattern(methodName)) {
+                    return {
+                        allowed: false,
+                        reason: `Getter Method: ${call}()`,
+                        riskLevel: 'low'
+                    };
+                }
+                
+                // Unknown function call
+                return {
+                    allowed: false,
+                    reason: `User-Defined Function: ${call}()`,
+                    riskLevel: 'medium'
+                };
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * C/C++ specific validation.
+     * Allows whitelisted standard library functions, blocks dangerous operations.
+     */
+    private validateCpp(expression: string): ValidationResult | null {
+        // Check if expression contains function calls
+        if (/[\w_\]]\s*\(/.test(expression)) {
+            const calls = this.extractFunctionCalls(expression);
+            
+            for (const call of calls) {
+                // Check if it's a whitelisted function
+                const methodName = call.split('.').pop() || call;
+                if (this.cppSafeFunctions.has(methodName)) {
+                    continue;
+                }
+                
+                // Check if it looks like a getter (LOW risk)
+                if (this.isGetterPattern(methodName)) {
+                    return {
+                        allowed: false,
+                        reason: `Getter Method: ${call}()`,
+                        riskLevel: 'low'
+                    };
+                }
+                
+                // Unknown function call
+                return {
+                    allowed: false,
+                    reason: `User-Defined Function: ${call}()`,
+                    riskLevel: 'medium'
+                };
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Go specific validation.
+     * Allows whitelisted standard library functions, blocks dangerous operations.
+     */
+    private validateGo(expression: string): ValidationResult | null {
+        // Check if expression contains function calls
+        if (/[\w_\]]\s*\(/.test(expression)) {
+            const calls = this.extractFunctionCalls(expression);
+            
+            for (const call of calls) {
+                // Check if it's a whitelisted function (includes package.Function)
+                if (this.goSafeFunctions.has(call)) {
+                    continue;
+                }
+                
+                // Check if it's a whitelisted method
+                const methodName = call.split('.').pop() || call;
+                if (this.goSafeFunctions.has(methodName)) {
+                    continue;
+                }
+                
+                // Check if it looks like a getter (LOW risk)
+                if (this.isGetterPattern(methodName)) {
+                    return {
+                        allowed: false,
+                        reason: `Getter Method: ${call}()`,
+                        riskLevel: 'low'
+                    };
+                }
+                
+                // Unknown function call
+                return {
+                    allowed: false,
+                    reason: `User-Defined Function: ${call}()`,
+                    riskLevel: 'medium'
+                };
+            }
+        }
+
         return null;
     }
 
