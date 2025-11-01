@@ -25,8 +25,9 @@ export const DEFAULT_BREAKPOINT_TIMEOUT_MS = 5000;
 /**
  * Delay in milliseconds to ensure the MCP transport is fully ready to accept connections
  * after server startup. This prevents race conditions when connecting immediately.
+ * Reduced to 20ms to allow faster connection attempts while still preventing true race conditions.
  */
-export const MCP_SERVER_READY_DELAY_MS = 100;
+export const MCP_SERVER_READY_DELAY_MS = 20;
 
 /**
  * Supported MCP protocol versions.

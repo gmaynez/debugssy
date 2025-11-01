@@ -24,6 +24,28 @@ import { Logger } from './utils/Logger';
  * - ToolRouter: Manages tool schemas and routing
  * - PromptHandler: Manages prompt schemas and generation
  * - CompletionProvider: Provides autocomplete suggestions for prompt arguments
+ * - ResourceProvider: Provides resource listing and reading
+ * 
+ * Race Condition Handling:
+ * The server includes comprehensive protection against race conditions:
+ * 
+ * 1. Early Connection Attempts:
+ *    - Requests arriving before transport initialization receive HTTP 503
+ *    - Triggers MCP client retry logic with exponential backoff
+ * 
+ * 2. Concurrent Initialization Requests:
+ *    - Detects multiple simultaneous initialization attempts (no Mcp-Session-Id header)
+ *    - First request processes immediately; subsequent ones receive HTTP 503 with a retry hint
+ *    - SSE fallback requests are permitted even when another initialization is running
+ *    - Prevents "Server already initialized" errors while keeping fallback mechanisms responsive
+ * 
+ * 3. Multiple Client Instances:
+ *    - Some MCP clients (like Cursor) create multiple client instances for the same server
+ *    - When "Server already initialized" is reported by the transport, we return HTTP 503 to trigger client backoff
+ *    - Avoids tearing down established sessions while nudging clients to retry instead of spinning up extra instances
+ * 
+ * This handles the common scenario where MCP clients like Cursor start before the
+ * VS Code extension has fully initialized, and make multiple rapid retry attempts.
  */
 export class MCPServer {
     private app: express.Application;
@@ -31,6 +53,8 @@ export class MCPServer {
     private mcpServer!: Server; // Initialized in initializeMCPServer(), called from constructor
     private transport: StreamableHTTPServerTransport | undefined;
     private currentAutomationLevel: 'assisted' | 'full';
+    private isTransportReady: boolean = false;
+    private initializationInProgress: boolean = false;
     
     // Extracted components for better separation of concerns
     private securityValidator: SecurityValidator;
@@ -210,30 +234,127 @@ export class MCPServer {
         // Main MCP endpoint - StreamableHTTPServerTransport handles sessions internally
         this.app.all('/mcp', async (req, res) => {
             try {
-                // Let the transport handle the request - it manages sessions internally
-                // The transport will:
-                // - Send Mcp-Session-Id header on initialization responses
-                // - Expect Mcp-Session-Id header on subsequent requests
-                // - Return 404 for expired sessions
-                // - Handle DELETE requests for session termination
-                await this.transport!.handleRequest(req, res);
+                // Check if transport is ready - return 503 to trigger client retry
+                if (!this.isTransportReady || !this.transport) {
+                    this.logger.warn('MCP request received before transport is ready');
+                    if (!res.headersSent) {
+                        res.status(503).json({ 
+                            error: 'Service temporarily unavailable - transport initializing',
+                            jsonrpc: '2.0',
+                            id: null,
+                            retryAfter: 1 // Suggest retry after 1 second
+                        });
+                    }
+                    return;
+                }
+
+                // Detect initialization requests (no Mcp-Session-Id header)
+                // and serialize them to prevent "Server already initialized" errors
+                const sessionId = req.headers['mcp-session-id'] as string | undefined;
+                const isInitRequest = !sessionId;
+                
+                // Check if this is an SSE request (fallback mechanism)
+                // SSE requests should always be allowed, even during initialization
+                const acceptHeader = req.headers['accept'] as string | undefined;
+                const isSSERequest = req.method === 'GET' && acceptHeader?.includes('text/event-stream');
+
+                if (isInitRequest) {
+                    const requestId = Math.random().toString(36).substring(7);
+                    this.logger.info(`[${requestId}] Init request received, flag=${this.initializationInProgress}, isSSE=${isSSERequest}`);
+                    
+                    // Allow SSE requests to bypass concurrent initialization check
+                    // SSE is a fallback mechanism that should always work
+                    if (!isSSERequest && this.initializationInProgress) {
+                        this.logger.info(`[${requestId}] Rejecting concurrent init - server busy`);
+                        if (!res.headersSent) {
+                            res.status(503).json({
+                                error: 'Server busy with another initialization - please retry',
+                                jsonrpc: '2.0',
+                                id: null,
+                                retryAfter: 1
+                            });
+                        }
+                        return;
+                    }
+                    
+                    // Set flag immediately before any async operations (only for non-SSE requests)
+                    // SSE requests don't set the flag as they're meant to be concurrent-safe fallbacks
+                    if (!isSSERequest) {
+                        this.initializationInProgress = true;
+                        this.logger.info(`[${requestId}] Processing initialization request (flag now true)`);
+                    } else {
+                        this.logger.info(`[${requestId}] Processing SSE initialization request (not setting flag)`);
+                    }
+
+                    try {
+                        // Let the transport handle the request - it manages sessions internally
+                        await this.transport.handleRequest(req, res);
+                        this.logger.info(`[${requestId}] Transport completed successfully`);
+                    } catch (error: unknown) {
+                        const errorMessage = error instanceof Error ? error.message : String(error);
+                        this.logger.error(`[${requestId}] Transport error:`, errorMessage);
+                        
+                        // Check if this is a "Server already initialized" error from the MCP transport
+                        // This can happen when MCP clients create multiple instances for the same server
+                        if (errorMessage.includes('Server already initialized')) {
+                            this.logger.info(`[${requestId}] Transport reported server already initialized (isSSE=${isSSERequest})`);
+
+                            if (!res.headersSent) {
+                                res.status(503).json({
+                                    error: 'Server busy with another initialization - please retry',
+                                    jsonrpc: '2.0',
+                                    id: null,
+                                    retryAfter: 1
+                                });
+                            }
+                            return;
+                        }
+
+                        throw error;
+                    } finally {
+                        // Reset flag on next tick (setTimeout 0) to allow truly concurrent requests
+                        // (same millisecond) to be caught, but fast enough for SSE fallbacks
+                        // Only reset if this was a non-SSE request that set the flag
+                        if (!isSSERequest) {
+                            this.logger.info(`[${requestId}] Will reset flag on next tick`);
+                            setTimeout(() => {
+                                this.logger.info(`[${requestId}] Resetting flag`);
+                                this.initializationInProgress = false;
+                            }, 0);
+                        } else {
+                            this.logger.info(`[${requestId}] SSE request completed (flag unchanged)`);
+                        }
+                    }
+                    return; // Exit early to prevent duplicate handling
+                }
+
+                // Handle non-initialization requests (with session ID) normally
+                // These bypass the queue and process immediately
+                await this.transport.handleRequest(req, res);
                 
             } catch (error: unknown) {
                 this.logger.error('Error handling MCP request:', error);
+
                 if (!res.headersSent) {
                     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-                    res.status(500).json({ error: errorMessage });
+                    res.status(500).json({ 
+                        error: errorMessage,
+                        jsonrpc: '2.0',
+                        id: null
+                    });
                 }
             }
         });
 
-        // Health check endpoint
+        // Health check endpoint - allows clients to poll for readiness
         this.app.get('/health', (_req, res) => {
-            res.json({
-                status: 'ok',
+            const isReady = this.isTransportReady && !!this.transport;
+            res.status(isReady ? 200 : 503).json({
+                status: isReady ? 'ready' : 'initializing',
                 server: 'debugssy-mcp',
                 version: EXTENSION_VERSION,
                 transportInitialized: !!this.transport,
+                transportReady: this.isTransportReady,
                 transport: 'streamable-http',
                 protocolVersion: CURRENT_MCP_PROTOCOL_VERSION,
                 supportedProtocolVersions: ['2025-03-26', '2025-06-18']
@@ -242,6 +363,9 @@ export class MCPServer {
     }
 
     async start(options?: { silent?: boolean }): Promise<void> {
+        // Reset ready flag during initialization
+        this.isTransportReady = false;
+        
         // Initialize transport before starting HTTP server
         this.transport = new StreamableHTTPServerTransport({
             // Generate cryptographically secure session IDs using crypto.randomUUID()
@@ -263,6 +387,9 @@ export class MCPServer {
                     // This prevents race conditions when connecting immediately after startup notification
                     await new Promise(r => setTimeout(r, MCP_SERVER_READY_DELAY_MS));
                     
+                    // Mark transport as ready - now safe to accept MCP requests
+                    this.isTransportReady = true;
+                    
                     // Only show notification if not in silent mode (e.g., during initial startup)
                     if (!options?.silent) {
                         vscode.window.showInformationMessage(
@@ -274,6 +401,7 @@ export class MCPServer {
                 });
 
                 this.httpServer.on('error', (error: any) => {
+                    this.isTransportReady = false;
                     if (error.code === 'EADDRINUSE') {
                         vscode.window.showErrorMessage(
                             `Port ${this.port} is already in use. Please change the port in settings.`
@@ -282,12 +410,17 @@ export class MCPServer {
                     reject(error);
                 });
             } catch (error) {
+                this.isTransportReady = false;
                 reject(error);
             }
         });
     }
 
     async stop(): Promise<void> {
+        // Mark as not ready immediately to stop accepting new requests
+        this.isTransportReady = false;
+        this.initializationInProgress = false;
+        
         // Close MCP Server and transport
         if (this.transport) {
             await this.transport.close();
