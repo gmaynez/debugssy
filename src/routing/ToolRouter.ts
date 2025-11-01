@@ -43,6 +43,13 @@ export class ToolRouter {
         this.expressionValidator = new ExpressionValidator();
         this.logger = Logger.getInstance();
     }
+    
+    /**
+     * Disposes resources and cleans up the expression validator.
+     */
+    dispose(): void {
+        this.expressionValidator.dispose();
+    }
 
     /**
      * Initializes the tool handler registry with all available tool handlers.

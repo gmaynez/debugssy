@@ -308,6 +308,14 @@ export class MCPServer {
             });
         }
     }
+    
+    /**
+     * Disposes all resources including ToolRouter and its ExpressionValidator.
+     * Should be called when the MCP server is being permanently shut down.
+     */
+    dispose(): void {
+        this.toolRouter.dispose();
+    }
 
     async updatePort(newPort: number): Promise<void> {
         await this.stop();

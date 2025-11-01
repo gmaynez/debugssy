@@ -86,9 +86,57 @@ export class ExpressionValidator {
     ]);
 
     private logger: Logger;
+    
+    // Pre-compiled regex patterns for mutation detection to avoid repeated compilation
+    private readonly mutationRegexCache: Map<string, RegExp>;
+    
+    // Language detection cache per session to avoid redundant lookups
+    private readonly languageCache: Map<string, string>;
+    
+    // Disposable for the session termination listener
+    private readonly sessionTerminationDisposable: vscode.Disposable | undefined;
 
     constructor() {
         this.logger = Logger.getInstance();
+        
+        // Pre-compile all mutation regex patterns to avoid repeated compilation
+        this.mutationRegexCache = new Map();
+        const allMutationMethods = [
+            // JavaScript/TypeScript
+            'push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse',
+            'fill', 'copyWithin', 'delete', 'clear', 'set', 'add',
+            // Python
+            'append', 'extend', 'insert', 'remove', 'clear', 'discard', 'update',
+            // C#
+            'Add', 'Remove', 'RemoveAt', 'RemoveAll', 'Insert', 'Sort', 'Reverse',
+            'AddRange', 'InsertRange', 'RemoveRange', 'Push', 'Pop', 'Enqueue', 'Dequeue',
+            // Java
+            'addAll', 'removeAll', 'retainAll', 'put', 'putAll', 'replaceAll', 'shuffle'
+        ];
+        
+        for (const method of allMutationMethods) {
+            this.mutationRegexCache.set(method, new RegExp(`\\.${method}\\s*\\(`, 'i'));
+        }
+        
+        // Initialize language cache
+        this.languageCache = new Map();
+        
+        // Listen for debug session termination to clear cache entries
+        // Store the disposable for proper cleanup when validator is disposed
+        if (typeof vscode !== 'undefined') {
+            this.sessionTerminationDisposable = vscode.debug.onDidTerminateDebugSession((session) => {
+                this.languageCache.delete(session.id);
+            });
+        }
+    }
+    
+    /**
+     * Disposes resources and cleans up event listeners.
+     * Should be called when the validator is no longer needed.
+     */
+    dispose(): void {
+        this.sessionTerminationDisposable?.dispose();
+        this.languageCache.clear();
     }
 
     // Safe built-in Python functions and methods
@@ -261,15 +309,18 @@ export class ExpressionValidator {
             return { allowed: false, reason: 'Empty expression', riskLevel: 'low' };
         }
 
+        // Detect language once if session is provided to optimize subsequent checks
+        const language = session ? this.detectLanguage(session) : undefined;
+
         // 1. Check CRITICAL first (system-level dangers)
-        const criticalCheck = this.detectCriticalOperations(trimmed);
+        // Pass language to enable language-specific critical operation detection
+        const criticalCheck = this.detectCriticalOperations(trimmed, language);
         if (criticalCheck) {
             return criticalCheck;
         }
 
         // 2. Try language-specific validation (HIGH risk: mutations, eval)
-        if (session) {
-            const language = this.detectLanguage(session);
+        if (language) {
             const languageResult = this.validateByLanguage(trimmed, language);
             if (languageResult) {
                 return languageResult;
@@ -283,8 +334,35 @@ export class ExpressionValidator {
     /**
      * Detects CRITICAL system-level operations that can affect files, processes, or network.
      * These are the most dangerous operations that should always require explicit approval.
+     * 
+     * If language is known, only checks language-specific patterns for efficiency.
+     * Otherwise, checks all patterns as a safety measure for unknown languages.
      */
-    private detectCriticalOperations(expression: string): ValidationResult | null {
+    private detectCriticalOperations(expression: string, language?: string): ValidationResult | null {
+        // If language is known, only check language-specific critical operations
+        if (language) {
+            switch (language) {
+                case 'javascript':
+                    return this.detectJavaScriptCritical(expression);
+                case 'python':
+                    return this.detectPythonCritical(expression);
+                case 'cpp':
+                    return this.detectCppCritical(expression);
+                case 'csharp':
+                    return this.detectCSharpCritical(expression);
+                case 'java':
+                    return this.detectJavaCritical(expression);
+                default:
+                    // For unknown languages, check all patterns as a safety measure
+                    return this.detectJavaScriptCritical(expression)
+                        || this.detectPythonCritical(expression)
+                        || this.detectCppCritical(expression)
+                        || this.detectCSharpCritical(expression)
+                        || this.detectJavaCritical(expression);
+            }
+        }
+        
+        // No language provided (no session), check all patterns
         return this.detectJavaScriptCritical(expression)
             || this.detectPythonCritical(expression)
             || this.detectCppCritical(expression)
@@ -487,60 +565,65 @@ export class ExpressionValidator {
 
     /**
      * Detects the programming language from the debug session type.
+     * Uses caching to avoid redundant detection for the same session.
      */
     private detectLanguage(session: vscode.DebugSession): string {
+        // Check cache first (Performance Optimization #2)
+        const cached = this.languageCache.get(session.id);
+        if (cached) {
+            return cached;
+        }
+        
         const type = session.type.toLowerCase();
+        let language: string;
         
         // Common debug adapter types
         // JavaScript/TypeScript family
         if (type === 'node' || type === 'chrome' || type === 'pwa-node' || type === 'pwa-chrome' || 
             type === 'node2' || type === 'extensionhost' || type === 'pwa-extensionhost' ||
             type === 'msedge' || type === 'pwa-msedge' || type === 'webkit') {
-            return 'javascript';
+            language = 'javascript';
         }
-        
         // Python family
-        if (type === 'python' || type === 'debugpy' || type === 'pythonexperimental') {
-            return 'python';
+        else if (type === 'python' || type === 'debugpy' || type === 'pythonexperimental') {
+            language = 'python';
         }
-        
         // Go
-        if (type === 'go' || type === 'dlv' || type === 'go-debug') {
-            return 'go';
+        else if (type === 'go' || type === 'dlv' || type === 'go-debug') {
+            language = 'go';
         }
-        
         // Java family
-        if (type === 'java' || type === 'javadebug') {
-            return 'java';
+        else if (type === 'java' || type === 'javadebug') {
+            language = 'java';
         }
-        
         // Rust (check before C++ since lldb is ambiguous)
-        if (type === 'rust' || type === 'rust-lldb') {
-            return 'rust';
+        else if (type === 'rust' || type === 'rust-lldb') {
+            language = 'rust';
         }
-        
         // C/C++ family (includes lldb which could be Rust, but Rust-specific is checked above)
-        if (type === 'cppdbg' || type === 'lldb' || type === 'gdb' || type === 'cppvsdbg') {
-            return 'cpp';
+        else if (type === 'cppdbg' || type === 'lldb' || type === 'gdb' || type === 'cppvsdbg') {
+            language = 'cpp';
         }
-        
         // C# family
-        if (type === 'coreclr' || type === 'clr' || type === 'dotnet') {
-            return 'csharp';
+        else if (type === 'coreclr' || type === 'clr' || type === 'dotnet') {
+            language = 'csharp';
         }
-        
         // Ruby
-        if (type === 'ruby' || type === 'rdbg') {
-            return 'ruby';
+        else if (type === 'ruby' || type === 'rdbg') {
+            language = 'ruby';
         }
-        
         // PHP
-        if (type === 'php' || type === 'php-debug') {
-            return 'php';
+        else if (type === 'php' || type === 'php-debug') {
+            language = 'php';
+        }
+        else {
+            this.logger.debug(`Unknown debug session type: ${type}, using generic validation with whitelists`);
+            language = type;
         }
         
-        this.logger.debug(`Unknown debug session type: ${type}, using generic validation with whitelists`);
-        return type;
+        // Store in cache for future calls
+        this.languageCache.set(session.id, language);
+        return language;
     }
 
     /**
@@ -569,12 +652,13 @@ export class ExpressionValidator {
 
     /**
      * Helper: Checks if expression contains any mutation methods from the given list.
+     * Uses pre-compiled regex patterns from the cache for efficient matching.
      * Returns validation result if mutation detected, null otherwise.
      */
     private checkMutationMethods(expression: string, mutationMethods: string[]): ValidationResult | null {
         for (const method of mutationMethods) {
-            const regex = new RegExp(`\\.${method}\\s*\\(`, 'i');
-            if (regex.test(expression)) {
+            const regex = this.mutationRegexCache.get(method);
+            if (regex && regex.test(expression)) {
                 return {
                     allowed: false,
                     reason: `State Mutation: ${method}() modifies data`,

@@ -53,6 +53,7 @@ class ExtensionContext {
     async stopMCPServer(): Promise<void> {
         if (this.mcpServer) {
             await this.mcpServer.stop();
+            this.mcpServer.dispose(); // Clean up resources before discarding
             this.mcpServer = undefined;
             vscode.window.showInformationMessage('Debugssy MCP Server stopped');
         }
