@@ -494,7 +494,7 @@ Getter methods are typically safe, but custom getters may include logging or sta
       }
     }
 
-    // Detect suspicious bracket notation patterns (concatenation, variables, template literals)
+    // Detect suspicious bracket notation patterns (concatenation, variables, template literals, escapes)
     // These should be flagged as unknown even if we can't extract the exact name
 
     // Pattern 1: Any + operator inside brackets (string concatenation)
@@ -513,6 +513,17 @@ Getter methods are typically safe, but custom getters may include logging or sta
     // Matches: [variableName](, [x](, but NOT ['string'](
     // Look for brackets containing identifiers without surrounding quotes
     else if (/\[\s*[a-zA-Z_$][\w$]*\s*\]\s*\(/.test(expression)) {
+      calls.push("__SUSPICIOUS_BRACKET_NOTATION__");
+    }
+
+    // Pattern 4: Character escape sequences (hex, unicode, octal) inside brackets
+    // Matches: ['ad\x64Task'], ['add\u0054ask'], ['add\101sk']
+    // These are evaluated by JS before validation, used to obfuscate method names
+    else if (
+      /\[[^\]]*\\(?:x[0-9a-fA-F]{1,2}|u[0-9a-fA-F]{4}|u\{[0-9a-fA-F]+\}|[0-7]{1,3})[^\]]*\]\s*\(/.test(
+        expression,
+      )
+    ) {
       calls.push("__SUSPICIOUS_BRACKET_NOTATION__");
     }
 
