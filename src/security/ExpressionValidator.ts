@@ -426,6 +426,15 @@ Getter methods are typically safe, but custom getters may include logging or sta
     methodWhitelist: Set<string>,
   ): ValidationResult | null {
     for (const call of calls) {
+      // Check for suspicious bracket notation marker
+      if (call === "__SUSPICIOUS_BRACKET_NOTATION__") {
+        return {
+          allowed: false,
+          reason: "Suspicious Pattern: bracket notation with expressions",
+          riskLevel: "high",
+        };
+      }
+
       // Check if it's a whitelisted static function
       if (staticWhitelist.has(call)) {
         continue;
@@ -459,19 +468,52 @@ Getter methods are typically safe, but custom getters may include logging or sta
   /**
    * Extracts function/method call names from an expression.
    * Returns array of function names (e.g., ['map', 'Object.keys', 'myFunc'])
+   * Also detects bracket notation calls (e.g., obj['method']())
    */
   private extractFunctionCalls(expression: string): string[] {
     const calls: string[] = [];
 
     // Match: identifier( or object.method( or module.function(
     // This regex captures the function/method name before the opening parenthesis
-    const regex = /([\w.]+)\s*\(/g;
+    const dotNotationRegex = /([\w.]+)\s*\(/g;
     let match;
 
-    while ((match = regex.exec(expression)) !== null) {
+    while ((match = dotNotationRegex.exec(expression)) !== null) {
       if (match[1]) {
         calls.push(match[1]);
       }
+    }
+
+    // Match bracket notation: obj['method']( or obj["method"](
+    // Captures simple string literals in brackets
+    const bracketNotationRegex = /\[(['"])(\w+)\1\]\s*\(/g;
+    while ((match = bracketNotationRegex.exec(expression)) !== null) {
+      if (match[2]) {
+        // Add just the method name (not the full path)
+        calls.push(match[2]);
+      }
+    }
+
+    // Detect suspicious bracket notation patterns (concatenation, variables, template literals)
+    // These should be flagged as unknown even if we can't extract the exact name
+
+    // Pattern 1: Any + operator inside brackets (string concatenation)
+    // Matches: ['a' + 'b'], ["x" + "y"], [a + b], ['del' + 'ete' + 'Task']
+    if (/\[[^\]]*\+[^\]]*\]\s*\(/.test(expression)) {
+      calls.push("__SUSPICIOUS_BRACKET_NOTATION__");
+    }
+
+    // Pattern 2: Template literals inside brackets
+    // Matches: [`methodName`], [delete${x}]
+    else if (/\[[^\]]*`[^\]]*\]\s*\(/.test(expression)) {
+      calls.push("__SUSPICIOUS_BRACKET_NOTATION__");
+    }
+
+    // Pattern 3: Unquoted identifiers (variables) inside brackets
+    // Matches: [variableName](, [x](, but NOT ['string'](
+    // Look for brackets containing identifiers without surrounding quotes
+    else if (/\[\s*[a-zA-Z_$][\w$]*\s*\]\s*\(/.test(expression)) {
+      calls.push("__SUSPICIOUS_BRACKET_NOTATION__");
     }
 
     return calls;

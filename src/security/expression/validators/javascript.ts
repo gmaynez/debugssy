@@ -9,9 +9,9 @@ import { JS_SAFE_METHODS, JS_SAFE_STATIC_FUNCTIONS } from "../safeLists";
 export function detectJavaScriptCritical(
   expression: string,
 ): ValidationResult | null {
-  // File system operations
+  // File system operations (dot and bracket notation)
   if (
-    /\bfs\s*\.\s*(unlink|rmdir|rm|write|mkdir|rename|delete|chmod|chown|truncate|appendFile|writeFile)/i.test(
+    /\bfs\s*(?:\.\s*|\[['"])(unlink|rmdir|rm|write|mkdir|rename|delete|chmod|chown|truncate|appendFile|writeFile)(?:['"]\]|\s*\()/i.test(
       expression,
     )
   ) {
@@ -35,8 +35,12 @@ export function detectJavaScriptCritical(
     };
   }
 
-  // Process control
-  if (/\bprocess\s*\.\s*(exit|kill|abort)\s*\(/i.test(expression)) {
+  // Process control (dot and bracket notation)
+  if (
+    /\bprocess\s*(?:\.\s*|\[['"])(exit|kill|abort)(?:['"]\]|\s*\()/i.test(
+      expression,
+    )
+  ) {
     return {
       allowed: false,
       reason: "Process Control: can terminate application",
@@ -47,7 +51,9 @@ export function detectJavaScriptCritical(
   // Network operations (fetch, axios, http)
   if (
     /\b(fetch|axios|XMLHttpRequest)\s*[.([]/i.test(expression) ||
-    /\bhttps?\s*\.\s*(get|post|put|delete|request)/i.test(expression)
+    /\bhttps?\s*(?:\.\s*|\[['"])(get|post|put|delete|request)(?:['"]\])/i.test(
+      expression,
+    )
   ) {
     return {
       allowed: false,

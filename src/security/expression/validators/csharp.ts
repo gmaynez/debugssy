@@ -12,9 +12,9 @@ import {
 export function detectCSharpCritical(
   expression: string,
 ): ValidationResult | null {
-  // Process operations
+  // Process operations (dot and bracket notation)
   if (
-    /\b(Process\s*\.\s*Start|ProcessStartInfo|System\s*\.\s*Diagnostics\s*\.\s*Process)\s*[.([]/i.test(
+    /\b(Process\s*(?:\.\s*|\[['"])Start|ProcessStartInfo|System\s*\.\s*Diagnostics\s*\.\s*Process)(?:['"]\])?\s*[.([]/i.test(
       expression,
     )
   ) {
@@ -25,9 +25,9 @@ export function detectCSharpCritical(
     };
   }
 
-  // File and Directory operations
+  // File and Directory operations (dot and bracket notation)
   if (
-    /\b(File|Directory)\s*\.\s*(Delete|WriteAllText|WriteAllBytes|Create|Move|Replace|Copy|AppendAllText|CreateDirectory)\s*\(/i.test(
+    /\b(File|Directory)\s*(?:\.\s*|\[['"])(Delete|WriteAllText|WriteAllBytes|Create|Move|Replace|Copy|AppendAllText|CreateDirectory)(?:['"]\]|\s*\()/i.test(
       expression,
     )
   ) {

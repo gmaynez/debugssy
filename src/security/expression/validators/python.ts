@@ -12,9 +12,9 @@ import {
 export function detectPythonCritical(
   expression: string,
 ): ValidationResult | null {
-  // Python os module operations
+  // Python os module operations (dot and bracket notation)
   if (
-    /\bos\s*\.\s*(system|popen|exec[lv]?p?e?|spawn[lv]?p?e?|remove|unlink|rmdir|rename|chmod|chown|kill|mkdir|makedirs)\s*\(/i.test(
+    /\bos\s*(?:\.\s*|\[['"])(system|popen|exec[lv]?p?e?|spawn[lv]?p?e?|remove|unlink|rmdir|rename|chmod|chown|kill|mkdir|makedirs)(?:['"]\]|\s*\()/i.test(
       expression,
     )
   ) {
@@ -26,9 +26,9 @@ export function detectPythonCritical(
     };
   }
 
-  // Python subprocess module
+  // Python subprocess module (dot and bracket notation)
   if (
-    /\bsubprocess\s*\.\s*(run|call|check_call|check_output|Popen|getoutput|getstatusoutput)\s*\(/i.test(
+    /\bsubprocess\s*(?:\.\s*|\[['"])(run|call|check_call|check_output|Popen|getoutput|getstatusoutput)(?:['"]\]|\s*\()/i.test(
       expression,
     )
   ) {
@@ -48,7 +48,7 @@ export function detectPythonCritical(
   if (
     openPositionalWritePattern.test(expression) ||
     openNamedModeWritePattern.test(expression) ||
-    /\bPath\s*\([^)]*\)\s*\.\s*(write_text|write_bytes|unlink|rmdir|mkdir|rename|replace|chmod)\s*\(/i.test(
+    /\bPath\s*\([^)]*\)\s*(?:\.\s*|\[['"])(write_text|write_bytes|unlink|rmdir|mkdir|rename|replace|chmod)(?:['"]\]|\s*\()/i.test(
       expression,
     )
   ) {

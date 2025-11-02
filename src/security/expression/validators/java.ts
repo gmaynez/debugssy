@@ -22,9 +22,9 @@ export function detectJavaCritical(
     };
   }
 
-  // File operations
+  // File operations (dot and bracket notation)
   if (
-    /\b(File|Files)\s*\.\s*(delete|createNewFile|mkdir|mkdirs|renameTo|write|writeString|writeBytes|move|copy|deleteIfExists)\s*\(/i.test(
+    /\b(File|Files)\s*(?:\.\s*|\[['"])(delete|createNewFile|mkdir|mkdirs|renameTo|write|writeString|writeBytes|move|copy|deleteIfExists)(?:['"]\]|\s*\()/i.test(
       expression,
     ) ||
     /\bnew\s+File(Writer|OutputStream|Reader|InputStream)\s*\(/i.test(

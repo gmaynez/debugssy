@@ -16,7 +16,8 @@ export function detectCppCritical(expression: string): ValidationResult | null {
     };
   }
 
-  // File operations
+  // File operations (C/C++ typically doesn't use bracket notation for function calls,
+  // but we'll be defensive and check for it anyway)
   if (
     /\b(remove|unlink|rmdir|rename|chmod|chown|creat|mkdir)\s*\(/i.test(
       expression,
