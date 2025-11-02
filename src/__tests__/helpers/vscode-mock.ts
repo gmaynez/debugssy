@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { vi } from "vitest";
+import { vi } from 'vitest';
 
 /**
  * Mock VS Code API for testing.
@@ -45,15 +45,15 @@ export class MockUri {
     public path: string,
     public query: string,
     public fragment: string,
-    public fsPath: string,
+    public fsPath: string
   ) {}
 
   static file(path: string) {
-    return new MockUri("file", "", path, "", "", path);
+    return new MockUri('file', '', path, '', '', path);
   }
 
   static parse(value: string) {
-    return new MockUri("file", "", value, "", "", value);
+    return new MockUri('file', '', value, '', '', value);
   }
 
   toString() {
@@ -65,7 +65,7 @@ export class MockUri {
 export class MockPosition {
   constructor(
     public line: number,
-    public character: number,
+    public character: number
   ) {}
 }
 
@@ -73,7 +73,7 @@ export class MockPosition {
 export class MockRange {
   constructor(
     public start: MockPosition,
-    public end: MockPosition,
+    public end: MockPosition
   ) {}
 }
 
@@ -81,7 +81,7 @@ export class MockRange {
 export class MockLocation {
   constructor(
     public uri: MockUri,
-    public range: MockRange,
+    public range: MockRange
   ) {}
 }
 
@@ -94,17 +94,14 @@ export class MockSourceBreakpoint {
     public enabled: boolean = true,
     public condition?: string,
     public hitCondition?: string,
-    public logMessage?: string,
+    public logMessage?: string
   ) {
     this.id = Math.random().toString(36).substring(7);
   }
 }
 
 // Debug Session mock
-export const createMockDebugSession = (
-  name: string = "test-session",
-  type: string = "node",
-) =>
+export const createMockDebugSession = (name: string = 'test-session', type: string = 'node') =>
   ({
     id: Math.random().toString(36).substring(7),
     name,
@@ -113,7 +110,7 @@ export const createMockDebugSession = (
     configuration: {
       type,
       name,
-      request: "launch",
+      request: 'launch',
     },
     customRequest: vi.fn(),
     getDebugProtocolBreakpoint: vi.fn(),
@@ -132,9 +129,7 @@ export const createMockDebugAPI = () => ({
   }),
   removeBreakpoints: vi.fn((breakpoints: any[]) => {
     const mockDebug = createMockDebugAPI();
-    mockDebug.breakpoints = mockDebug.breakpoints.filter(
-      (bp) => !breakpoints.includes(bp),
-    );
+    mockDebug.breakpoints = mockDebug.breakpoints.filter((bp) => !breakpoints.includes(bp));
   }),
   registerDebugAdapterTrackerFactory: vi.fn(() => mockDisposable()),
   startDebugging: vi.fn(),

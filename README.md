@@ -26,13 +26,14 @@ Control your debugger with natural language through any AI assistant using the M
 ```
 💬 You: "Debug why users get null when logging in"
 
-🤖 AI: Sets breakpoint → Inspects variables → Traces execution → 
+🤖 AI: Sets breakpoint → Inspects variables → Traces execution →
       Finds missing WHERE clause in database query → Fixed! ⚡
 ```
 
 **Key Features:**
+
 - 🔴 **Smart breakpoints** with conditions, hit counts, and log messages
-- 🔍 **Variable inspection** at any point in execution  
+- 🔍 **Variable inspection** at any point in execution
 - 📊 **Call stack analysis** to trace execution flow
 - ⚡ **Two automation modes** - You control, or AI controls
 - 🔒 **Secure by design** - Localhost-only, follows MCP security standards
@@ -107,6 +108,7 @@ Control your debugger with natural language through any AI assistant using the M
 ```
 
 Or install from:
+
 - [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy)
 - [Open VSX Registry](https://open-vsx.org/extension/gamag/debugssy) (for VSCodium, Gitpod, etc.)
 
@@ -133,11 +135,11 @@ npm install
 
 **One-Click Setup Links:**
 
-| AI Assistant | Setup Link | Manual Config |
-|--------------|------------|---------------|
+| AI Assistant       | Setup Link                                                                                                                                                   | Manual Config                              |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------ |
 | **GitHub Copilot** | [Install in VS Code](vscode:mcp/install?%7B%22name%22%3A%22debugssy%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22http%3A%2F%2Flocalhost%3A3000%2Fmcp%22%7D) | [See below](#github-copilot-configuration) |
-| **Cursor** | [Install in Cursor](https://cursor.com/en-US/install-mcp?name=debugssy&config=eyJ0eXBlIjoiaHR0cCIsInVybCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMC9tY3AifQ%3D%3D) | [See below](#cursor-configuration) |
-| **Claude Desktop** | Manual only | [See below](#claude-desktop-configuration) |
+| **Cursor**         | [Install in Cursor](https://cursor.com/en-US/install-mcp?name=debugssy&config=eyJ0eXBlIjoiaHR0cCIsInVybCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMC9tY3AifQ%3D%3D)      | [See below](#cursor-configuration)         |
+| **Claude Desktop** | Manual only                                                                                                                                                  | [See below](#claude-desktop-configuration) |
 
 <details id="github-copilot-configuration">
 <summary><b>GitHub Copilot Configuration</b></summary>
@@ -179,6 +181,7 @@ Add to `~/.cursor/mcp.json`:
 <summary><b>Claude Desktop Configuration</b></summary>
 
 Add to config file:
+
 - **Mac:** `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
@@ -217,15 +220,15 @@ Add to config file:
 
 Access via `File → Preferences → Settings` (search "debugssy"):
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `debugssy.mcp.enabled` | `true` | Enable the MCP server |
-| `debugssy.mcp.port` | `3000` | Server port (change if in use) |
-| `debugssy.automationLevel` | `assisted` | `assisted` or `full` |
-| `debugssy.waitForBreakpointTimeout` | `5000` | Timeout in ms (1s-5min) |
-| `debugssy.allowStepOperations` | `false` | Enable step operations in full mode |
-| `debugssy.maxExpressionLength` | `100` | Max expression length (security) |
-| `debugssy.expressionValidationLevel` | `moderate` | Expression validation strictness |
+| Setting                              | Default    | Description                         |
+| ------------------------------------ | ---------- | ----------------------------------- |
+| `debugssy.mcp.enabled`               | `true`     | Enable the MCP server               |
+| `debugssy.mcp.port`                  | `3000`     | Server port (change if in use)      |
+| `debugssy.automationLevel`           | `assisted` | `assisted` or `full`                |
+| `debugssy.waitForBreakpointTimeout`  | `5000`     | Timeout in ms (1s-5min)             |
+| `debugssy.allowStepOperations`       | `false`    | Enable step operations in full mode |
+| `debugssy.maxExpressionLength`       | `100`      | Max expression length (security)    |
+| `debugssy.expressionValidationLevel` | `moderate` | Expression validation strictness    |
 
 <details>
 <summary><b>Example configuration</b></summary>
@@ -308,40 +311,41 @@ Your AI assistant gets access to these debugging tools via MCP:
 
 ### 🔍 Inspection Tools (Always Available)
 
-| Tool | Description | Example |
-|------|-------------|---------|
-| `get_debug_state` | Check if debugger is running/paused | Check execution state |
-| `get_variables` | Read variable values at current point | Inspect `user` object |
-| `get_call_stack` | View execution call stack | Trace how we got here |
-| `evaluate_expression` | Evaluate expressions in context | Calculate `price * quantity` |
-| `get_console_output` | Read debug console output | View `console.log` statements |
-| `get_threads` | List all threads | Multi-threaded debugging |
+| Tool                  | Description                           | Example                       |
+| --------------------- | ------------------------------------- | ----------------------------- |
+| `get_debug_state`     | Check if debugger is running/paused   | Check execution state         |
+| `get_variables`       | Read variable values at current point | Inspect `user` object         |
+| `get_call_stack`      | View execution call stack             | Trace how we got here         |
+| `evaluate_expression` | Evaluate expressions in context       | Calculate `price * quantity`  |
+| `get_console_output`  | Read debug console output             | View `console.log` statements |
+| `get_threads`         | List all threads                      | Multi-threaded debugging      |
 
 ### 🔴 Breakpoint Tools (Always Available)
 
-| Tool | Description | Example |
-|------|-------------|---------|
-| `set_breakpoint` | Set breakpoints (with conditions, hit counts, log messages) | Break when `user.role === 'admin'` |
-| `remove_breakpoint` | Remove specific breakpoint | Clean up temporary breakpoint |
-| `list_breakpoints` | Show all active breakpoints | Review current breakpoints |
-| `toggle_breakpoint` | Enable/disable breakpoint | Temporarily disable without removing |
-| `remove_all_breakpoints` | Clear all breakpoints | Start fresh |
+| Tool                     | Description                                                 | Example                              |
+| ------------------------ | ----------------------------------------------------------- | ------------------------------------ |
+| `set_breakpoint`         | Set breakpoints (with conditions, hit counts, log messages) | Break when `user.role === 'admin'`   |
+| `remove_breakpoint`      | Remove specific breakpoint                                  | Clean up temporary breakpoint        |
+| `list_breakpoints`       | Show all active breakpoints                                 | Review current breakpoints           |
+| `toggle_breakpoint`      | Enable/disable breakpoint                                   | Temporarily disable without removing |
+| `remove_all_breakpoints` | Clear all breakpoints                                       | Start fresh                          |
 
 ### ▶️ Execution Control (Mode-Dependent)
 
 **Assisted Mode:** Not exposed (you use VS Code UI)  
 **Full Automation Mode:**
 
-| Tool | Description |
-|------|-------------|
-| `start_debugging` | Start debug session programmatically |
-| `stop_debugging` | Stop current session |
-| `continue` | Continue execution to next breakpoint |
-| `pause` | Pause execution |
-| `restart` | Restart debug session |
-| `wait_for_breakpoint` | Wait for execution to pause |
+| Tool                  | Description                           |
+| --------------------- | ------------------------------------- |
+| `start_debugging`     | Start debug session programmatically  |
+| `stop_debugging`      | Stop current session                  |
+| `continue`            | Continue execution to next breakpoint |
+| `pause`               | Pause execution                       |
+| `restart`             | Restart debug session                 |
+| `wait_for_breakpoint` | Wait for execution to pause           |
 
 **Optional (Full Mode + Enabled):**
+
 - `step_over`, `step_into`, `step_out` (enable via `debugssy.allowStepOperations`)
 
 > **📝 Note:** For AI debugging, setting strategic breakpoints + `continue` is more efficient than stepping.
@@ -352,13 +356,13 @@ Your AI assistant gets access to these debugging tools via MCP:
 
 Debugssy provides structured debugging workflows accessible via `/` in your AI chat:
 
-| Prompt | When to Use | What It Does |
-|--------|-------------|--------------|
-| `/debug-crash` | Crashes, exceptions | Systematic crash debugging with breakpoints & stack traces |
-| `/trace-variable` | Wrong values | Track where a variable becomes incorrect |
-| `/inspect-function` | Function behavior | Step through function to understand logic |
-| `/debug-loop` | Infinite loops | Use conditional breakpoints to catch loop issues |
-| `/auto-debug-session` | Full automation | Complete automated debugging session (full mode only) |
+| Prompt                | When to Use         | What It Does                                               |
+| --------------------- | ------------------- | ---------------------------------------------------------- |
+| `/debug-crash`        | Crashes, exceptions | Systematic crash debugging with breakpoints & stack traces |
+| `/trace-variable`     | Wrong values        | Track where a variable becomes incorrect                   |
+| `/inspect-function`   | Function behavior   | Step through function to understand logic                  |
+| `/debug-loop`         | Infinite loops      | Use conditional breakpoints to catch loop issues           |
+| `/auto-debug-session` | Full automation     | Complete automated debugging session (full mode only)      |
 
 **Example usage:**
 
@@ -376,8 +380,8 @@ Debugssy exposes workspace configuration as MCP resources for context:
 
 ### Available Resources
 
-| Resource URI | Description | Use Case |
-|--------------|-------------|----------|
+| Resource URI                              | Description                                     | Use Case                                                 |
+| ----------------------------------------- | ----------------------------------------------- | -------------------------------------------------------- |
 | `debugssy:///{workspaceName}/launch.json` | Debug configurations from `.vscode/launch.json` | Find available debug configuration names before starting |
 
 **Example:**
@@ -468,6 +472,7 @@ curl -X POST http://localhost:3000/mcp \
 ### MCP Server Implementation
 
 **Transport:** Streamable HTTP (MCP 2025-06-18)
+
 - **Endpoint:** `http://localhost:3000/mcp`
 - **Health Check:** `http://localhost:3000/health`
 - **Session Management:** Cryptographically secure UUIDs
@@ -475,13 +480,13 @@ curl -X POST http://localhost:3000/mcp \
 
 **Key Components:**
 
-| Component | Responsibility | Location |
-|-----------|----------------|----------|
-| `MCPServer` | MCP protocol orchestration | `src/MCPServer.ts` |
-| `ToolRouter` | Tool schema management & routing | `src/routing/ToolRouter.ts` |
-| `McpRequestValidator` | Origin & protocol validation | `src/security/McpRequestValidator.ts` |
-| `ExpressionValidator` | Expression safety checks | `src/security/ExpressionValidator.ts` |
-| `DAPClient` | Debug Adapter Protocol interaction | `src/dap/Client.ts` |
+| Component             | Responsibility                     | Location                              |
+| --------------------- | ---------------------------------- | ------------------------------------- |
+| `MCPServer`           | MCP protocol orchestration         | `src/MCPServer.ts`                    |
+| `ToolRouter`          | Tool schema management & routing   | `src/routing/ToolRouter.ts`           |
+| `McpRequestValidator` | Origin & protocol validation       | `src/security/McpRequestValidator.ts` |
+| `ExpressionValidator` | Expression safety checks           | `src/security/ExpressionValidator.ts` |
+| `DAPClient`           | Debug Adapter Protocol interaction | `src/dap/Client.ts`                   |
 
 ---
 
@@ -491,25 +496,25 @@ Debugssy follows [MCP Security Best Practices 2025-06-18](https://modelcontextpr
 
 ### Security Features
 
-| Layer | Implementation | Protection |
-|-------|----------------|------------|
-| **Network** | Localhost-only binding | Prevents remote access |
-| **Origin** | Origin header validation | Prevents DNS rebinding attacks |
-| **Protocol** | MCP version validation | Ensures compatibility |
-| **Sessions** | Cryptographic UUIDs | Secure session management |
-| **Expressions** | Multi-level validation | Prevents code injection |
-| **Input** | Zod schema validation | Type-safe parameter handling |
+| Layer           | Implementation           | Protection                     |
+| --------------- | ------------------------ | ------------------------------ |
+| **Network**     | Localhost-only binding   | Prevents remote access         |
+| **Origin**      | Origin header validation | Prevents DNS rebinding attacks |
+| **Protocol**    | MCP version validation   | Ensures compatibility          |
+| **Sessions**    | Cryptographic UUIDs      | Secure session management      |
+| **Expressions** | Multi-level validation   | Prevents code injection        |
+| **Input**       | Zod schema validation    | Type-safe parameter handling   |
 
 ### Expression Validation
 
 Four validation levels:
 
-| Level | Behavior | Use Case |
-|-------|----------|----------|
-| `strict` | Only whitelisted functions allowed | Maximum security |
-| `moderate` | Common patterns + whitelist (default) | Balanced security/usability |
-| `permissive` | Only dangerous operations blocked | Minimal interruptions |
-| `disabled` | No validation | Fully trusted environments only |
+| Level        | Behavior                              | Use Case                        |
+| ------------ | ------------------------------------- | ------------------------------- |
+| `strict`     | Only whitelisted functions allowed    | Maximum security                |
+| `moderate`   | Common patterns + whitelist (default) | Balanced security/usability     |
+| `permissive` | Only dangerous operations blocked     | Minimal interruptions           |
+| `disabled`   | No validation                         | Fully trusted environments only |
 
 **Validation uses elicitation** for user approval of potentially unsafe operations.
 
@@ -535,6 +540,7 @@ Four validation levels:
 ```
 
 **Example:**
+
 ```json
 {
   "filePath": "/path/to/UserService.ts",
@@ -557,6 +563,7 @@ Four validation levels:
 ```
 
 **Example:**
+
 ```json
 {
   "scope": "Local",
@@ -579,6 +586,7 @@ Four validation levels:
 ```
 
 **Example:**
+
 ```json
 {
   "expression": "user.firstName + ' ' + user.lastName",
@@ -650,6 +658,7 @@ curl http://localhost:3000/health
 ```
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -668,15 +677,16 @@ curl http://localhost:3000/health
 
 **Optimize AI context usage** with these tips:
 
-| Tool | Context Impact | Optimization |
-|------|----------------|--------------|
-| `get_debug_state` | ✅ Minimal | Check this first, always lightweight |
-| `get_call_stack` | ⚠️ Medium | Use `maxDepth` parameter (default: 20) |
-| `get_console_output` | ⚠️ Medium | Use `limit` & `category` filters |
-| `get_variables` | ⚠️ High | Specify `scope` prefix (e.g., "Local") |
-| `evaluate_expression` | ⚠️ Varies | Keep expressions simple |
+| Tool                  | Context Impact | Optimization                           |
+| --------------------- | -------------- | -------------------------------------- |
+| `get_debug_state`     | ✅ Minimal     | Check this first, always lightweight   |
+| `get_call_stack`      | ⚠️ Medium      | Use `maxDepth` parameter (default: 20) |
+| `get_console_output`  | ⚠️ Medium      | Use `limit` & `category` filters       |
+| `get_variables`       | ⚠️ High        | Specify `scope` prefix (e.g., "Local") |
+| `evaluate_expression` | ⚠️ Varies      | Keep expressions simple                |
 
 **Tools return truncation indicators:**
+
 - `truncated: true`
 - `totalFrames` / `count` in response
 
@@ -761,14 +771,14 @@ debugssy/
 
 ### Development Commands
 
-| Command | Description |
-|---------|-------------|
-| `npm run compile` | Compile TypeScript + bundle with esbuild |
-| `npm run check-types` | Type check without building |
-| `npm run watch` | Watch mode (esbuild + tsc) |
-| `npm run lint` | Lint source code |
-| `npm run package` | Create .vsix package |
-| `npm test` | Run tests |
+| Command               | Description                              |
+| --------------------- | ---------------------------------------- |
+| `npm run compile`     | Compile TypeScript + bundle with esbuild |
+| `npm run check-types` | Type check without building              |
+| `npm run watch`       | Watch mode (esbuild + tsc)               |
+| `npm run lint`        | Lint source code                         |
+| `npm run package`     | Create .vsix package                     |
+| `npm test`            | Run tests                                |
 
 ---
 
@@ -826,11 +836,11 @@ lsof -ti:3000 | xargs kill -9
 
 **Causes & Solutions:**
 
-| Cause | Solution |
-|-------|----------|
-| Execution not paused | Ensure breakpoint is hit |
-| Wrong stack frame | Check `get_debug_state` first |
-| Scope issue | Use `scope: "Local"` parameter |
+| Cause                | Solution                       |
+| -------------------- | ------------------------------ |
+| Execution not paused | Ensure breakpoint is hit       |
+| Wrong stack frame    | Check `get_debug_state` first  |
+| Scope issue          | Use `scope: "Local"` parameter |
 
 </details>
 
@@ -848,11 +858,13 @@ lsof -ti:3000 | xargs kill -9
 **Options:**
 
 1. Change validation level to `permissive`:
+
    ```json
    { "debugssy.expressionValidationLevel": "permissive" }
    ```
 
 2. Increase expression length limit:
+
    ```json
    { "debugssy.maxExpressionLength": 200 }
    ```
@@ -1005,4 +1017,3 @@ See the [LICENSE](./LICENSE) file for details.
 [⬆ Back to Top](#debugssy)
 
 </div>
-

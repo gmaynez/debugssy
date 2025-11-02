@@ -3,7 +3,7 @@
 /**
  * Application-wide constants to avoid magic numbers and improve maintainability.
  */
-import packageJson from "../package.json";
+import packageJson from '../package.json';
 
 /**
  * Extension version - sourced from package.json for single source of truth.
@@ -32,20 +32,17 @@ export const MCP_SERVER_READY_DELAY_MS = 20;
 /**
  * Supported MCP protocol versions.
  */
-export const SUPPORTED_MCP_PROTOCOL_VERSIONS = [
-  "2025-03-26",
-  "2025-06-18",
-] as const;
+export const SUPPORTED_MCP_PROTOCOL_VERSIONS = ['2025-03-26', '2025-06-18'] as const;
 
 /**
  * Current MCP protocol version used by this server.
  */
-export const CURRENT_MCP_PROTOCOL_VERSION = "2025-06-18";
+export const CURRENT_MCP_PROTOCOL_VERSION = '2025-06-18';
 
 /**
  * Default fallback MCP protocol version for backwards compatibility.
  */
-export const FALLBACK_MCP_PROTOCOL_VERSION = "2025-03-26";
+export const FALLBACK_MCP_PROTOCOL_VERSION = '2025-03-26';
 
 // =============================================================================
 // Debugging & Inspection Constants

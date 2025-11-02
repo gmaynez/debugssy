@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { Request, Response, NextFunction } from "express";
-import { SUPPORTED_MCP_PROTOCOL_VERSIONS } from "../constants";
-import { Logger } from "../utils/Logger";
+import { Request, Response, NextFunction } from 'express';
+import { SUPPORTED_MCP_PROTOCOL_VERSIONS } from '../constants';
+import { Logger } from '../utils/Logger';
 
 /**
  * Handles security validation for MCP server requests.
@@ -30,24 +30,19 @@ export class McpRequestValidator {
       try {
         const url = new URL(origin);
         const isLocalhost =
-          url.hostname === "localhost" ||
-          url.hostname === "127.0.0.1" ||
-          url.hostname === "[::1]";
+          url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]';
 
         if (!isLocalhost) {
-          this.logger.warn(
-            `Rejected request from non-localhost origin: ${origin}`,
-          );
+          this.logger.warn(`Rejected request from non-localhost origin: ${origin}`);
           res.status(403).json({
-            error:
-              "Forbidden: Invalid origin. Only localhost origins are allowed.",
+            error: 'Forbidden: Invalid origin. Only localhost origins are allowed.',
           });
           return false;
         }
       } catch (_e) {
         this.logger.warn(`Rejected request with invalid origin: ${origin}`);
         res.status(403).json({
-          error: "Forbidden: Invalid origin format.",
+          error: 'Forbidden: Invalid origin format.',
         });
         return false;
       }
@@ -62,17 +57,12 @@ export class McpRequestValidator {
    * For backwards compatibility, assumes 2025-03-26 if not present.
    */
   validateProtocolVersion(req: Request, res: Response): boolean {
-    const protocolVersion = req.headers["mcp-protocol-version"] as string;
+    const protocolVersion = req.headers['mcp-protocol-version'] as string;
 
-    if (
-      protocolVersion &&
-      !SUPPORTED_MCP_PROTOCOL_VERSIONS.includes(protocolVersion as any)
-    ) {
-      this.logger.warn(
-        `Rejected request with unsupported protocol version: ${protocolVersion}`,
-      );
+    if (protocolVersion && !SUPPORTED_MCP_PROTOCOL_VERSIONS.includes(protocolVersion as any)) {
+      this.logger.warn(`Rejected request with unsupported protocol version: ${protocolVersion}`);
       res.status(400).json({
-        error: `Bad Request: Unsupported MCP protocol version '${protocolVersion}'. Supported versions: ${SUPPORTED_MCP_PROTOCOL_VERSIONS.join(", ")}`,
+        error: `Bad Request: Unsupported MCP protocol version '${protocolVersion}'. Supported versions: ${SUPPORTED_MCP_PROTOCOL_VERSIONS.join(', ')}`,
       });
       return false;
     }

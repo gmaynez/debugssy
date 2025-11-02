@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import * as vscode from "vscode";
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { ToolRegistry } from "../tools";
-import { ConfigManager } from "../Config";
-import { ExpressionValidator } from "../security/ExpressionValidator";
+import * as vscode from 'vscode';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { ToolRegistry } from '../tools';
+import { ConfigManager } from '../Config';
+import { ExpressionValidator } from '../security/ExpressionValidator';
 import {
   breakpointSchemas,
   inspectionSchemas,
   debugControlSchemas,
   stepOperationSchemas,
-} from "./schemas";
-import { Logger } from "../utils/Logger";
+} from './schemas';
+import { Logger } from '../utils/Logger';
 import {
   SetBreakpointArgs,
   RemoveBreakpointArgs,
@@ -24,7 +24,7 @@ import {
   StartDebuggingArgs,
   Validators,
   ValidatorKey,
-} from "./types/toolArguments";
+} from './types/toolArguments';
 
 /**
  * Type for tool handler functions
@@ -42,7 +42,7 @@ export class ToolRouter {
 
   constructor(
     private toolRegistry: ToolRegistry,
-    private configManager: ConfigManager,
+    private configManager: ConfigManager
   ) {
     this.toolHandlers = this.initializeToolHandlers();
     this.expressionValidator = new ExpressionValidator();
@@ -62,8 +62,7 @@ export class ToolRouter {
    */
   getToolSchemas(): any[] {
     const automationLevel = this.configManager.getConfig().automationLevel;
-    const allowStepOperations =
-      this.configManager.getConfig().allowStepOperations;
+    const allowStepOperations = this.configManager.getConfig().allowStepOperations;
 
     // Tools available in all modes (inspection and breakpoints)
     const commonTools = [...breakpointSchemas, ...inspectionSchemas];
@@ -77,9 +76,7 @@ export class ToolRouter {
     }
 
     // Return tools based on automation level
-    return automationLevel === "full"
-      ? [...commonTools, ...fullAutomationTools]
-      : commonTools;
+    return automationLevel === 'full' ? [...commonTools, ...fullAutomationTools] : commonTools;
   }
 
   /**
@@ -90,11 +87,7 @@ export class ToolRouter {
    * For evaluate_expression, applies security validation and uses elicitation
    * to request user approval if the expression may have side effects.
    */
-  async routeToolCall(
-    toolName: string,
-    args: any,
-    server?: Server,
-  ): Promise<any> {
+  async routeToolCall(toolName: string, args: any, server?: Server): Promise<any> {
     const handler = this.toolHandlers.get(toolName);
 
     if (!handler) {
@@ -110,11 +103,10 @@ export class ToolRouter {
         // Format validation errors for MCP clients
         const issues = parsed.error.issues
           .map((issue) => {
-            const path =
-              issue.path.length > 0 ? ` at "${issue.path.join(".")}"` : "";
+            const path = issue.path.length > 0 ? ` at "${issue.path.join('.')}"` : '';
             return `${issue.message}${path}`;
           })
-          .join("; ");
+          .join('; ');
 
         throw new Error(`Invalid arguments for tool '${toolName}': ${issues}`);
       }
@@ -123,10 +115,10 @@ export class ToolRouter {
     }
 
     // Special handling for evaluate_expression with security validation
-    if (toolName === "evaluate_expression" && server) {
+    if (toolName === 'evaluate_expression' && server) {
       return await this.handleEvaluateExpressionWithValidation(
         args as EvaluateExpressionArgs,
-        server,
+        server
       );
     }
 
@@ -141,72 +133,54 @@ export class ToolRouter {
     return new Map<string, ToolHandler>([
       // Breakpoint tools
       [
-        "set_breakpoint",
-        (args: SetBreakpointArgs) =>
-          this.toolRegistry.breakpoints.setBreakpoint(args),
+        'set_breakpoint',
+        (args: SetBreakpointArgs) => this.toolRegistry.breakpoints.setBreakpoint(args),
       ],
       [
-        "remove_breakpoint",
-        (args: RemoveBreakpointArgs) =>
-          this.toolRegistry.breakpoints.removeBreakpoint(args),
+        'remove_breakpoint',
+        (args: RemoveBreakpointArgs) => this.toolRegistry.breakpoints.removeBreakpoint(args),
       ],
+      ['list_breakpoints', () => this.toolRegistry.breakpoints.listBreakpoints()],
       [
-        "list_breakpoints",
-        () => this.toolRegistry.breakpoints.listBreakpoints(),
+        'toggle_breakpoint',
+        (args: ToggleBreakpointArgs) => this.toolRegistry.breakpoints.toggleBreakpoint(args),
       ],
-      [
-        "toggle_breakpoint",
-        (args: ToggleBreakpointArgs) =>
-          this.toolRegistry.breakpoints.toggleBreakpoint(args),
-      ],
-      [
-        "remove_all_breakpoints",
-        () => this.toolRegistry.breakpoints.removeAllBreakpoints(),
-      ],
+      ['remove_all_breakpoints', () => this.toolRegistry.breakpoints.removeAllBreakpoints()],
 
       // Inspection tools
       [
-        "get_variables",
-        (args: GetVariablesArgs) =>
-          this.toolRegistry.inspection.getVariables(args),
+        'get_variables',
+        (args: GetVariablesArgs) => this.toolRegistry.inspection.getVariables(args),
       ],
       [
-        "get_call_stack",
-        (args: GetCallStackArgs) =>
-          this.toolRegistry.inspection.getCallStack(args),
+        'get_call_stack',
+        (args: GetCallStackArgs) => this.toolRegistry.inspection.getCallStack(args),
       ],
       [
-        "evaluate_expression",
-        (args: EvaluateExpressionArgs) =>
-          this.toolRegistry.inspection.evaluateExpression(args),
+        'evaluate_expression',
+        (args: EvaluateExpressionArgs) => this.toolRegistry.inspection.evaluateExpression(args),
       ],
-      ["get_threads", () => this.toolRegistry.inspection.getThreads()],
-      ["get_debug_state", () => this.toolRegistry.inspection.getDebugState()],
+      ['get_threads', () => this.toolRegistry.inspection.getThreads()],
+      ['get_debug_state', () => this.toolRegistry.inspection.getDebugState()],
       [
-        "get_console_output",
-        (args: GetConsoleOutputArgs) =>
-          this.toolRegistry.inspection.getConsoleOutput(args),
+        'get_console_output',
+        (args: GetConsoleOutputArgs) => this.toolRegistry.inspection.getConsoleOutput(args),
       ],
-      [
-        "clear_console_output",
-        () => this.toolRegistry.inspection.clearConsoleOutput(),
-      ],
+      ['clear_console_output', () => this.toolRegistry.inspection.clearConsoleOutput()],
 
       // Debug control tools (full automation only)
       [
-        "start_debugging",
-        (args: StartDebuggingArgs) =>
-          this.toolRegistry.debugControl.startDebugging(args),
+        'start_debugging',
+        (args: StartDebuggingArgs) => this.toolRegistry.debugControl.startDebugging(args),
       ],
-      ["stop_debugging", () => this.toolRegistry.debugControl.stopDebugging()],
-      ["continue", () => this.toolRegistry.debugControl.continueExecution()],
-      ["pause", () => this.toolRegistry.debugControl.pause()],
-      ["restart", () => this.toolRegistry.debugControl.restart()],
+      ['stop_debugging', () => this.toolRegistry.debugControl.stopDebugging()],
+      ['continue', () => this.toolRegistry.debugControl.continueExecution()],
+      ['pause', () => this.toolRegistry.debugControl.pause()],
+      ['restart', () => this.toolRegistry.debugControl.restart()],
       [
-        "wait_for_breakpoint",
+        'wait_for_breakpoint',
         (args: WaitForBreakpointArgs) => {
-          const automationLevel =
-            this.configManager.getConfig().automationLevel;
+          const automationLevel = this.configManager.getConfig().automationLevel;
           return this.toolRegistry.inspection.waitForBreakpoint({
             timeout: args?.timeout,
             automationLevel,
@@ -215,9 +189,9 @@ export class ToolRouter {
       ],
 
       // Step operations (opt-in)
-      ["step_over", () => this.toolRegistry.debugControl.stepOver()],
-      ["step_into", () => this.toolRegistry.debugControl.stepInto()],
-      ["step_out", () => this.toolRegistry.debugControl.stepOut()],
+      ['step_over', () => this.toolRegistry.debugControl.stepOver()],
+      ['step_into', () => this.toolRegistry.debugControl.stepInto()],
+      ['step_out', () => this.toolRegistry.debugControl.stepOut()],
     ]);
   }
 
@@ -227,22 +201,18 @@ export class ToolRouter {
    */
   private async handleEvaluateExpressionWithValidation(
     args: EvaluateExpressionArgs,
-    server: Server,
+    server: Server
   ): Promise<any> {
     const session = vscode.debug.activeDebugSession;
-    const validationLevel =
-      this.configManager.getConfig().expressionValidationLevel;
+    const validationLevel = this.configManager.getConfig().expressionValidationLevel;
 
     // Skip validation if disabled in settings
-    if (validationLevel === "disabled") {
+    if (validationLevel === 'disabled') {
       return await this.toolRegistry.inspection.evaluateExpression(args);
     }
 
     // Validate the expression
-    const validationResult = this.expressionValidator.validateExpression(
-      args.expression,
-      session,
-    );
+    const validationResult = this.expressionValidator.validateExpression(args.expression, session);
 
     // If validation passes, execute immediately
     if (validationResult.allowed) {
@@ -252,7 +222,7 @@ export class ToolRouter {
     // Check if we should elicit based on validation level and risk level
     const shouldElicit = this.expressionValidator.shouldElicit(
       validationResult.riskLevel,
-      validationLevel,
+      validationLevel
     );
 
     // If below threshold, allow without elicitation
@@ -263,45 +233,38 @@ export class ToolRouter {
     // Validation failed - request user approval via elicitation
     // Use server.elicitInput() as shown in SDK examples
     try {
-      const elicitationMessage =
-        this.expressionValidator.formatElicitationMessage(
-          args.expression,
-          validationResult,
-        );
+      const elicitationMessage = this.expressionValidator.formatElicitationMessage(
+        args.expression,
+        validationResult
+      );
 
       // Send elicitation request to client using the SDK's elicitInput helper
       const elicitResponse = await server.elicitInput({
         message: elicitationMessage,
         requestedSchema: {
-          type: "object",
+          type: 'object',
           properties: {
             understood: {
-              type: "boolean",
-              title: "I understand the risks",
-              description:
-                "Check this box to confirm you understand the risks and want to proceed",
+              type: 'boolean',
+              title: 'I understand the risks',
+              description: 'Check this box to confirm you understand the risks and want to proceed',
             },
           },
-          required: ["understood"],
+          required: ['understood'],
         },
       });
 
       // Handle user response
-      if (
-        elicitResponse.action === "accept" &&
-        elicitResponse.content?.understood
-      ) {
+      if (elicitResponse.action === 'accept' && elicitResponse.content?.understood) {
         // User approved - execute the expression
-        const result =
-          await this.toolRegistry.inspection.evaluateExpression(args);
+        const result = await this.toolRegistry.inspection.evaluateExpression(args);
 
         // Add a warning to the result
         return {
           ...result,
-          _warning:
-            "Expression executed with user approval despite validation failure",
+          _warning: 'Expression executed with user approval despite validation failure',
         };
-      } else if (elicitResponse.action === "decline") {
+      } else if (elicitResponse.action === 'decline') {
         // User declined - return error
         return {
           success: false,
@@ -317,17 +280,12 @@ export class ToolRouter {
     } catch (error: unknown) {
       // Elicitation not supported by client or other error
       // Fall back to blocking the expression with detailed info
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      this.logger.warn(
-        "Elicitation failed, blocking expression:",
-        errorMessage,
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn('Elicitation failed, blocking expression:', errorMessage);
+      const elicitationMessage = this.expressionValidator.formatElicitationMessage(
+        args.expression,
+        validationResult
       );
-      const elicitationMessage =
-        this.expressionValidator.formatElicitationMessage(
-          args.expression,
-          validationResult,
-        );
       return {
         success: false,
         error: `${elicitationMessage}\n\nClient does not support user confirmation (elicitation). To allow this expression, set debugssy.enableExpressionValidation to false in settings.`,

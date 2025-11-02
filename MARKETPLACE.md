@@ -12,6 +12,7 @@ Debug with natural language through any AI assistant (Cursor, GitHub Copilot, Cl
 ## 💡 The Problem
 
 Debugging is tedious:
+
 - ❌ **Manual breakpoint hunting** - "Maybe line 42? No, line 58? Try 63..."
 - ❌ **Repetitive stepping** - Click step, check variable, step again, check again...
 - ❌ **Context switching** - Jump between code, debugger UI, and documentation
@@ -24,7 +25,7 @@ Debugging is tedious:
 ```
 You: "The login function returns null for admin users"
 
-AI: Sets breakpoint → Inspects user object → Finds role check fails → 
+AI: Sets breakpoint → Inspects user object → Finds role check fails →
      Traces to database query → Identifies missing WHERE clause → Done! ✅
 ```
 
@@ -74,6 +75,7 @@ AI: Sets breakpoint → Inspects user object → Finds role check fails →
   }
 }
 ```
+
 </details>
 
 > ⚠️ **Note:** Restart VS Code after changing automation modes for Copilot to see updated tools.
@@ -97,6 +99,7 @@ AI: Sets breakpoint → Inspects user object → Finds role check fails →
   }
 }
 ```
+
 </details>
 
 </details>
@@ -105,6 +108,7 @@ AI: Sets breakpoint → Inspects user object → Finds role check fails →
 <summary><b>💬 Claude Desktop</b> - Click to expand</summary>
 
 Add to config file:
+
 - **Mac:** `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
@@ -138,13 +142,14 @@ Add to config file:
 
 Debugssy connects your AI assistant to VS Code's debugging tools via the Model Context Protocol (MCP). Your AI gets access to:
 
-| Tool Category | What It Does |
-|--------------|--------------|
-| **🔴 Breakpoints** | Set, remove, list, toggle breakpoints (with conditions & hit counts) |
-| **🔍 Inspection** | Read variables, evaluate expressions, check call stack, console output |
-| **▶️ Control** | Start, stop, continue, step (optional - you choose automation level) |
+| Tool Category      | What It Does                                                           |
+| ------------------ | ---------------------------------------------------------------------- |
+| **🔴 Breakpoints** | Set, remove, list, toggle breakpoints (with conditions & hit counts)   |
+| **🔍 Inspection**  | Read variables, evaluate expressions, check call stack, console output |
+| **▶️ Control**     | Start, stop, continue, step (optional - you choose automation level)   |
 
 **Two modes:**
+
 - **Assisted** (default): You control execution via VS Code UI, AI inspects & sets breakpoints
 - **Full automation**: AI controls everything (start debugging, continue, step through)
 
@@ -155,22 +160,25 @@ Debugssy connects your AI assistant to VS Code's debugging tools via the Model C
 ## 🎬 Real-World Examples
 
 ### 🐛 **Crash/Exception**
+
 ```
 💬 You: "Getting 'Cannot read property id of undefined' in UserService.ts line 45"
 
-🤖 AI: Sets breakpoint → Inspects user object (null) → Traces back through call stack 
+🤖 AI: Sets breakpoint → Inspects user object (null) → Traces back through call stack
       → Finds database query missing WHERE clause → Fix identified! ⚡
 ```
 
-### 🔍 **Wrong Value**  
+### 🔍 **Wrong Value**
+
 ```
 💬 You: "cartTotal shows $0 but should be $150"
 
-🤖 AI: Sets breakpoints on all cartTotal assignments → Continues execution 
+🤖 AI: Sets breakpoints on all cartTotal assignments → Continues execution
       → Finds discount calculation multiplying by 0 instead of subtracting → Fixed! ⚡
 ```
 
 ### ⚡ **Infinite Loop**
+
 ```
 💬 You: "Loop running 1000x instead of 10x"
 
@@ -179,8 +187,9 @@ Debugssy connects your AI assistant to VS Code's debugging tools via the Model C
 ```
 
 **Want guided workflows?** Type `/` in your AI chat:
+
 - `/debug-crash` - Systematic crash debugging
-- `/trace-variable` - Track variable changes  
+- `/trace-variable` - Track variable changes
 - `/inspect-function` - Function behavior analysis
 - `/debug-loop` - Loop debugging
 - `/auto-debug-session` - Full automation (full mode)
@@ -193,11 +202,11 @@ Debugssy connects your AI assistant to VS Code's debugging tools via the Model C
 
 **Key settings** (access via `File → Preferences → Settings`, search "debugssy"):
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `automationLevel` | `assisted` | `assisted` (you control) or `full` (AI controls) |
-| `mcp.port` | `3000` | Server port (change if 3000 is in use) |
-| `expressionValidationLevel` | `moderate` | Security level for code execution |
+| Setting                     | Default    | Description                                      |
+| --------------------------- | ---------- | ------------------------------------------------ |
+| `automationLevel`           | `assisted` | `assisted` (you control) or `full` (AI controls) |
+| `mcp.port`                  | `3000`     | Server port (change if 3000 is in use)           |
+| `expressionValidationLevel` | `moderate` | Security level for code execution                |
 
 **All settings:**
 
@@ -208,10 +217,10 @@ Debugssy connects your AI assistant to VS Code's debugging tools via the Model C
 {
   "debugssy.mcp.enabled": true,
   "debugssy.mcp.port": 3000,
-  "debugssy.automationLevel": "assisted",          // or "full"
-  "debugssy.waitForBreakpointTimeout": 5000,       // ms
-  "debugssy.allowStepOperations": false,           // Enable step ops in full mode
-  "debugssy.maxExpressionLength": 100,             // Security: max expression chars
+  "debugssy.automationLevel": "assisted", // or "full"
+  "debugssy.waitForBreakpointTimeout": 5000, // ms
+  "debugssy.allowStepOperations": false, // Enable step ops in full mode
+  "debugssy.maxExpressionLength": 100, // Security: max expression chars
   "debugssy.expressionValidationLevel": "moderate" // Security level
 }
 ```
@@ -219,19 +228,20 @@ Debugssy connects your AI assistant to VS Code's debugging tools via the Model C
 </details>
 
 **Commands** (via `Ctrl+Shift+P` / `Cmd+Shift+P`):
+
 - `Debugssy: Start Server`, `Stop Server`, `Restart Server`
 
 ---
 
 ## ❓ Troubleshooting
 
-| Issue | Quick Fix |
-|-------|-----------|
-| **"No active debug session"** | Press `F5` to start debugging before asking AI to inspect |
-| **Port already in use** | Change port: `"debugssy.mcp.port": 3001` |
-| **AI can't connect** | Check `View → Output → Debugssy` for errors, restart VS Code |
-| **Variables not available** | Ensure execution is paused at a breakpoint |
-| **Copilot not seeing changes** | Restart VS Code after changing `automationLevel` |
+| Issue                          | Quick Fix                                                    |
+| ------------------------------ | ------------------------------------------------------------ |
+| **"No active debug session"**  | Press `F5` to start debugging before asking AI to inspect    |
+| **Port already in use**        | Change port: `"debugssy.mcp.port": 3001`                     |
+| **AI can't connect**           | Check `View → Output → Debugssy` for errors, restart VS Code |
+| **Variables not available**    | Ensure execution is paused at a breakpoint                   |
+| **Copilot not seeing changes** | Restart VS Code after changing `automationLevel`             |
 
 **Still stuck?** Check full docs at [github.com/gmaynez/debugssy](https://github.com/gmaynez/debugssy)
 
@@ -283,4 +293,3 @@ Apache License 2.0 · Copyright © 2025 Guillermo Garcia Maynez
 Made with ❤️ for developers who want their time back
 
 </div>
-

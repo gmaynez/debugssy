@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, it, expect, beforeEach } from "vitest";
-import { McpRequestValidator } from "../McpRequestValidator";
+import { describe, it, expect, beforeEach } from 'vitest';
+import { McpRequestValidator } from '../McpRequestValidator';
 import {
   createMockRequest,
   createMockResponse,
   createMockNext,
-} from "../../__tests__/helpers/test-helpers";
+} from '../../__tests__/helpers/test-helpers';
 
-describe("McpRequestValidator", () => {
+describe('McpRequestValidator', () => {
   let validator: McpRequestValidator;
 
   beforeEach(() => {
     validator = new McpRequestValidator();
   });
 
-  describe("Origin Validation", () => {
-    it("should allow requests without origin header", () => {
-      const req = createMockRequest({ method: "POST" });
+  describe('Origin Validation', () => {
+    it('should allow requests without origin header', () => {
+      const req = createMockRequest({ method: 'POST' });
       const res = createMockResponse();
 
       const result = validator.validateOrigin(req, res);
@@ -25,9 +25,9 @@ describe("McpRequestValidator", () => {
       expect(res.statusCode).toBe(200);
     });
 
-    it("should allow localhost origin", () => {
+    it('should allow localhost origin', () => {
       const req = createMockRequest({
-        headers: { origin: "http://localhost:3000" },
+        headers: { origin: 'http://localhost:3000' },
       });
       const res = createMockResponse();
 
@@ -36,9 +36,9 @@ describe("McpRequestValidator", () => {
       expect(res.statusCode).toBe(200);
     });
 
-    it("should allow 127.0.0.1 origin", () => {
+    it('should allow 127.0.0.1 origin', () => {
       const req = createMockRequest({
-        headers: { origin: "http://127.0.0.1:3000" },
+        headers: { origin: 'http://127.0.0.1:3000' },
       });
       const res = createMockResponse();
 
@@ -47,9 +47,9 @@ describe("McpRequestValidator", () => {
       expect(res.statusCode).toBe(200);
     });
 
-    it("should allow IPv6 localhost origin", () => {
+    it('should allow IPv6 localhost origin', () => {
       const req = createMockRequest({
-        headers: { origin: "http://[::1]:3000" },
+        headers: { origin: 'http://[::1]:3000' },
       });
       const res = createMockResponse();
 
@@ -58,9 +58,9 @@ describe("McpRequestValidator", () => {
       expect(res.statusCode).toBe(200);
     });
 
-    it("should reject non-localhost origin", () => {
+    it('should reject non-localhost origin', () => {
       const req = createMockRequest({
-        headers: { origin: "http://example.com" },
+        headers: { origin: 'http://example.com' },
       });
       const res = createMockResponse();
 
@@ -68,13 +68,13 @@ describe("McpRequestValidator", () => {
       expect(result).toBe(false);
       expect(res.statusCode).toBe(403);
       expect(res.jsonData).toMatchObject({
-        error: expect.stringContaining("Invalid origin"),
+        error: expect.stringContaining('Invalid origin'),
       });
     });
 
-    it("should reject malformed origin", () => {
+    it('should reject malformed origin', () => {
       const req = createMockRequest({
-        headers: { origin: "not-a-valid-url" },
+        headers: { origin: 'not-a-valid-url' },
       });
       const res = createMockResponse();
 
@@ -82,13 +82,13 @@ describe("McpRequestValidator", () => {
       expect(result).toBe(false);
       expect(res.statusCode).toBe(403);
       expect(res.jsonData).toMatchObject({
-        error: expect.stringContaining("Invalid origin format"),
+        error: expect.stringContaining('Invalid origin format'),
       });
     });
 
-    it("should reject remote IP addresses", () => {
+    it('should reject remote IP addresses', () => {
       const req = createMockRequest({
-        headers: { origin: "http://192.168.1.1" },
+        headers: { origin: 'http://192.168.1.1' },
       });
       const res = createMockResponse();
 
@@ -98,10 +98,10 @@ describe("McpRequestValidator", () => {
     });
   });
 
-  describe("Protocol Version Validation", () => {
-    it("should accept supported protocol version 2025-03-26", () => {
+  describe('Protocol Version Validation', () => {
+    it('should accept supported protocol version 2025-03-26', () => {
       const req = createMockRequest({
-        headers: { "mcp-protocol-version": "2025-03-26" },
+        headers: { 'mcp-protocol-version': '2025-03-26' },
       });
       const res = createMockResponse();
 
@@ -110,9 +110,9 @@ describe("McpRequestValidator", () => {
       expect(res.statusCode).toBe(200);
     });
 
-    it("should accept supported protocol version 2025-06-18", () => {
+    it('should accept supported protocol version 2025-06-18', () => {
       const req = createMockRequest({
-        headers: { "mcp-protocol-version": "2025-06-18" },
+        headers: { 'mcp-protocol-version': '2025-06-18' },
       });
       const res = createMockResponse();
 
@@ -121,8 +121,8 @@ describe("McpRequestValidator", () => {
       expect(res.statusCode).toBe(200);
     });
 
-    it("should accept requests without protocol version header (default to 2025-03-26)", () => {
-      const req = createMockRequest({ method: "POST" });
+    it('should accept requests without protocol version header (default to 2025-03-26)', () => {
+      const req = createMockRequest({ method: 'POST' });
       const res = createMockResponse();
 
       const result = validator.validateProtocolVersion(req, res);
@@ -130,9 +130,9 @@ describe("McpRequestValidator", () => {
       expect(res.statusCode).toBe(200);
     });
 
-    it("should reject unsupported protocol version", () => {
+    it('should reject unsupported protocol version', () => {
       const req = createMockRequest({
-        headers: { "mcp-protocol-version": "2024-01-01" },
+        headers: { 'mcp-protocol-version': '2024-01-01' },
       });
       const res = createMockResponse();
 
@@ -140,35 +140,35 @@ describe("McpRequestValidator", () => {
       expect(result).toBe(false);
       expect(res.statusCode).toBe(400);
       expect(res.jsonData).toMatchObject({
-        error: expect.stringContaining("Unsupported MCP protocol version"),
+        error: expect.stringContaining('Unsupported MCP protocol version'),
       });
     });
 
-    it("should provide list of supported versions in error", () => {
+    it('should provide list of supported versions in error', () => {
       const req = createMockRequest({
-        headers: { "mcp-protocol-version": "invalid" },
+        headers: { 'mcp-protocol-version': 'invalid' },
       });
       const res = createMockResponse();
 
       validator.validateProtocolVersion(req, res);
-      expect(res.jsonData.error).toContain("2025-03-26");
-      expect(res.jsonData.error).toContain("2025-06-18");
+      expect(res.jsonData.error).toContain('2025-03-26');
+      expect(res.jsonData.error).toContain('2025-06-18');
     });
   });
 
-  describe("Middleware Integration", () => {
-    it("should create Express middleware that validates both origin and protocol", () => {
+  describe('Middleware Integration', () => {
+    it('should create Express middleware that validates both origin and protocol', () => {
       const middleware = validator.createMiddleware();
       expect(middleware).toBeInstanceOf(Function);
       expect(middleware.length).toBe(3); // (req, res, next)
     });
 
-    it("should call next() when all validations pass", () => {
+    it('should call next() when all validations pass', () => {
       const middleware = validator.createMiddleware();
       const req = createMockRequest({
         headers: {
-          origin: "http://localhost:3000",
-          "mcp-protocol-version": "2025-06-18",
+          origin: 'http://localhost:3000',
+          'mcp-protocol-version': '2025-06-18',
         },
       });
       const res = createMockResponse();
@@ -179,10 +179,10 @@ describe("McpRequestValidator", () => {
       // In a real scenario, next would be called
     });
 
-    it("should not call next() when origin validation fails", () => {
+    it('should not call next() when origin validation fails', () => {
       const middleware = validator.createMiddleware();
       const req = createMockRequest({
-        headers: { origin: "http://evil.com" },
+        headers: { origin: 'http://evil.com' },
       });
       const res = createMockResponse();
       const next = createMockNext();
@@ -192,10 +192,10 @@ describe("McpRequestValidator", () => {
       // next should not be called
     });
 
-    it("should not call next() when protocol validation fails", () => {
+    it('should not call next() when protocol validation fails', () => {
       const middleware = validator.createMiddleware();
       const req = createMockRequest({
-        headers: { "mcp-protocol-version": "invalid-version" },
+        headers: { 'mcp-protocol-version': 'invalid-version' },
       });
       const res = createMockResponse();
       const next = createMockNext();
@@ -206,13 +206,13 @@ describe("McpRequestValidator", () => {
     });
   });
 
-  describe("Security Best Practices", () => {
-    it("should prevent DNS rebinding attacks by rejecting non-localhost origins", () => {
+  describe('Security Best Practices', () => {
+    it('should prevent DNS rebinding attacks by rejecting non-localhost origins', () => {
       const maliciousOrigins = [
-        "http://attacker.com",
-        "https://malicious.example.com",
-        "http://10.0.0.1",
-        "http://192.168.0.1",
+        'http://attacker.com',
+        'https://malicious.example.com',
+        'http://10.0.0.1',
+        'http://192.168.0.1',
       ];
 
       maliciousOrigins.forEach((origin) => {
@@ -225,9 +225,9 @@ describe("McpRequestValidator", () => {
       });
     });
 
-    it("should handle case-insensitive hostnames", () => {
+    it('should handle case-insensitive hostnames', () => {
       const req = createMockRequest({
-        headers: { origin: "http://LOCALHOST:3000" },
+        headers: { origin: 'http://LOCALHOST:3000' },
       });
       const res = createMockResponse();
 
@@ -236,7 +236,7 @@ describe("McpRequestValidator", () => {
       expect(result).toBe(true);
     });
 
-    it("should allow different ports on localhost", () => {
+    it('should allow different ports on localhost', () => {
       const ports = [3000, 8080, 9000];
 
       ports.forEach((port) => {

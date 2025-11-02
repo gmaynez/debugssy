@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import * as vscode from "vscode";
-import express from "express";
-import { Server as HTTPServer } from "http";
-import { randomUUID } from "crypto";
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import * as vscode from 'vscode';
+import express from 'express';
+import { Server as HTTPServer } from 'http';
+import { randomUUID } from 'crypto';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import {
   CallToolRequestSchema,
   CompleteRequestSchema,
@@ -14,20 +14,20 @@ import {
   ListResourcesRequestSchema,
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
-import { ToolRegistry } from "./tools";
-import { ConfigManager } from "./Config";
+} from '@modelcontextprotocol/sdk/types.js';
+import { ToolRegistry } from './tools';
+import { ConfigManager } from './Config';
 import {
   CURRENT_MCP_PROTOCOL_VERSION,
   EXTENSION_VERSION,
   MCP_SERVER_READY_DELAY_MS,
-} from "./constants";
-import { McpRequestValidator } from "./security/McpRequestValidator";
-import { ToolRouter } from "./routing/ToolRouter";
-import { PromptHandler } from "./routing/PromptHandler";
-import { CompletionProvider } from "./routing/CompletionProvider";
-import { ResourceProvider } from "./routing/ResourceProvider";
-import { Logger } from "./utils/Logger";
+} from './constants';
+import { McpRequestValidator } from './security/McpRequestValidator';
+import { ToolRouter } from './routing/ToolRouter';
+import { PromptHandler } from './routing/PromptHandler';
+import { CompletionProvider } from './routing/CompletionProvider';
+import { ResourceProvider } from './routing/ResourceProvider';
+import { Logger } from './utils/Logger';
 
 /**
  * Main MCP server class that orchestrates the debugging tools and prompts.
@@ -72,7 +72,7 @@ export class MCPServer {
   private httpServer: HTTPServer | undefined;
   private mcpServer!: Server; // Initialized in initializeMCPServer(), called from constructor
   private transport: StreamableHTTPServerTransport | undefined;
-  private currentAutomationLevel: "assisted" | "full";
+  private currentAutomationLevel: 'assisted' | 'full';
   private isTransportReady: boolean = false;
 
   // Resource tracking for proper cleanup
@@ -106,7 +106,7 @@ export class MCPServer {
   constructor(
     private port: number,
     toolRegistry: ToolRegistry,
-    configManager: ConfigManager,
+    configManager: ConfigManager
   ) {
     this.logger = Logger.getInstance();
     this.currentAutomationLevel = configManager.getConfig().automationLevel;
@@ -155,22 +155,17 @@ export class MCPServer {
       },
     });
     await this.mcpServer.connect(this.transport);
-    this.logger.info("MCP transport initialized");
+    this.logger.info('MCP transport initialized');
 
     return new Promise((resolve, reject) => {
       try {
-        this.httpServer = this.app.listen(this.port, "localhost", async () => {
-          this.logger.info(
-            `MCP Server listening on http://localhost:${this.port}/mcp`,
-          );
+        this.httpServer = this.app.listen(this.port, 'localhost', async () => {
+          this.logger.info(`MCP Server listening on http://localhost:${this.port}/mcp`);
 
           // Small delay to ensure transport is fully ready to accept connections
           // This prevents race conditions when connecting immediately after startup notification
           await new Promise((resolve) => {
-            this.scheduleTimer(
-              () => resolve(undefined),
-              MCP_SERVER_READY_DELAY_MS,
-            );
+            this.scheduleTimer(() => resolve(undefined), MCP_SERVER_READY_DELAY_MS);
           });
 
           // Mark transport as ready - now safe to accept MCP requests
@@ -179,18 +174,18 @@ export class MCPServer {
           // Only show notification if not in silent mode (e.g., during initial startup)
           if (!options?.silent) {
             vscode.window.showInformationMessage(
-              `Debugssy MCP Server started on port ${this.port}`,
+              `Debugssy MCP Server started on port ${this.port}`
             );
           }
-          this.logger.info("MCP Server fully ready to accept connections");
+          this.logger.info('MCP Server fully ready to accept connections');
           resolve();
         });
 
-        this.httpServer.on("error", (error: any) => {
+        this.httpServer.on('error', (error: any) => {
           this.isTransportReady = false;
-          if (error.code === "EADDRINUSE") {
+          if (error.code === 'EADDRINUSE') {
             vscode.window.showErrorMessage(
-              `Port ${this.port} is already in use. Please change the port in settings.`,
+              `Port ${this.port} is already in use. Please change the port in settings.`
             );
           }
           reject(error);
@@ -215,7 +210,7 @@ export class MCPServer {
     // Wait for in-flight requests to complete (with timeout)
     if (this.inflightRequests.size > 0) {
       this.logger.info(
-        `Waiting for ${this.inflightRequests.size} in-flight request(s) to complete...`,
+        `Waiting for ${this.inflightRequests.size} in-flight request(s) to complete...`
       );
       try {
         await Promise.race([
@@ -225,10 +220,7 @@ export class MCPServer {
           }),
         ]);
       } catch (error) {
-        this.logger.warn(
-          "Some requests did not complete before timeout:",
-          error,
-        );
+        this.logger.warn('Some requests did not complete before timeout:', error);
       }
     }
 
@@ -253,7 +245,7 @@ export class MCPServer {
     if (this.httpServer) {
       return new Promise((resolve) => {
         this.httpServer!.close(() => {
-          this.logger.info("MCP Server stopped");
+          this.logger.info('MCP Server stopped');
           resolve();
         });
       });
@@ -307,7 +299,7 @@ export class MCPServer {
    * Gets the current automation level setting.
    * @returns The current automation level ("assisted" or "full")
    */
-  getCurrentAutomationLevel(): "assisted" | "full" {
+  getCurrentAutomationLevel(): 'assisted' | 'full' {
     return this.currentAutomationLevel;
   }
 
@@ -325,11 +317,9 @@ export class MCPServer {
    * @param newLevel - The new automation level to apply
    * @returns Promise that resolves when notification is sent
    */
-  async handleAutomationLevelChange(
-    newLevel: "assisted" | "full",
-  ): Promise<void> {
+  async handleAutomationLevelChange(newLevel: 'assisted' | 'full'): Promise<void> {
     this.logger.info(
-      `Automation level changed from '${this.currentAutomationLevel}' to '${newLevel}'`,
+      `Automation level changed from '${this.currentAutomationLevel}' to '${newLevel}'`
     );
 
     const oldLevel = this.currentAutomationLevel;
@@ -338,9 +328,7 @@ export class MCPServer {
     // Note: ToolRouter already reads automation level dynamically from configManager
     // on each getToolSchemas() call, so no need to update it explicitly.
 
-    await this.notifyToolListChanged(
-      `automation level ${oldLevel} → ${newLevel}`,
-    );
+    await this.notifyToolListChanged(`automation level ${oldLevel} → ${newLevel}`);
   }
 
   /**
@@ -350,14 +338,12 @@ export class MCPServer {
    * @returns Promise that resolves when notification is sent
    */
   async handleStepOperationsChange(enabled: boolean): Promise<void> {
-    this.logger.info(`Step operations ${enabled ? "enabled" : "disabled"}`);
+    this.logger.info(`Step operations ${enabled ? 'enabled' : 'disabled'}`);
 
     // Note: ToolRouter already reads allowStepOperations dynamically from configManager
     // on each getToolSchemas() call, so no need to update it explicitly.
 
-    await this.notifyToolListChanged(
-      `step operations ${enabled ? "enabled" : "disabled"}`,
-    );
+    await this.notifyToolListChanged(`step operations ${enabled ? 'enabled' : 'disabled'}`);
   }
 
   /**
@@ -387,10 +373,7 @@ export class MCPServer {
    * Schedules a timer and tracks it for cleanup.
    * Returns the timer ID for potential early cancellation.
    */
-  private scheduleTimer(
-    callback: () => void,
-    delayMs: number,
-  ): ReturnType<typeof setTimeout> {
+  private scheduleTimer(callback: () => void, delayMs: number): ReturnType<typeof setTimeout> {
     const timer = setTimeout(() => {
       this.pendingTimers.delete(timer);
       if (!this.isDisposed) {
@@ -415,7 +398,7 @@ export class MCPServer {
     // Create a fresh MCP Server instance
     this.mcpServer = new Server(
       {
-        name: "debugssy",
+        name: 'debugssy',
         version: EXTENSION_VERSION,
       },
       {
@@ -427,7 +410,7 @@ export class MCPServer {
           // Enable elicitation for user confirmation of potentially unsafe operations
           elicitation: {},
         },
-      },
+      }
     );
 
     this.setupToolHandlers();
@@ -449,34 +432,29 @@ export class MCPServer {
 
       try {
         // Pass the server instance to enable elicitation via server.elicitInput()
-        const result = await this.toolRouter.routeToolCall(
-          name,
-          args,
-          this.mcpServer,
-        );
+        const result = await this.toolRouter.routeToolCall(name, args, this.mcpServer);
 
         return {
           content: [
             {
-              type: "text",
+              type: 'text',
               text: JSON.stringify(result, null, 2),
             },
           ],
         };
       } catch (error: unknown) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error occurred";
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         return {
           content: [
             {
-              type: "text",
+              type: 'text',
               text: JSON.stringify(
                 {
                   success: false,
                   error: errorMessage,
                 },
                 null,
-                2,
+                2
               ),
             },
           ],
@@ -494,13 +472,10 @@ export class MCPServer {
     });
 
     // Get a specific prompt - delegated to PromptHandler
-    this.mcpServer.setRequestHandler(
-      GetPromptRequestSchema,
-      async (request) => {
-        const { name, arguments: args } = request.params;
-        return this.promptHandler.generatePrompt(name, args);
-      },
-    );
+    this.mcpServer.setRequestHandler(GetPromptRequestSchema, async (request) => {
+      const { name, arguments: args } = request.params;
+      return this.promptHandler.generatePrompt(name, args);
+    });
   }
 
   private setupResourceHandlers(): void {
@@ -511,20 +486,16 @@ export class MCPServer {
     });
 
     // Handle resource reading - delegated to ResourceProvider
-    this.mcpServer.setRequestHandler(
-      ReadResourceRequestSchema,
-      async (request) => {
-        const { uri } = request.params;
+    this.mcpServer.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+      const { uri } = request.params;
 
-        try {
-          return await this.resourceProvider.readResource(uri);
-        } catch (error: unknown) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Unknown error occurred";
-          throw new Error(`Failed to read resource: ${errorMessage}`);
-        }
-      },
-    );
+      try {
+        return await this.resourceProvider.readResource(uri);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        throw new Error(`Failed to read resource: ${errorMessage}`);
+      }
+    });
   }
 
   private setupCompletionHandler(): void {
@@ -533,7 +504,7 @@ export class MCPServer {
       const { ref, argument } = request.params;
 
       // Only provide completions for prompts (not resources or other ref types)
-      if (ref.type !== "ref/prompt") {
+      if (ref.type !== 'ref/prompt') {
         return {
           completion: {
             values: [],
@@ -547,14 +518,14 @@ export class MCPServer {
         const result = await this.completionProvider.getCompletions(
           ref.name,
           argument.name,
-          argument.value || "",
+          argument.value || ''
         );
 
         return {
           completion: result,
         };
       } catch (error: unknown) {
-        this.logger.error("Error providing completions:", error);
+        this.logger.error('Error providing completions:', error);
         return {
           completion: {
             values: [],
@@ -569,21 +540,21 @@ export class MCPServer {
   private setupHTTPRoutes(): void {
     // Security: Validate Origin header and Protocol Version
     // Delegated to McpRequestValidator
-    this.app.use("/mcp", this.securityValidator.createMiddleware());
+    this.app.use('/mcp', this.securityValidator.createMiddleware());
 
     // Main MCP endpoint - StreamableHTTPServerTransport handles sessions internally
-    this.app.all("/mcp", async (req, res) => {
+    this.app.all('/mcp', async (req, res) => {
       try {
         // Check if transport is ready - return 503 to trigger client retry
         if (!this.isTransportReady || !this.transport) {
           this.metrics.initRejections503++;
           this.logger.warn(
-            `MCP request received before transport is ready (rejection #${this.metrics.initRejections503})`,
+            `MCP request received before transport is ready (rejection #${this.metrics.initRejections503})`
           );
           if (!res.headersSent) {
             res.status(503).json({
-              error: "Service temporarily unavailable - transport initializing",
-              jsonrpc: "2.0",
+              error: 'Service temporarily unavailable - transport initializing',
+              jsonrpc: '2.0',
               id: null,
               retryAfter: 1, // Suggest retry after 1 second
             });
@@ -593,21 +564,20 @@ export class MCPServer {
 
         // Detect initialization requests (no Mcp-Session-Id header)
         // and serialize them to prevent "Server already initialized" errors
-        const sessionId = req.headers["mcp-session-id"] as string | undefined;
+        const sessionId = req.headers['mcp-session-id'] as string | undefined;
         const isInitRequest = !sessionId;
 
         // Check if this is an SSE request (fallback mechanism)
         // SSE requests should always be allowed, even during initialization
-        const acceptHeader = req.headers["accept"] as string | undefined;
-        const isSSERequest =
-          req.method === "GET" && acceptHeader?.includes("text/event-stream");
+        const acceptHeader = req.headers['accept'] as string | undefined;
+        const isSSERequest = req.method === 'GET' && acceptHeader?.includes('text/event-stream');
 
         if (isInitRequest) {
           // Use cryptographically secure UUID for request IDs (consistent with session ID generation)
           const requestId = randomUUID().substring(0, 8);
           this.metrics.initAttempts++;
           this.logger.info(
-            `[${requestId}] Init request received, isSSE=${isSSERequest}, total attempts: ${this.metrics.initAttempts}`,
+            `[${requestId}] Init request received, isSSE=${isSSERequest}, total attempts: ${this.metrics.initAttempts}`
           );
 
           // Track this request for graceful shutdown
@@ -624,13 +594,12 @@ export class MCPServer {
                 if (this.hasSuccessfulInit) {
                   this.metrics.initRejections503++;
                   this.logger.info(
-                    `[${requestId}] Rejecting init - transport already initialized by another client (rejection #${this.metrics.initRejections503})`,
+                    `[${requestId}] Rejecting init - transport already initialized by another client (rejection #${this.metrics.initRejections503})`
                   );
                   if (!res.headersSent) {
                     res.status(503).json({
-                      error:
-                        "Server busy with another initialization - please retry",
-                      jsonrpc: "2.0",
+                      error: 'Server busy with another initialization - please retry',
+                      jsonrpc: '2.0',
                       id: null,
                       retryAfter: 1,
                     });
@@ -643,13 +612,12 @@ export class MCPServer {
                   // Another init is in progress - reject with 503
                   this.metrics.concurrentInitRejections++;
                   this.logger.info(
-                    `[${requestId}] Rejecting concurrent init - lock held (concurrent rejection #${this.metrics.concurrentInitRejections})`,
+                    `[${requestId}] Rejecting concurrent init - lock held (concurrent rejection #${this.metrics.concurrentInitRejections})`
                   );
                   if (!res.headersSent) {
                     res.status(503).json({
-                      error:
-                        "Server busy with another initialization - please retry",
-                      jsonrpc: "2.0",
+                      error: 'Server busy with another initialization - please retry',
+                      jsonrpc: '2.0',
                       id: null,
                       retryAfter: 1,
                     });
@@ -661,50 +629,41 @@ export class MCPServer {
                 release = await this.acquireInitLock();
                 this.initLockRelease = release;
                 this.logger.debug(
-                  `[${requestId}] Processing initialization request (lock acquired)`,
+                  `[${requestId}] Processing initialization request (lock acquired)`
                 );
 
                 // Double-check transport is still available
                 if (!this.transport) {
-                  throw new Error(
-                    "Transport became unavailable during initialization",
-                  );
+                  throw new Error('Transport became unavailable during initialization');
                 }
 
                 // Handle the request
                 await this.transport.handleRequest(req, res);
-                this.logger.debug(
-                  `[${requestId}] Transport completed successfully`,
-                );
+                this.logger.debug(`[${requestId}] Transport completed successfully`);
 
                 // Mark that an initialization has succeeded
                 // This prevents subsequent init attempts from trying
                 this.hasSuccessfulInit = true;
                 this.metrics.initSuccesses++;
                 this.logger.info(
-                  `[${requestId}] Initialization successful (success #${this.metrics.initSuccesses})`,
+                  `[${requestId}] Initialization successful (success #${this.metrics.initSuccesses})`
                 );
               } catch (error: unknown) {
-                const errorMessage =
-                  error instanceof Error ? error.message : String(error);
-                this.logger.error(
-                  `[${requestId}] Transport error:`,
-                  errorMessage,
-                );
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                this.logger.error(`[${requestId}] Transport error:`, errorMessage);
 
                 // Check if this is a "Server already initialized" error from the MCP transport
                 // This can happen when MCP clients create multiple instances for the same server
-                if (errorMessage.includes("Server already initialized")) {
+                if (errorMessage.includes('Server already initialized')) {
                   this.metrics.alreadyInitializedErrors++;
                   this.logger.debug(
-                    `[${requestId}] Transport already initialized (error #${this.metrics.alreadyInitializedErrors})`,
+                    `[${requestId}] Transport already initialized (error #${this.metrics.alreadyInitializedErrors})`
                   );
 
                   if (!res.headersSent) {
                     res.status(503).json({
-                      error:
-                        "Server busy with another initialization - please retry",
-                      jsonrpc: "2.0",
+                      error: 'Server busy with another initialization - please retry',
+                      jsonrpc: '2.0',
                       id: null,
                       retryAfter: 1,
                     });
@@ -729,28 +688,18 @@ export class MCPServer {
               }
             } else {
               // SSE requests bypass the lock entirely
-              this.logger.debug(
-                `[${requestId}] Processing SSE initialization request (no lock)`,
-              );
+              this.logger.debug(`[${requestId}] Processing SSE initialization request (no lock)`);
               try {
                 // Double-check transport is still available
                 if (!this.transport) {
-                  throw new Error(
-                    "Transport became unavailable during initialization",
-                  );
+                  throw new Error('Transport became unavailable during initialization');
                 }
 
                 await this.transport.handleRequest(req, res);
-                this.logger.debug(
-                  `[${requestId}] SSE transport completed successfully`,
-                );
+                this.logger.debug(`[${requestId}] SSE transport completed successfully`);
               } catch (error: unknown) {
-                const errorMessage =
-                  error instanceof Error ? error.message : String(error);
-                this.logger.error(
-                  `[${requestId}] SSE transport error:`,
-                  errorMessage,
-                );
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                this.logger.error(`[${requestId}] SSE transport error:`, errorMessage);
                 throw error;
               }
             }
@@ -765,14 +714,13 @@ export class MCPServer {
         // These bypass the queue and process immediately
         await this.transport.handleRequest(req, res);
       } catch (error: unknown) {
-        this.logger.error("Error handling MCP request:", error);
+        this.logger.error('Error handling MCP request:', error);
 
         if (!res.headersSent) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Unknown error occurred";
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
           res.status(500).json({
             error: errorMessage,
-            jsonrpc: "2.0",
+            jsonrpc: '2.0',
             id: null,
           });
         }
@@ -780,17 +728,17 @@ export class MCPServer {
     });
 
     // Health check endpoint - allows clients to poll for readiness
-    this.app.get("/health", (_req, res) => {
+    this.app.get('/health', (_req, res) => {
       const isReady = this.isTransportReady && !!this.transport;
       res.status(isReady ? 200 : 503).json({
-        status: isReady ? "ready" : "initializing",
-        server: "debugssy-mcp",
+        status: isReady ? 'ready' : 'initializing',
+        server: 'debugssy-mcp',
         version: EXTENSION_VERSION,
         transportInitialized: !!this.transport,
         transportReady: this.isTransportReady,
-        transport: "streamable-http",
+        transport: 'streamable-http',
         protocolVersion: CURRENT_MCP_PROTOCOL_VERSION,
-        supportedProtocolVersions: ["2025-03-26", "2025-06-18"],
+        supportedProtocolVersions: ['2025-03-26', '2025-06-18'],
         metrics: this.metrics,
       });
     });
@@ -802,17 +750,14 @@ export class MCPServer {
     // so they can refresh their tool list without reconnecting
     try {
       await this.mcpServer.notification({
-        method: "notifications/tools/list_changed",
+        method: 'notifications/tools/list_changed',
         params: {},
       });
       this.logger.info(`Notified clients: tools changed due to ${reason}`);
     } catch (error: unknown) {
       // Notification may fail if no clients are connected - this is fine
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      this.logger.debug(
-        `Could not notify clients (likely none connected): ${errorMessage}`,
-      );
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.debug(`Could not notify clients (likely none connected): ${errorMessage}`);
     }
   }
 }

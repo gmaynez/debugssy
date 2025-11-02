@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import * as vscode from "vscode";
-import { DEFAULT_THREAD_ID, MAX_CONSOLE_BUFFER_SIZE } from "../constants";
-import { Logger } from "../utils/Logger";
+import * as vscode from 'vscode';
+import { DEFAULT_THREAD_ID, MAX_CONSOLE_BUFFER_SIZE } from '../constants';
+import { Logger } from '../utils/Logger';
 
 export interface StackFrame {
   id: number;
@@ -28,11 +28,7 @@ export interface Scope {
   expensive: boolean;
 }
 
-export type ExecutionState =
-  | "not_started"
-  | "running"
-  | "paused"
-  | "terminated";
+export type ExecutionState = 'not_started' | 'running' | 'paused' | 'terminated';
 
 export interface StoppedInfo {
   threadId: number;
@@ -44,7 +40,7 @@ export interface StoppedInfo {
 }
 
 export interface ConsoleOutput {
-  category: "console" | "stdout" | "stderr" | "telemetry" | string;
+  category: 'console' | 'stdout' | 'stderr' | 'telemetry' | string;
   output: string;
   timestamp: number;
   variablesReference?: number;
@@ -58,7 +54,7 @@ export interface ConsoleOutput {
 export class DAPClient {
   private currentFrameId: number | undefined;
   private stackFrames: StackFrame[] = [];
-  private executionState: ExecutionState = "not_started";
+  private executionState: ExecutionState = 'not_started';
   private stoppedInfo: StoppedInfo | undefined;
   private consoleOutputBuffer: ConsoleOutput[] = [];
   private stateChangeEmitter = new vscode.EventEmitter<ExecutionState>();
@@ -68,7 +64,7 @@ export class DAPClient {
   constructor() {
     this.logger = Logger.getInstance();
     // Register debug adapter tracker to intercept DAP messages
-    vscode.debug.registerDebugAdapterTrackerFactory("*", {
+    vscode.debug.registerDebugAdapterTrackerFactory('*', {
       createDebugAdapterTracker: (_session: vscode.DebugSession) => {
         return {
           onWillReceiveMessage: (_message: any) => {
@@ -78,7 +74,7 @@ export class DAPClient {
             this.handleDAPMessage(message);
           },
           onError: (error: Error) => {
-            this.logger.error("DAP Error:", error);
+            this.logger.error('DAP Error:', error);
           },
           onExit: (_code: number | undefined, _signal: string | undefined) => {
             this.reset();
@@ -90,7 +86,7 @@ export class DAPClient {
 
   async getStackTrace(session: vscode.DebugSession): Promise<StackFrame[]> {
     try {
-      const response = await session.customRequest("stackTrace", {
+      const response = await session.customRequest('stackTrace', {
         threadId: DEFAULT_THREAD_ID,
       });
       if (response?.stackFrames) {
@@ -98,39 +94,36 @@ export class DAPClient {
         return this.stackFrames;
       }
     } catch (error: unknown) {
-      this.logger.error("Error getting stack trace:", error);
+      this.logger.error('Error getting stack trace:', error);
     }
     return this.stackFrames;
   }
 
-  async getScopes(
-    session: vscode.DebugSession,
-    frameId: number,
-  ): Promise<Scope[]> {
+  async getScopes(session: vscode.DebugSession, frameId: number): Promise<Scope[]> {
     try {
-      const response = await session.customRequest("scopes", { frameId });
+      const response = await session.customRequest('scopes', { frameId });
       if (response?.scopes) {
         return response.scopes;
       }
     } catch (error: unknown) {
-      this.logger.error("Error getting scopes:", error);
+      this.logger.error('Error getting scopes:', error);
     }
     return [];
   }
 
   async getVariables(
     session: vscode.DebugSession,
-    variablesReference: number,
+    variablesReference: number
   ): Promise<Variable[]> {
     try {
-      const response = await session.customRequest("variables", {
+      const response = await session.customRequest('variables', {
         variablesReference,
       });
       if (response?.variables) {
         return response.variables;
       }
     } catch (error: unknown) {
-      this.logger.error("Error getting variables:", error);
+      this.logger.error('Error getting variables:', error);
     }
     return [];
   }
@@ -138,13 +131,13 @@ export class DAPClient {
   async evaluateExpression(
     session: vscode.DebugSession,
     expression: string,
-    frameId?: number,
+    frameId?: number
   ): Promise<{ result: string; type?: string; variablesReference?: number }> {
     try {
-      const response = await session.customRequest("evaluate", {
+      const response = await session.customRequest('evaluate', {
         expression,
         frameId: frameId || this.currentFrameId,
-        context: "watch",
+        context: 'watch',
       });
       return {
         result: response.result,
@@ -152,8 +145,7 @@ export class DAPClient {
         variablesReference: response.variablesReference,
       };
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to evaluate expression: ${errorMessage}`);
     }
   }
@@ -171,7 +163,7 @@ export class DAPClient {
   }
 
   isReadyForEvaluation(): boolean {
-    return this.executionState === "paused" && this.stoppedInfo !== undefined;
+    return this.executionState === 'paused' && this.stoppedInfo !== undefined;
   }
 
   getConsoleOutput(options?: {
@@ -213,7 +205,7 @@ export class DAPClient {
   reset(): void {
     this.currentFrameId = undefined;
     this.stackFrames = [];
-    this.executionState = "not_started";
+    this.executionState = 'not_started';
     this.stoppedInfo = undefined;
     this.consoleOutputBuffer = [];
   }
@@ -223,9 +215,9 @@ export class DAPClient {
   }
 
   private handleDAPMessage(message: any): void {
-    if (message.type === "response") {
+    if (message.type === 'response') {
       switch (message.command) {
-        case "stackTrace":
+        case 'stackTrace':
           if (message.success && message.body?.stackFrames) {
             this.stackFrames = message.body.stackFrames;
             if (this.stackFrames.length > 0 && this.stackFrames[0]) {
@@ -237,34 +229,34 @@ export class DAPClient {
         // to the actual frameId/variablesReference. Instead, we fetch them on-demand
         // via getScopes() and getVariables() methods.
       }
-    } else if (message.type === "event") {
+    } else if (message.type === 'event') {
       switch (message.event) {
-        case "stopped":
-          this.executionState = "paused";
+        case 'stopped':
+          this.executionState = 'paused';
           this.stoppedInfo = {
             threadId: message.body?.threadId,
-            reason: message.body?.reason || "unknown",
+            reason: message.body?.reason || 'unknown',
             description: message.body?.description,
             text: message.body?.text,
             allThreadsStopped: message.body?.allThreadsStopped,
             hitBreakpointIds: message.body?.hitBreakpointIds,
           };
-          this.stateChangeEmitter.fire("paused");
+          this.stateChangeEmitter.fire('paused');
           break;
-        case "continued":
-          this.executionState = "running";
+        case 'continued':
+          this.executionState = 'running';
           this.stoppedInfo = undefined;
-          this.stateChangeEmitter.fire("running");
+          this.stateChangeEmitter.fire('running');
           break;
-        case "terminated":
-          this.executionState = "terminated";
+        case 'terminated':
+          this.executionState = 'terminated';
           this.stoppedInfo = undefined;
-          this.stateChangeEmitter.fire("terminated");
+          this.stateChangeEmitter.fire('terminated');
           break;
-        case "output":
+        case 'output':
           if (message.body?.output) {
             this.captureConsoleOutput({
-              category: message.body.category || "console",
+              category: message.body.category || 'console',
               output: message.body.output,
               timestamp: Date.now(),
               variablesReference: message.body.variablesReference,

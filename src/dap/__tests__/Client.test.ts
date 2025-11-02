@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { DAPClient } from "../Client";
-import { vscode } from "../../__tests__/setup";
-import { createMockDebugSession } from "../../__tests__/helpers/vscode-mock";
-import { MAX_CONSOLE_BUFFER_SIZE } from "../../constants";
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { DAPClient } from '../Client';
+import { vscode } from '../../__tests__/setup';
+import { createMockDebugSession } from '../../__tests__/helpers/vscode-mock';
+import { MAX_CONSOLE_BUFFER_SIZE } from '../../constants';
 
-describe("DAPClient", () => {
+describe('DAPClient', () => {
   let client: DAPClient;
   let mockSession: any;
   let trackerFactory: any;
@@ -16,137 +16,131 @@ describe("DAPClient", () => {
     client = new DAPClient();
 
     // Get the registered debug adapter tracker factory
-    const registerCall = (
-      vscode.debug.registerDebugAdapterTrackerFactory as any
-    ).mock.calls[0];
+    const registerCall = (vscode.debug.registerDebugAdapterTrackerFactory as any).mock.calls[0];
     trackerFactory = registerCall ? registerCall[1] : null;
 
-    mockSession = createMockDebugSession("test", "node");
+    mockSession = createMockDebugSession('test', 'node');
   });
 
   afterEach(() => {
     client.dispose();
   });
 
-  describe("Initialization", () => {
-    it("should register debug adapter tracker factory", () => {
-      expect(
-        vscode.debug.registerDebugAdapterTrackerFactory,
-      ).toHaveBeenCalledWith("*", expect.any(Object));
+  describe('Initialization', () => {
+    it('should register debug adapter tracker factory', () => {
+      expect(vscode.debug.registerDebugAdapterTrackerFactory).toHaveBeenCalledWith(
+        '*',
+        expect.any(Object)
+      );
     });
 
-    it("should start with not_started execution state", () => {
-      expect(client.getExecutionState()).toBe("not_started");
+    it('should start with not_started execution state', () => {
+      expect(client.getExecutionState()).toBe('not_started');
     });
 
-    it("should have empty console output buffer initially", () => {
+    it('should have empty console output buffer initially', () => {
       expect(client.getConsoleOutput()).toEqual([]);
     });
   });
 
-  describe("State Management", () => {
-    it("should transition to paused state on stopped event", () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+  describe('State Management', () => {
+    it('should transition to paused state on stopped event', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
       const stateListener = vi.fn();
       client.onStateChange(stateListener);
 
       // Simulate stopped event
       tracker.onDidSendMessage({
-        type: "event",
-        event: "stopped",
+        type: 'event',
+        event: 'stopped',
         body: {
           threadId: 1,
-          reason: "breakpoint",
-          description: "Paused on breakpoint",
+          reason: 'breakpoint',
+          description: 'Paused on breakpoint',
           allThreadsStopped: true,
           hitBreakpointIds: [1],
         },
       });
 
-      expect(client.getExecutionState()).toBe("paused");
-      expect(stateListener).toHaveBeenCalledWith("paused");
+      expect(client.getExecutionState()).toBe('paused');
+      expect(stateListener).toHaveBeenCalledWith('paused');
 
       const stoppedInfo = client.getStoppedInfo();
       expect(stoppedInfo).toEqual({
         threadId: 1,
-        reason: "breakpoint",
-        description: "Paused on breakpoint",
+        reason: 'breakpoint',
+        description: 'Paused on breakpoint',
         text: undefined,
         allThreadsStopped: true,
         hitBreakpointIds: [1],
       });
     });
 
-    it("should transition to running state on continued event", () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+    it('should transition to running state on continued event', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
       const stateListener = vi.fn();
       client.onStateChange(stateListener);
 
       // First pause
       tracker.onDidSendMessage({
-        type: "event",
-        event: "stopped",
-        body: { threadId: 1, reason: "pause" },
+        type: 'event',
+        event: 'stopped',
+        body: { threadId: 1, reason: 'pause' },
       });
 
       // Then continue
       tracker.onDidSendMessage({
-        type: "event",
-        event: "continued",
+        type: 'event',
+        event: 'continued',
         body: {},
       });
 
-      expect(client.getExecutionState()).toBe("running");
-      expect(stateListener).toHaveBeenCalledWith("running");
+      expect(client.getExecutionState()).toBe('running');
+      expect(stateListener).toHaveBeenCalledWith('running');
       expect(client.getStoppedInfo()).toBeUndefined();
     });
 
-    it("should transition to terminated state on terminated event", () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+    it('should transition to terminated state on terminated event', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
       const stateListener = vi.fn();
       client.onStateChange(stateListener);
 
       tracker.onDidSendMessage({
-        type: "event",
-        event: "terminated",
+        type: 'event',
+        event: 'terminated',
         body: {},
       });
 
-      expect(client.getExecutionState()).toBe("terminated");
-      expect(stateListener).toHaveBeenCalledWith("terminated");
+      expect(client.getExecutionState()).toBe('terminated');
+      expect(stateListener).toHaveBeenCalledWith('terminated');
     });
 
-    it("should report ready for evaluation when paused", () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+    it('should report ready for evaluation when paused', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
 
       expect(client.isReadyForEvaluation()).toBe(false);
 
       tracker.onDidSendMessage({
-        type: "event",
-        event: "stopped",
-        body: { threadId: 1, reason: "breakpoint" },
+        type: 'event',
+        event: 'stopped',
+        body: { threadId: 1, reason: 'breakpoint' },
       });
 
       expect(client.isReadyForEvaluation()).toBe(true);
     });
 
-    it("should not be ready for evaluation when running", () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+    it('should not be ready for evaluation when running', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
 
       tracker.onDidSendMessage({
-        type: "event",
-        event: "stopped",
-        body: { threadId: 1, reason: "breakpoint" },
+        type: 'event',
+        event: 'stopped',
+        body: { threadId: 1, reason: 'breakpoint' },
       });
 
       tracker.onDidSendMessage({
-        type: "event",
-        event: "continued",
+        type: 'event',
+        event: 'continued',
         body: {},
       });
 
@@ -154,21 +148,21 @@ describe("DAPClient", () => {
     });
   });
 
-  describe("Stack Trace", () => {
-    it("should get stack trace from debug session", async () => {
+  describe('Stack Trace', () => {
+    it('should get stack trace from debug session', async () => {
       mockSession.customRequest.mockResolvedValue({
         stackFrames: [
           {
             id: 1,
-            name: "main",
-            source: { path: "/test/file.js", name: "file.js" },
+            name: 'main',
+            source: { path: '/test/file.js', name: 'file.js' },
             line: 10,
             column: 5,
           },
           {
             id: 2,
-            name: "helper",
-            source: { path: "/test/helper.js", name: "helper.js" },
+            name: 'helper',
+            source: { path: '/test/helper.js', name: 'helper.js' },
             line: 20,
             column: 10,
           },
@@ -180,51 +174,45 @@ describe("DAPClient", () => {
       expect(stackFrames).toHaveLength(2);
       expect(stackFrames[0]).toEqual({
         id: 1,
-        name: "main",
-        source: { path: "/test/file.js", name: "file.js" },
+        name: 'main',
+        source: { path: '/test/file.js', name: 'file.js' },
         line: 10,
         column: 5,
       });
-      expect(mockSession.customRequest).toHaveBeenCalledWith("stackTrace", {
+      expect(mockSession.customRequest).toHaveBeenCalledWith('stackTrace', {
         threadId: 1,
       });
     });
 
-    it("should return empty array when stack trace fails", async () => {
-      mockSession.customRequest.mockRejectedValue(
-        new Error("Stack trace failed"),
-      );
+    it('should return empty array when stack trace fails', async () => {
+      mockSession.customRequest.mockRejectedValue(new Error('Stack trace failed'));
 
       const stackFrames = await client.getStackTrace(mockSession);
 
       expect(stackFrames).toEqual([]);
     });
 
-    it("should cache stack frames from DAP messages", () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+    it('should cache stack frames from DAP messages', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
 
       tracker.onDidSendMessage({
-        type: "response",
-        command: "stackTrace",
+        type: 'response',
+        command: 'stackTrace',
         success: true,
         body: {
-          stackFrames: [
-            { id: 1, name: "test", line: 1, column: 0 },
-          ],
+          stackFrames: [{ id: 1, name: 'test', line: 1, column: 0 }],
         },
       });
 
       expect(client.getCurrentFrameId()).toBe(1);
     });
 
-    it("should not update frame ID for unsuccessful stack trace response", () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+    it('should not update frame ID for unsuccessful stack trace response', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
 
       tracker.onDidSendMessage({
-        type: "response",
-        command: "stackTrace",
+        type: 'response',
+        command: 'stackTrace',
         success: false,
       });
 
@@ -232,17 +220,17 @@ describe("DAPClient", () => {
     });
   });
 
-  describe("Scopes and Variables", () => {
-    it("should get scopes for a frame", async () => {
+  describe('Scopes and Variables', () => {
+    it('should get scopes for a frame', async () => {
       mockSession.customRequest.mockResolvedValue({
         scopes: [
           {
-            name: "Local",
+            name: 'Local',
             variablesReference: 100,
             expensive: false,
           },
           {
-            name: "Global",
+            name: 'Global',
             variablesReference: 200,
             expensive: true,
           },
@@ -253,38 +241,36 @@ describe("DAPClient", () => {
 
       expect(scopes).toHaveLength(2);
       expect(scopes[0]).toEqual({
-        name: "Local",
+        name: 'Local',
         variablesReference: 100,
         expensive: false,
       });
-      expect(mockSession.customRequest).toHaveBeenCalledWith("scopes", {
+      expect(mockSession.customRequest).toHaveBeenCalledWith('scopes', {
         frameId: 1,
       });
     });
 
-    it("should return empty array when get scopes fails", async () => {
-      mockSession.customRequest.mockRejectedValue(
-        new Error("Get scopes failed"),
-      );
+    it('should return empty array when get scopes fails', async () => {
+      mockSession.customRequest.mockRejectedValue(new Error('Get scopes failed'));
 
       const scopes = await client.getScopes(mockSession, 1);
 
       expect(scopes).toEqual([]);
     });
 
-    it("should get variables from a scope", async () => {
+    it('should get variables from a scope', async () => {
       mockSession.customRequest.mockResolvedValue({
         variables: [
           {
-            name: "x",
-            value: "10",
-            type: "number",
+            name: 'x',
+            value: '10',
+            type: 'number',
             variablesReference: 0,
           },
           {
-            name: "obj",
-            value: "{...}",
-            type: "Object",
+            name: 'obj',
+            value: '{...}',
+            type: 'Object',
             variablesReference: 300,
           },
         ],
@@ -294,20 +280,18 @@ describe("DAPClient", () => {
 
       expect(variables).toHaveLength(2);
       expect(variables[0]).toEqual({
-        name: "x",
-        value: "10",
-        type: "number",
+        name: 'x',
+        value: '10',
+        type: 'number',
         variablesReference: 0,
       });
-      expect(mockSession.customRequest).toHaveBeenCalledWith("variables", {
+      expect(mockSession.customRequest).toHaveBeenCalledWith('variables', {
         variablesReference: 100,
       });
     });
 
-    it("should return empty array when get variables fails", async () => {
-      mockSession.customRequest.mockRejectedValue(
-        new Error("Get variables failed"),
-      );
+    it('should return empty array when get variables fails', async () => {
+      mockSession.customRequest.mockRejectedValue(new Error('Get variables failed'));
 
       const variables = await client.getVariables(mockSession, 100);
 
@@ -315,124 +299,119 @@ describe("DAPClient", () => {
     });
   });
 
-  describe("Expression Evaluation", () => {
-    it("should evaluate expression in current frame", async () => {
+  describe('Expression Evaluation', () => {
+    it('should evaluate expression in current frame', async () => {
       mockSession.customRequest.mockResolvedValue({
-        result: "42",
-        type: "number",
+        result: '42',
+        type: 'number',
         variablesReference: 0,
       });
 
-      const result = await client.evaluateExpression(mockSession, "x + 2");
+      const result = await client.evaluateExpression(mockSession, 'x + 2');
 
       expect(result).toEqual({
-        result: "42",
-        type: "number",
+        result: '42',
+        type: 'number',
         variablesReference: 0,
       });
-      expect(mockSession.customRequest).toHaveBeenCalledWith("evaluate", {
-        expression: "x + 2",
+      expect(mockSession.customRequest).toHaveBeenCalledWith('evaluate', {
+        expression: 'x + 2',
         frameId: undefined,
-        context: "watch",
+        context: 'watch',
       });
     });
 
-    it("should evaluate expression in specific frame", async () => {
+    it('should evaluate expression in specific frame', async () => {
       mockSession.customRequest.mockResolvedValue({
-        result: "test",
-        type: "string",
+        result: 'test',
+        type: 'string',
       });
 
-      await client.evaluateExpression(mockSession, "str", 5);
+      await client.evaluateExpression(mockSession, 'str', 5);
 
-      expect(mockSession.customRequest).toHaveBeenCalledWith("evaluate", {
-        expression: "str",
+      expect(mockSession.customRequest).toHaveBeenCalledWith('evaluate', {
+        expression: 'str',
         frameId: 5,
-        context: "watch",
+        context: 'watch',
       });
     });
 
-    it("should use cached frame ID when available", async () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+    it('should use cached frame ID when available', async () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
 
       // Cache a frame ID
       tracker.onDidSendMessage({
-        type: "response",
-        command: "stackTrace",
+        type: 'response',
+        command: 'stackTrace',
         success: true,
         body: {
-          stackFrames: [{ id: 3, name: "test", line: 1, column: 0 }],
+          stackFrames: [{ id: 3, name: 'test', line: 1, column: 0 }],
         },
       });
 
       mockSession.customRequest.mockResolvedValue({
-        result: "value",
-        type: "string",
+        result: 'value',
+        type: 'string',
       });
 
-      await client.evaluateExpression(mockSession, "test");
+      await client.evaluateExpression(mockSession, 'test');
 
-      expect(mockSession.customRequest).toHaveBeenCalledWith("evaluate", {
-        expression: "test",
+      expect(mockSession.customRequest).toHaveBeenCalledWith('evaluate', {
+        expression: 'test',
         frameId: 3,
-        context: "watch",
+        context: 'watch',
       });
     });
 
-    it("should throw error when evaluation fails", async () => {
-      mockSession.customRequest.mockRejectedValue(
-        new Error("Invalid expression"),
-      );
+    it('should throw error when evaluation fails', async () => {
+      mockSession.customRequest.mockRejectedValue(new Error('Invalid expression'));
 
-      await expect(
-        client.evaluateExpression(mockSession, "invalid"),
-      ).rejects.toThrow("Failed to evaluate expression: Invalid expression");
+      await expect(client.evaluateExpression(mockSession, 'invalid')).rejects.toThrow(
+        'Failed to evaluate expression: Invalid expression'
+      );
     });
 
-    it("should handle non-Error rejection", async () => {
-      mockSession.customRequest.mockRejectedValue("String error");
+    it('should handle non-Error rejection', async () => {
+      mockSession.customRequest.mockRejectedValue('String error');
 
-      await expect(
-        client.evaluateExpression(mockSession, "invalid"),
-      ).rejects.toThrow("Failed to evaluate expression: String error");
+      await expect(client.evaluateExpression(mockSession, 'invalid')).rejects.toThrow(
+        'Failed to evaluate expression: String error'
+      );
     });
   });
 
-  describe("Console Output", () => {
-    it("should capture console output from DAP events", () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+  describe('Console Output', () => {
+    it('should capture console output from DAP events', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
 
       tracker.onDidSendMessage({
-        type: "event",
-        event: "output",
+        type: 'event',
+        event: 'output',
         body: {
-          category: "console",
-          output: "Hello, world!",
+          category: 'console',
+          output: 'Hello, world!',
         },
       });
 
       const output = client.getConsoleOutput();
       expect(output).toHaveLength(1);
       expect(output[0]).toMatchObject({
-        category: "console",
-        output: "Hello, world!",
+        category: 'console',
+        output: 'Hello, world!',
       });
       expect(output[0]?.timestamp).toBeGreaterThan(0);
     });
 
-    it("should capture output with source information", () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+    it('should capture output with source information', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
 
       tracker.onDidSendMessage({
-        type: "event",
-        event: "output",
+        type: 'event',
+        event: 'output',
         body: {
-          category: "stdout",
-          output: "Debug output\n",
-          source: { path: "/test/file.js", name: "file.js" },
+          category: 'stdout',
+          output: 'Debug output\n',
+          source: { path: '/test/file.js', name: 'file.js' },
           line: 15,
           variablesReference: 100,
         },
@@ -440,63 +419,61 @@ describe("DAPClient", () => {
 
       const output = client.getConsoleOutput();
       expect(output[0]).toMatchObject({
-        category: "stdout",
-        output: "Debug output\n",
-        source: { path: "/test/file.js", name: "file.js" },
+        category: 'stdout',
+        output: 'Debug output\n',
+        source: { path: '/test/file.js', name: 'file.js' },
         line: 15,
         variablesReference: 100,
       });
     });
 
-    it("should filter console output by category", () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+    it('should filter console output by category', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
 
       tracker.onDidSendMessage({
-        type: "event",
-        event: "output",
-        body: { category: "console", output: "Console log" },
+        type: 'event',
+        event: 'output',
+        body: { category: 'console', output: 'Console log' },
       });
 
       tracker.onDidSendMessage({
-        type: "event",
-        event: "output",
-        body: { category: "stdout", output: "Stdout log" },
+        type: 'event',
+        event: 'output',
+        body: { category: 'stdout', output: 'Stdout log' },
       });
 
       tracker.onDidSendMessage({
-        type: "event",
-        event: "output",
-        body: { category: "stderr", output: "Error log" },
+        type: 'event',
+        event: 'output',
+        body: { category: 'stderr', output: 'Error log' },
       });
 
-      const consoleOnly = client.getConsoleOutput({ category: "console" });
+      const consoleOnly = client.getConsoleOutput({ category: 'console' });
       expect(consoleOnly).toHaveLength(1);
-      expect(consoleOnly[0]?.category).toBe("console");
+      expect(consoleOnly[0]?.category).toBe('console');
 
-      const stderrOnly = client.getConsoleOutput({ category: "stderr" });
+      const stderrOnly = client.getConsoleOutput({ category: 'stderr' });
       expect(stderrOnly).toHaveLength(1);
-      expect(stderrOnly[0]?.category).toBe("stderr");
+      expect(stderrOnly[0]?.category).toBe('stderr');
     });
 
-    it("should filter console output by timestamp", () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+    it('should filter console output by timestamp', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
       const now = Date.now();
 
       tracker.onDidSendMessage({
-        type: "event",
-        event: "output",
-        body: { category: "console", output: "Old log" },
+        type: 'event',
+        event: 'output',
+        body: { category: 'console', output: 'Old log' },
       });
 
       // Wait a bit and capture timestamp
       const futureTimestamp = now + 100;
 
       tracker.onDidSendMessage({
-        type: "event",
-        event: "output",
-        body: { category: "console", output: "New log" },
+        type: 'event',
+        event: 'output',
+        body: { category: 'console', output: 'New log' },
       });
 
       const recentOnly = client.getConsoleOutput({
@@ -505,33 +482,31 @@ describe("DAPClient", () => {
       expect(recentOnly.length).toBeLessThanOrEqual(1);
     });
 
-    it("should limit console output results", () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+    it('should limit console output results', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
 
       for (let i = 0; i < 10; i++) {
         tracker.onDidSendMessage({
-          type: "event",
-          event: "output",
-          body: { category: "console", output: `Log ${i}` },
+          type: 'event',
+          event: 'output',
+          body: { category: 'console', output: `Log ${i}` },
         });
       }
 
       const limited = client.getConsoleOutput({ limit: 5 });
       expect(limited).toHaveLength(5);
       // Should get last 5 entries
-      expect(limited[0]?.output).toBe("Log 5");
-      expect(limited[4]?.output).toBe("Log 9");
+      expect(limited[0]?.output).toBe('Log 5');
+      expect(limited[4]?.output).toBe('Log 9');
     });
 
-    it("should clear console output buffer", () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+    it('should clear console output buffer', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
 
       tracker.onDidSendMessage({
-        type: "event",
-        event: "output",
-        body: { category: "console", output: "Test" },
+        type: 'event',
+        event: 'output',
+        body: { category: 'console', output: 'Test' },
       });
 
       expect(client.getConsoleOutput()).toHaveLength(1);
@@ -540,14 +515,13 @@ describe("DAPClient", () => {
       expect(client.getConsoleOutput()).toHaveLength(0);
     });
 
-    it("should clear console output after reading with clear flag", () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+    it('should clear console output after reading with clear flag', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
 
       tracker.onDidSendMessage({
-        type: "event",
-        event: "output",
-        body: { category: "console", output: "Test" },
+        type: 'event',
+        event: 'output',
+        body: { category: 'console', output: 'Test' },
       });
 
       const output = client.getConsoleOutput({ clear: true });
@@ -555,34 +529,30 @@ describe("DAPClient", () => {
       expect(client.getConsoleOutput()).toHaveLength(0);
     });
 
-    it("should limit console buffer size", () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+    it('should limit console buffer size', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
 
       // Add more entries than buffer size
       for (let i = 0; i < MAX_CONSOLE_BUFFER_SIZE + 100; i++) {
         tracker.onDidSendMessage({
-          type: "event",
-          event: "output",
-          body: { category: "console", output: `Log ${i}` },
+          type: 'event',
+          event: 'output',
+          body: { category: 'console', output: `Log ${i}` },
         });
       }
 
       const output = client.getConsoleOutput();
       expect(output.length).toBeLessThanOrEqual(MAX_CONSOLE_BUFFER_SIZE);
       // Should keep latest entries
-      expect(output[output.length - 1]?.output).toContain(
-        `${MAX_CONSOLE_BUFFER_SIZE + 99}`,
-      );
+      expect(output[output.length - 1]?.output).toContain(`${MAX_CONSOLE_BUFFER_SIZE + 99}`);
     });
 
-    it("should ignore output events without output body", () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+    it('should ignore output events without output body', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
 
       tracker.onDidSendMessage({
-        type: "event",
-        event: "output",
+        type: 'event',
+        event: 'output',
         body: {},
       });
 
@@ -590,35 +560,33 @@ describe("DAPClient", () => {
     });
   });
 
-  describe("Event Handling", () => {
-    it("should fire state change events", () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+  describe('Event Handling', () => {
+    it('should fire state change events', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
       const listener = vi.fn();
       const disposable = client.onStateChange(listener);
 
       tracker.onDidSendMessage({
-        type: "event",
-        event: "stopped",
-        body: { threadId: 1, reason: "breakpoint" },
+        type: 'event',
+        event: 'stopped',
+        body: { threadId: 1, reason: 'breakpoint' },
       });
 
-      expect(listener).toHaveBeenCalledWith("paused");
+      expect(listener).toHaveBeenCalledWith('paused');
 
       tracker.onDidSendMessage({
-        type: "event",
-        event: "continued",
+        type: 'event',
+        event: 'continued',
         body: {},
       });
 
-      expect(listener).toHaveBeenCalledWith("running");
+      expect(listener).toHaveBeenCalledWith('running');
 
       disposable.dispose();
     });
 
-    it("should allow multiple state change listeners", () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+    it('should allow multiple state change listeners', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
       const listener1 = vi.fn();
       const listener2 = vi.fn();
 
@@ -626,90 +594,87 @@ describe("DAPClient", () => {
       client.onStateChange(listener2);
 
       tracker.onDidSendMessage({
-        type: "event",
-        event: "stopped",
-        body: { threadId: 1, reason: "pause" },
+        type: 'event',
+        event: 'stopped',
+        body: { threadId: 1, reason: 'pause' },
       });
 
-      expect(listener1).toHaveBeenCalledWith("paused");
-      expect(listener2).toHaveBeenCalledWith("paused");
+      expect(listener1).toHaveBeenCalledWith('paused');
+      expect(listener2).toHaveBeenCalledWith('paused');
     });
 
-    it("should handle DAP errors", () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+    it('should handle DAP errors', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
 
       // Should not throw
       expect(() => {
-        tracker.onError(new Error("DAP Error"));
+        tracker.onError(new Error('DAP Error'));
       }).not.toThrow();
     });
 
-    it("should reset state on exit", () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+    it('should reset state on exit', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
 
       // Set some state
       tracker.onDidSendMessage({
-        type: "event",
-        event: "stopped",
-        body: { threadId: 1, reason: "breakpoint" },
+        type: 'event',
+        event: 'stopped',
+        body: { threadId: 1, reason: 'breakpoint' },
       });
 
       tracker.onDidSendMessage({
-        type: "event",
-        event: "output",
-        body: { category: "console", output: "Test" },
+        type: 'event',
+        event: 'output',
+        body: { category: 'console', output: 'Test' },
       });
 
-      expect(client.getExecutionState()).toBe("paused");
+      expect(client.getExecutionState()).toBe('paused');
       expect(client.getConsoleOutput()).toHaveLength(1);
 
       // Simulate exit
       tracker.onExit(0, undefined);
 
-      expect(client.getExecutionState()).toBe("not_started");
+      expect(client.getExecutionState()).toBe('not_started');
       expect(client.getConsoleOutput()).toHaveLength(0);
       expect(client.getStoppedInfo()).toBeUndefined();
     });
   });
 
-  describe("Reset and Cleanup", () => {
-    it("should reset all state", () => {
-      const tracker =
-        trackerFactory.createDebugAdapterTracker(mockSession);
+  describe('Reset and Cleanup', () => {
+    it('should reset all state', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
 
       // Set some state
       tracker.onDidSendMessage({
-        type: "response",
-        command: "stackTrace",
+        type: 'response',
+        command: 'stackTrace',
         success: true,
         body: {
-          stackFrames: [{ id: 5, name: "test", line: 1, column: 0 }],
+          stackFrames: [{ id: 5, name: 'test', line: 1, column: 0 }],
         },
       });
 
       tracker.onDidSendMessage({
-        type: "event",
-        event: "stopped",
-        body: { threadId: 1, reason: "breakpoint" },
+        type: 'event',
+        event: 'stopped',
+        body: { threadId: 1, reason: 'breakpoint' },
       });
 
       tracker.onDidSendMessage({
-        type: "event",
-        event: "output",
-        body: { category: "console", output: "Test" },
+        type: 'event',
+        event: 'output',
+        body: { category: 'console', output: 'Test' },
       });
 
       client.reset();
 
       expect(client.getCurrentFrameId()).toBeUndefined();
-      expect(client.getExecutionState()).toBe("not_started");
+      expect(client.getExecutionState()).toBe('not_started');
       expect(client.getStoppedInfo()).toBeUndefined();
       expect(client.getConsoleOutput()).toHaveLength(0);
     });
 
-    it("should dispose event emitter", () => {
+    it('should dispose event emitter', () => {
       const listener = vi.fn();
       const disposable = client.onStateChange(listener);
 
@@ -720,4 +685,3 @@ describe("DAPClient", () => {
     });
   });
 });
-

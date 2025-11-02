@@ -46,7 +46,7 @@ This guide helps you set up allowlists for your MCP client (Claude Desktop, Curs
 ✅ AI can analyze bugs  
 ✅ AI can inspect variables  
 ✅ AI can trace execution  
-❌ AI cannot set breakpoints or modify anything  
+❌ AI cannot set breakpoints or modify anything
 
 ---
 
@@ -56,10 +56,10 @@ This guide helps you set up allowlists for your MCP client (Claude Desktop, Curs
 
 Debugssy has **2 automation modes** set via `debugssy.automationLevel`:
 
-| Mode | Tools Exposed | You Control | AI Controls |
-|------|---------------|-------------|-------------|
-| **`assisted`** (default) | Read-only + breakpoints + UI prompts | Start/stop debugging, step operations | Inspect state, set breakpoints |
-| **`full`** | All tools including `start_debugging`, `continue`, `step_*` | Nothing (optional monitoring) | Everything automatically |
+| Mode                     | Tools Exposed                                               | You Control                           | AI Controls                    |
+| ------------------------ | ----------------------------------------------------------- | ------------------------------------- | ------------------------------ |
+| **`assisted`** (default) | Read-only + breakpoints + UI prompts                        | Start/stop debugging, step operations | Inspect state, set breakpoints |
+| **`full`**               | All tools including `start_debugging`, `continue`, `step_*` | Nothing (optional monitoring)         | Everything automatically       |
 
 **Why this matters:** The AI only sees tools it can use, preventing confusing error messages.
 
@@ -245,14 +245,14 @@ All Debugssy tools organized by category and safety level:
 
 ### 🟢 Read-Only Tools (Safest)
 
-| Tool | Description | Available In |
-|------|-------------|--------------|
-| `get_debug_state` | Check if debugger is running/paused | Both modes |
-| `get_variables` | Read variable values at current point | Both modes |
-| `get_call_stack` | View execution call stack | Both modes |
-| `get_threads` | List all threads | Both modes |
-| `get_console_output` | Read debug console output | Both modes |
-| `list_breakpoints` | Show all active breakpoints | Both modes |
+| Tool                 | Description                           | Available In |
+| -------------------- | ------------------------------------- | ------------ |
+| `get_debug_state`    | Check if debugger is running/paused   | Both modes   |
+| `get_variables`      | Read variable values at current point | Both modes   |
+| `get_call_stack`     | View execution call stack             | Both modes   |
+| `get_threads`        | List all threads                      | Both modes   |
+| `get_console_output` | Read debug console output             | Both modes   |
+| `list_breakpoints`   | Show all active breakpoints           | Both modes   |
 
 **Why safe:** Cannot modify code, change execution, or execute expressions. Read-only access to what's visible in VS Code debugger UI.
 
@@ -260,12 +260,12 @@ All Debugssy tools organized by category and safety level:
 
 ### 🟡 Breakpoint Management Tools
 
-| Tool | Description | Risk Level |
-|------|-------------|------------|
-| `set_breakpoint` | Create breakpoints (with conditions) | 🟡 Low |
-| `remove_breakpoint` | Remove specific breakpoint | 🟡 Low |
-| `toggle_breakpoint` | Enable/disable breakpoint | 🟡 Low |
-| `remove_all_breakpoints` | Clear all breakpoints | 🟡 Low |
+| Tool                     | Description                          | Risk Level |
+| ------------------------ | ------------------------------------ | ---------- |
+| `set_breakpoint`         | Create breakpoints (with conditions) | 🟡 Low     |
+| `remove_breakpoint`      | Remove specific breakpoint           | 🟡 Low     |
+| `toggle_breakpoint`      | Enable/disable breakpoint            | 🟡 Low     |
+| `remove_all_breakpoints` | Clear all breakpoints                | 🟡 Low     |
 
 **Why generally safe:** Only affects debugging, not your actual code. Easy to undo manually via VS Code UI.
 
@@ -273,8 +273,8 @@ All Debugssy tools organized by category and safety level:
 
 ### 🟠 Code Execution Tools
 
-| Tool | Description | Safety Features |
-|------|-------------|-----------------|
+| Tool                  | Description                           | Safety Features                                                 |
+| --------------------- | ------------------------------------- | --------------------------------------------------------------- |
 | `evaluate_expression` | Evaluate expressions in debug context | ✅ Built-in validation with user approval for unsafe operations |
 
 **Safety:** Expressions are validated for side effects. Safe operations (variable access, arithmetic) run automatically. Dangerous operations (function calls, assignments) require your approval via elicitation.
@@ -283,21 +283,21 @@ All Debugssy tools organized by category and safety level:
 
 Configure how strictly expressions are validated via `debugssy.expressionValidationLevel`:
 
-| Validation Level | What Requires Approval | What Runs Automatically | Use Case |
-|------------------|------------------------|-------------------------|----------|
-| **`strict`** | 🔴 Critical<br>🟠 High<br>🟡 Medium<br>🟢 Low | ✅ Only safe built-ins<br>✅ Variable access<br>✅ Arithmetic | Maximum security, high interruption |
-| **`moderate`** ⭐ Default | 🔴 Critical<br>🟠 High<br>🟡 Medium | ✅ Safe built-ins<br>✅ Variable access<br>✅ Arithmetic<br>✅ **Getter methods** | Balanced security/usability |
-| **`permissive`** | 🔴 Critical<br>🟠 High | ✅ Safe built-ins<br>✅ Variable access<br>✅ Arithmetic<br>✅ Getter methods<br>✅ **User functions** | Low interruption, experienced users |
-| **`disabled`** | (Nothing) | ⚠️ **Everything** | Not recommended, trusted environments only |
+| Validation Level          | What Requires Approval                        | What Runs Automatically                                                                                | Use Case                                   |
+| ------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------ |
+| **`strict`**              | 🔴 Critical<br>🟠 High<br>🟡 Medium<br>🟢 Low | ✅ Only safe built-ins<br>✅ Variable access<br>✅ Arithmetic                                          | Maximum security, high interruption        |
+| **`moderate`** ⭐ Default | 🔴 Critical<br>🟠 High<br>🟡 Medium           | ✅ Safe built-ins<br>✅ Variable access<br>✅ Arithmetic<br>✅ **Getter methods**                      | Balanced security/usability                |
+| **`permissive`**          | 🔴 Critical<br>🟠 High                        | ✅ Safe built-ins<br>✅ Variable access<br>✅ Arithmetic<br>✅ Getter methods<br>✅ **User functions** | Low interruption, experienced users        |
+| **`disabled`**            | (Nothing)                                     | ⚠️ **Everything**                                                                                      | Not recommended, trusted environments only |
 
 **Risk Levels Explained:**
 
-| Risk | Examples | Why It's Risky |
-|------|----------|----------------|
-| 🔴 **Critical** | `fs.unlink()`, `process.exit()`, `fetch()` | Can modify files, exit app, make network requests |
-| 🟠 **High** | `arr.push()`, `x = 5`, `eval()` | Modifies state, can mask bugs or cause unexpected behavior |
-| 🟡 **Medium** | `myFunction()`, `customUtil()` | User-defined functions may have side effects |
-| 🟢 **Low** | `getUser()`, `isValid()`, `hasPermission()` | Getter patterns, typically read-only |
+| Risk            | Examples                                    | Why It's Risky                                             |
+| --------------- | ------------------------------------------- | ---------------------------------------------------------- |
+| 🔴 **Critical** | `fs.unlink()`, `process.exit()`, `fetch()`  | Can modify files, exit app, make network requests          |
+| 🟠 **High**     | `arr.push()`, `x = 5`, `eval()`             | Modifies state, can mask bugs or cause unexpected behavior |
+| 🟡 **Medium**   | `myFunction()`, `customUtil()`              | User-defined functions may have side effects               |
+| 🟢 **Low**      | `getUser()`, `isValid()`, `hasPermission()` | Getter patterns, typically read-only                       |
 
 **Example configuration:**
 
@@ -315,24 +315,24 @@ Configure how strictly expressions are validated via `debugssy.expressionValidat
 
 **Behavior changes based on automation mode:**
 
-| Tool | Assisted Mode | Full Automation Mode |
-|------|---------------|----------------------|
-| `continue` | Prompts you to click in VS Code UI | ▶️ Executes automatically |
-| `step_over` | Prompts you to click in VS Code UI | ▶️ Executes automatically |
-| `step_into` | Prompts you to click in VS Code UI | ▶️ Executes automatically |
-| `step_out` | Prompts you to click in VS Code UI | ▶️ Executes automatically |
-| `pause` | Prompts you to click in VS Code UI | ▶️ Executes automatically |
-| `restart` | Prompts you to click in VS Code UI | ▶️ Executes automatically |
-| `stop_debugging` | Stops the session | Stops the session |
+| Tool             | Assisted Mode                      | Full Automation Mode      |
+| ---------------- | ---------------------------------- | ------------------------- |
+| `continue`       | Prompts you to click in VS Code UI | ▶️ Executes automatically |
+| `step_over`      | Prompts you to click in VS Code UI | ▶️ Executes automatically |
+| `step_into`      | Prompts you to click in VS Code UI | ▶️ Executes automatically |
+| `step_out`       | Prompts you to click in VS Code UI | ▶️ Executes automatically |
+| `pause`          | Prompts you to click in VS Code UI | ▶️ Executes automatically |
+| `restart`        | Prompts you to click in VS Code UI | ▶️ Executes automatically |
+| `stop_debugging` | Stops the session                  | Stops the session         |
 
 ---
 
 ### 🔴 Full Automation Only Tools
 
-| Tool | Description | Availability |
-|------|-------------|--------------|
-| `start_debugging` | Start debug session programmatically | **Only in full mode** |
-| `wait_for_breakpoint` | Block until execution pauses | **Only in full mode** |
+| Tool                  | Description                          | Availability          |
+| --------------------- | ------------------------------------ | --------------------- |
+| `start_debugging`     | Start debug session programmatically | **Only in full mode** |
+| `wait_for_breakpoint` | Block until execution pauses         | **Only in full mode** |
 
 **Why restricted:** These tools give AI complete control over debugging. Only visible when `automationLevel` is set to `"full"`.
 
@@ -359,14 +359,14 @@ Configure how strictly expressions are validated via `debugssy.expressionValidat
 
 Debugssy has multiple security layers regardless of allowlist:
 
-| Layer | Protection |
-|-------|------------|
-| **Network** | Localhost-only binding (127.0.0.1) |
-| **Origin** | Origin header validation prevents DNS rebinding |
-| **Protocol** | MCP version validation |
-| **Sessions** | Cryptographic UUIDs |
-| **Expressions** | Multi-level validation with elicitation |
-| **Input** | Zod schema validation for all parameters |
+| Layer           | Protection                                      |
+| --------------- | ----------------------------------------------- |
+| **Network**     | Localhost-only binding (127.0.0.1)              |
+| **Origin**      | Origin header validation prevents DNS rebinding |
+| **Protocol**    | MCP version validation                          |
+| **Sessions**    | Cryptographic UUIDs                             |
+| **Expressions** | Multi-level validation with elicitation         |
+| **Input**       | Zod schema validation for all parameters        |
 
 **Learn more:** See [MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md) for complete security details
 
@@ -384,6 +384,7 @@ curl http://localhost:3000/health
 ```
 
 **Expected response:**
+
 ```json
 {
   "status": "ok",
@@ -394,6 +395,7 @@ curl http://localhost:3000/health
 ```
 
 If it fails:
+
 1. Check VS Code Output panel: `View → Output → Debugssy`
 2. Restart VS Code
 3. Verify extension is installed
@@ -424,11 +426,11 @@ Some tools only work in specific modes:
 "debugssy.automationLevel": "assisted"  // or "full"
 ```
 
-| Tool | Required Mode |
-|------|---------------|
-| `start_debugging` | Full only |
-| `wait_for_breakpoint` | Full only |
-| All others | Both modes |
+| Tool                  | Required Mode |
+| --------------------- | ------------- |
+| `start_debugging`     | Full only     |
+| `wait_for_breakpoint` | Full only     |
+| All others            | Both modes    |
 
 </details>
 
@@ -436,6 +438,7 @@ Some tools only work in specific modes:
 <summary><b>✓ Test incrementally</b></summary>
 
 **Step 1:** Start with ONE safe tool:
+
 ```json
 {
   "allowlist": ["debugssy:get_debug_state"]
@@ -461,20 +464,22 @@ Adjust the validation level in VS Code settings:
 ```
 
 **If you're getting too many approval prompts:**
+
 - `moderate` → `permissive` (allows user functions automatically)
 - Check which risk level is triggering prompts (shown in approval message)
 
 **If expressions aren't being validated enough:**
+
 - `moderate` → `strict` (asks approval even for getter methods)
 
 **Understanding what gets validated:**
 
-| Level | Asks Approval For | Runs Automatically |
-|-------|-------------------|-------------------|
-| `strict` | Critical, High, Medium, **Low** | Only safe built-ins |
-| `moderate` ⭐ | Critical, High, **Medium** | Safe built-ins + getter methods |
-| `permissive` | **Critical, High** | Safe built-ins + getters + user functions |
-| `disabled` | Nothing | Everything (not recommended) |
+| Level         | Asks Approval For               | Runs Automatically                        |
+| ------------- | ------------------------------- | ----------------------------------------- |
+| `strict`      | Critical, High, Medium, **Low** | Only safe built-ins                       |
+| `moderate` ⭐ | Critical, High, **Medium**      | Safe built-ins + getter methods           |
+| `permissive`  | **Critical, High**              | Safe built-ins + getters + user functions |
+| `disabled`    | Nothing                         | Everything (not recommended)              |
 
 See the [Expression Validation Levels](#expression-validation-levels) section for details on risk levels.
 
@@ -488,27 +493,31 @@ See the [Expression Validation Levels](#expression-validation-levels) section fo
 
 ### 1. Choose Your Automation Mode (VS Code Setting)
 
-| Mode | Setting | Who Controls Debugging? |
-|------|---------|------------------------|
+| Mode            | Setting                                            | Who Controls Debugging?                   |
+| --------------- | -------------------------------------------------- | ----------------------------------------- |
 | **Assisted** ⭐ | `"debugssy.automationLevel": "assisted"` (default) | You control via VS Code UI (F5, F10, F11) |
-| **Full** | `"debugssy.automationLevel": "full"` | AI controls everything automatically |
+| **Full**        | `"debugssy.automationLevel": "full"`               | AI controls everything automatically      |
 
 ### 2. Choose Your Allowlist Level (MCP Client Config)
 
 **What's your goal?**
+
 - Just understand bugs → **Level 1** (Read-only tools only)
 - Interactive debugging → **Level 2** (Add breakpoints + expressions)
 - Fully automated sessions → **Level 3** (Requires `full` mode + all tools)
 
 **How much control do you want?**
+
 - Full control (you click buttons) → **Level 1 or 2** with `assisted` mode
 - Let AI drive → **Level 3** with `full` mode
 
 **Is this production code?**
+
 - Yes → **Level 1 only** (safest, read-only)
 - No → **Any level** based on your comfort
 
 **How much do you trust your AI?**
+
 - Still learning → **Level 1** (read-only)
 - Trust for guided help → **Level 2** (breakpoints allowed)
 - Complete trust → **Level 3** (full automation)
@@ -548,4 +557,3 @@ See the [Expression Validation Levels](#expression-validation-levels) section fo
 Made with ❤️ for developers who want smarter workflows
 
 </div>
-

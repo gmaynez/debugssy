@@ -1,6 +1,6 @@
-export type RiskLevel = "critical" | "high" | "medium" | "low";
+export type RiskLevel = 'critical' | 'high' | 'medium' | 'low';
 
-export type ValidationLevel = "strict" | "moderate" | "permissive" | "disabled";
+export type ValidationLevel = 'strict' | 'moderate' | 'permissive' | 'disabled';
 
 export interface ValidationResult {
   allowed: boolean;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { MockUri, MockPosition, MockLocation } from "./vscode-mock";
+import { MockUri, MockPosition, MockLocation } from './vscode-mock';
 
 /**
  * Common test fixtures and helper functions
@@ -9,17 +9,14 @@ import { MockUri, MockPosition, MockLocation } from "./vscode-mock";
 /**
  * Creates a mock file path for testing
  */
-export function createTestFilePath(fileName: string = "test.js"): string {
+export function createTestFilePath(fileName: string = 'test.js'): string {
   return `/test/project/${fileName}`;
 }
 
 /**
  * Creates a mock breakpoint location
  */
-export function createBreakpointLocation(
-  filePath: string,
-  line: number,
-): MockLocation {
+export function createBreakpointLocation(filePath: string, line: number): MockLocation {
   const uri = MockUri.file(filePath);
   const position = new MockPosition(line - 1, 0);
   const range = new (class {
@@ -36,7 +33,7 @@ export function createMockStackFrame(
   id: number,
   name: string,
   filePath?: string,
-  line: number = 1,
+  line: number = 1
 ) {
   return {
     id,
@@ -44,7 +41,7 @@ export function createMockStackFrame(
     source: filePath
       ? {
           path: filePath,
-          name: filePath.split("/").pop(),
+          name: filePath.split('/').pop(),
         }
       : undefined,
     line,
@@ -59,7 +56,7 @@ export function createMockVariable(
   name: string,
   value: string,
   type?: string,
-  variablesReference: number = 0,
+  variablesReference: number = 0
 ) {
   return {
     name,
@@ -75,7 +72,7 @@ export function createMockVariable(
 export function createMockScope(
   name: string,
   variablesReference: number,
-  expensive: boolean = false,
+  expensive: boolean = false
 ) {
   return {
     name,
@@ -105,13 +102,13 @@ export function createMockRequest(
     headers?: Record<string, string>;
     body?: any;
     url?: string;
-  } = {},
+  } = {}
 ) {
   return {
-    method: options.method || "POST",
+    method: options.method || 'POST',
     headers: options.headers || {},
     body: options.body || {},
-    url: options.url || "/mcp",
+    url: options.url || '/mcp',
   } as any;
 }
 
@@ -150,10 +147,7 @@ export function createMockNext() {
 /**
  * Wait for a promise to resolve with timeout
  */
-export function waitFor(
-  condition: () => boolean,
-  timeout: number = 1000,
-): Promise<void> {
+export function waitFor(condition: () => boolean, timeout: number = 1000): Promise<void> {
   return new Promise((resolve, reject) => {
     const startTime = Date.now();
     const interval = setInterval(() => {
@@ -162,7 +156,7 @@ export function waitFor(
         resolve();
       } else if (Date.now() - startTime > timeout) {
         clearInterval(interval);
-        reject(new Error("Timeout waiting for condition"));
+        reject(new Error('Timeout waiting for condition'));
       }
     }, 10);
   });
@@ -178,22 +172,16 @@ export function sleep(ms: number): Promise<void> {
 /**
  * Assertion helper for checking if an object matches a pattern
  */
-export function assertMatches<T>(
-  actual: T,
-  expected: Partial<T>,
-  message?: string,
-) {
+export function assertMatches<T>(actual: T, expected: Partial<T>, message?: string) {
   const errors: string[] = [];
 
   for (const key in expected) {
     if (actual[key] !== expected[key]) {
-      errors.push(
-        `Expected ${String(key)} to be ${expected[key]}, but got ${actual[key]}`,
-      );
+      errors.push(`Expected ${String(key)} to be ${expected[key]}, but got ${actual[key]}`);
     }
   }
 
   if (errors.length > 0) {
-    throw new Error(`${message || "Assertion failed"}:\n${errors.join("\n")}`);
+    throw new Error(`${message || 'Assertion failed'}:\n${errors.join('\n')}`);
   }
 }

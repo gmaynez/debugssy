@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import * as vscode from "vscode";
+import * as vscode from 'vscode';
 
 export interface BreakpointResult {
   success: boolean;
@@ -29,17 +29,14 @@ export class BreakpointTools {
   }): Promise<BreakpointResult> {
     try {
       const uri = vscode.Uri.file(args.filePath);
-      const location = new vscode.Location(
-        uri,
-        new vscode.Position(args.line - 1, 0),
-      );
+      const location = new vscode.Location(uri, new vscode.Position(args.line - 1, 0));
 
       const breakpoint = new vscode.SourceBreakpoint(
         location,
         true, // enabled
         args.condition,
         args.hitCondition,
-        args.logMessage,
+        args.logMessage
       );
 
       vscode.debug.addBreakpoints([breakpoint]);
@@ -57,16 +54,12 @@ export class BreakpointTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
   }
 
-  async removeBreakpoint(args: {
-    filePath: string;
-    line: number;
-  }): Promise<BreakpointResult> {
+  async removeBreakpoint(args: { filePath: string; line: number }): Promise<BreakpointResult> {
     try {
       const uri = vscode.Uri.file(args.filePath);
       const breakpoints = vscode.debug.breakpoints;
@@ -74,8 +67,7 @@ export class BreakpointTools {
       const toRemove = breakpoints.filter((bp) => {
         if (bp instanceof vscode.SourceBreakpoint) {
           return (
-            bp.location.uri.fsPath === uri.fsPath &&
-            bp.location.range.start.line === args.line - 1
+            bp.location.uri.fsPath === uri.fsPath && bp.location.range.start.line === args.line - 1
           );
         }
         return false;
@@ -97,8 +89,7 @@ export class BreakpointTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
   }
@@ -134,16 +125,12 @@ export class BreakpointTools {
       return {
         success: false,
         breakpoints: [],
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
   }
 
-  async toggleBreakpoint(args: {
-    filePath: string;
-    line: number;
-  }): Promise<BreakpointResult> {
+  async toggleBreakpoint(args: { filePath: string; line: number }): Promise<BreakpointResult> {
     try {
       const uri = vscode.Uri.file(args.filePath);
       const breakpoints = vscode.debug.breakpoints;
@@ -151,8 +138,7 @@ export class BreakpointTools {
       const existing = breakpoints.find((bp) => {
         if (bp instanceof vscode.SourceBreakpoint) {
           return (
-            bp.location.uri.fsPath === uri.fsPath &&
-            bp.location.range.start.line === args.line - 1
+            bp.location.uri.fsPath === uri.fsPath && bp.location.range.start.line === args.line - 1
           );
         }
         return false;
@@ -160,16 +146,13 @@ export class BreakpointTools {
 
       if (existing) {
         // Toggle the enabled state
-        const location = new vscode.Location(
-          uri,
-          new vscode.Position(args.line - 1, 0),
-        );
+        const location = new vscode.Location(uri, new vscode.Position(args.line - 1, 0));
         const newBreakpoint = new vscode.SourceBreakpoint(
           location,
           !existing.enabled,
           existing.condition,
           existing.hitCondition,
-          existing.logMessage,
+          existing.logMessage
         );
 
         vscode.debug.removeBreakpoints([existing]);
@@ -177,7 +160,7 @@ export class BreakpointTools {
 
         return {
           success: true,
-          message: `Breakpoint ${!existing.enabled ? "enabled" : "disabled"} at ${args.filePath}:${args.line}`,
+          message: `Breakpoint ${!existing.enabled ? 'enabled' : 'disabled'} at ${args.filePath}:${args.line}`,
         };
       } else {
         return {
@@ -188,8 +171,7 @@ export class BreakpointTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
   }
@@ -206,8 +188,7 @@ export class BreakpointTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
   }

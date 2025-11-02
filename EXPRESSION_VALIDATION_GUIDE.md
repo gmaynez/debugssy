@@ -30,6 +30,7 @@ When an expression is submitted to `evaluate_expression`, it's automatically val
 **✅ Allowed automatically (safe operations):**
 
 **Basic Operations:**
+
 - Variable access: `x`, `myVariable`
 - Property access: `obj.prop`, `obj['key']`, `array[0]`
 - Arithmetic: `x + y`, `count * 2`
@@ -39,6 +40,7 @@ When an expression is submitted to `evaluate_expression`, it's automatically val
 - Literals: `123`, `"string"`, `true`, `null`
 
 **JavaScript/TypeScript - Whitelisted Safe Functions:**
+
 - **Array methods**: `filter()`, `map()`, `reduce()`, `find()`, `some()`, `every()`, `includes()`, `slice()`, `concat()`, `join()`, `flat()`, `flatMap()`, etc.
 - **String methods**: `toLowerCase()`, `toUpperCase()`, `trim()`, `split()`, `charAt()`, `substring()`, `includes()`, `startsWith()`, `endsWith()`, etc.
 - **Object utilities**: `Object.keys()`, `Object.values()`, `Object.entries()`, `Object.fromEntries()`, `Object.is()`, etc.
@@ -49,6 +51,7 @@ When an expression is submitted to `evaluate_expression`, it's automatically val
 - **Type checks**: `Array.isArray()`, `Number.isInteger()`, `Number.isNaN()`
 
 **Python - Whitelisted Safe Functions:**
+
 - **List methods**: `count()`, `index()`, `copy()`
 - **String methods**: `lower()`, `upper()`, `strip()`, `split()`, `join()`, `replace()`, `find()`, `startswith()`, `endswith()`, etc.
 - **Dict methods**: `get()`, `keys()`, `values()`, `items()`, `copy()`
@@ -58,13 +61,13 @@ When an expression is submitted to `evaluate_expression`, it's automatically val
 - **Math methods**: `math.sqrt()`, `math.ceil()`, `math.floor()`, etc. (all math module functions)
 
 **⚠️ Blocked (requires user approval):**
+
 - 🔴 **HIGH RISK**:
   - **Mutation methods**: `push()`, `pop()`, `splice()`, `sort()`, `reverse()` (JS), `append()`, `extend()`, `remove()` (Python)
   - **Assignment operators**: `x = 5`, `obj.prop = value`
   - **Compound assignments**: `x += 1`, `count *= 2`
   - **Increment/decrement**: `x++`, `--count`
   - **Code generation**: `eval()`, `Function()` (JS), `eval()`, `exec()` (Python)
-  
 - 🟡 **MEDIUM RISK**:
   - **User-defined functions**: `myFunction()`, `obj.customMethod()` (not in whitelist)
   - **Bitwise operators**: `x & y`, `flags | mask`
@@ -75,14 +78,17 @@ When an expression is submitted to `evaluate_expression`, it's automatically val
 Debugssy automatically detects your programming language and applies appropriate validation:
 
 **JavaScript/TypeScript**
+
 - Comprehensive whitelist of safe Array, String, Object, Math, and JSON methods
 - Blocks mutation methods and code execution (`eval()`, `Function()`)
 
 **Python**
+
 - Comprehensive whitelist of safe built-ins and standard library functions
 - Blocks mutation methods and code execution (`eval()`, `exec()`)
 
 **Other Languages** (Go, Java, C++, C#, Ruby, PHP, Rust, etc.)
+
 - Smart generic validation using common patterns
 - Many safe functions work across languages (filtering, mapping, serialization)
 
@@ -110,6 +116,7 @@ Do you want to evaluate this expression anyway?
 ```
 
 **User Actions:**
+
 - **Approve**: Expression is executed with a warning in the result
 - **Decline**: Expression is blocked with explanation
 - **Cancel**: Operation is cancelled
@@ -121,47 +128,54 @@ Do you want to evaluate this expression anyway?
 ### Settings
 
 **`debugssy.expressionValidationLevel`** (default: `moderate`)
+
 - Validation strictness level using threshold-based logic (like log levels)
 - Options: `strict`, `moderate`, `permissive`, `disabled`
 
 **`debugssy.maxExpressionLength`** (default: `100`, range: `20-400`)
+
 - Maximum expression length (secondary defense against prompt injection)
 - Validation happens first, then length check
 
 ### Validation Levels (Threshold-Based)
 
-| Level | CRITICAL | HIGH | MEDIUM | LOW | SAFE | Use Case |
-|-------|----------|------|--------|-----|------|----------|
-| **strict** | ⚠️ Elicit | ⚠️ Elicit | ⚠️ Elicit | ⚠️ Elicit | ✅ Allow | Maximum security, production |
-| **moderate** ⭐ | ⚠️ Elicit | ⚠️ Elicit | ⚠️ Elicit | ✅ Allow | ✅ Allow | **Recommended balance** |
-| **permissive** | ⚠️ Elicit | ⚠️ Elicit | ✅ Allow | ✅ Allow | ✅ Allow | Trusted env, active debugging |
-| **disabled** | ✅ Allow | ✅ Allow | ✅ Allow | ✅ Allow | ✅ Allow | No protection (not recommended) |
+| Level           | CRITICAL  | HIGH      | MEDIUM    | LOW       | SAFE     | Use Case                        |
+| --------------- | --------- | --------- | --------- | --------- | -------- | ------------------------------- |
+| **strict**      | ⚠️ Elicit | ⚠️ Elicit | ⚠️ Elicit | ⚠️ Elicit | ✅ Allow | Maximum security, production    |
+| **moderate** ⭐ | ⚠️ Elicit | ⚠️ Elicit | ⚠️ Elicit | ✅ Allow  | ✅ Allow | **Recommended balance**         |
+| **permissive**  | ⚠️ Elicit | ⚠️ Elicit | ✅ Allow  | ✅ Allow  | ✅ Allow | Trusted env, active debugging   |
+| **disabled**    | ✅ Allow  | ✅ Allow  | ✅ Allow  | ✅ Allow  | ✅ Allow | No protection (not recommended) |
 
 ### Risk Levels
 
 **🔴 CRITICAL - System Operations**
+
 - File system: `fs.unlinkSync()`, `fs.writeFile()`
 - Process execution: `child_process.exec()`, `process.exit()`
 - Network: `fetch()`, `axios.post()`
 - Impact: Can damage system, delete files, run commands
 
 **🟡 HIGH - State Mutations**
+
 - Array mutations: `push()`, `splice()`, `sort()`
 - Assignments: `x = 5`, `obj.prop = value`
 - Code execution: `eval()`, `exec()`
 - Impact: Changes application state
 
 **🟠 MEDIUM - Unknown Functions**
+
 - User-defined functions: `calculateTotal()`, `processData()`
 - Custom methods: `obj.customMethod()`
 - Impact: Uncertain, potentially side effects
 
 **🟢 LOW - Getter Patterns**
+
 - Getter methods: `getName()`, `isValid()`, `hasProperty()`
 - Read-only operations: `getCompletionRate()`, `canAccess()`
 - Impact: Likely safe, minimal side effects
 
 **✅ SAFE - Whitelisted**
+
 - Built-in functions: `filter()`, `map()`, `Object.keys()`
 - Math operations: `Math.floor()`, `Math.max()`
 - Impact: Proven safe, no side effects
@@ -169,39 +183,47 @@ Do you want to evaluate this expression anyway?
 ### Recommended Configurations
 
 **Strict (Maximum Security):**
+
 ```json
 {
   "debugssy.expressionValidationLevel": "strict",
   "debugssy.maxExpressionLength": 100
 }
 ```
+
 Use for: Production debugging, untrusted AI workflows
 
 **Moderate (Recommended Default):**
+
 ```json
 {
   "debugssy.expressionValidationLevel": "moderate",
   "debugssy.maxExpressionLength": 100
 }
 ```
+
 Use for: Most debugging scenarios, balanced security/convenience
 
 **Permissive (Minimal Security):**
+
 ```json
 {
   "debugssy.expressionValidationLevel": "permissive",
   "debugssy.maxExpressionLength": 200
 }
 ```
+
 Use for: Trusted environments, rapid debugging sessions
 
 **Disabled (No Security):**
+
 ```json
 {
   "debugssy.expressionValidationLevel": "disabled",
   "debugssy.maxExpressionLength": 200
 }
 ```
+
 Use for: Fully trusted AI, maximum automation (⚠️ not recommended)
 
 ---
@@ -211,8 +233,9 @@ Use for: Fully trusted AI, maximum automation (⚠️ not recommended)
 ### Example 1: Safe Property Access (Auto-Allowed)
 
 **Input:**
+
 ```javascript
-user.name
+user.name;
 ```
 
 **Result:** ✅ Executes immediately without user prompt
@@ -222,8 +245,9 @@ user.name
 ### Example 2: Safe Built-in Function (Auto-Allowed)
 
 **Input:**
+
 ```javascript
-items.filter(x => x.active)
+items.filter((x) => x.active);
 ```
 
 **Result:** ✅ Executes immediately - `filter()` is whitelisted as safe
@@ -233,8 +257,9 @@ items.filter(x => x.active)
 ### Example 3: Safe Object Utility (Auto-Allowed)
 
 **Input:**
+
 ```javascript
-Object.keys(user)
+Object.keys(user);
 ```
 
 **Result:** ✅ Executes immediately - `Object.keys()` is whitelisted as safe
@@ -244,8 +269,9 @@ Object.keys(user)
 ### Example 4: Safe JSON Serialization (Auto-Allowed)
 
 **Input:**
+
 ```javascript
-JSON.stringify(data)
+JSON.stringify(data);
 ```
 
 **Result:** ✅ Executes immediately - `JSON.stringify()` is whitelisted as safe
@@ -255,13 +281,15 @@ JSON.stringify(data)
 ### Example 5: Mutation Method (User Approval Required)
 
 **Input:**
+
 ```javascript
-items.push(newItem)
+items.push(newItem);
 ```
 
 **Result:** ⚠️ Validation fails → User sees elicitation prompt → User decides
 
 **If approved:**
+
 ```json
 {
   "success": true,
@@ -275,6 +303,7 @@ items.push(newItem)
 ```
 
 **If declined:**
+
 ```json
 {
   "success": false,
@@ -287,6 +316,7 @@ items.push(newItem)
 ### Example 6: Complex Safe Expression with Functions
 
 **Input:**
+
 ```python
 len([x for x in items if x > 10])
 ```
@@ -298,8 +328,9 @@ len([x for x in items if x > 10])
 ### Example 7: User-Defined Function (User Approval Required)
 
 **Input:**
+
 ```javascript
-calculateTotal()
+calculateTotal();
 ```
 
 **Result:** ⚠️ User approval required - not a whitelisted built-in function
@@ -309,8 +340,9 @@ calculateTotal()
 ### Example 8: Assignment (Blocked)
 
 **Input:**
+
 ```javascript
-count = 0
+count = 0;
 ```
 
 **Result:** ⚠️ User approval required (assignment operator)
@@ -322,6 +354,7 @@ count = 0
 ### What if my safe function isn't whitelisted?
 
 User-defined functions aren't automatically allowed for security. You can:
+
 1. **Approve via prompt**: Click "Approve" when the AI asks to use it
 2. **Lower validation level**: Set to `permissive` in settings to allow more functions
 3. **Disable validation**: Set to `disabled` for fully trusted environments (not recommended)
@@ -341,14 +374,16 @@ Yes! Debugssy validates expressions for JavaScript, TypeScript, Python, Go, Java
 ### Changing Validation Level
 
 **VS Code Settings UI:**
+
 1. Open Settings (`Ctrl+,` / `Cmd+,`)
 2. Search for "debugssy expression"
 3. Select your preferred validation level
 
 **settings.json:**
+
 ```json
 {
-  "debugssy.expressionValidationLevel": "moderate"  // strict, moderate, permissive, or disabled
+  "debugssy.expressionValidationLevel": "moderate" // strict, moderate, permissive, or disabled
 }
 ```
 
@@ -356,12 +391,12 @@ Yes! Debugssy validates expressions for JavaScript, TypeScript, Python, Go, Java
 
 Start a debug session and ask your AI to evaluate expressions:
 
-| Expression | Expected Behavior |
-|------------|-------------------|
-| `user.name` | ✅ Runs immediately (safe property access) |
+| Expression          | Expected Behavior                          |
+| ------------------- | ------------------------------------------ |
+| `user.name`         | ✅ Runs immediately (safe property access) |
 | `Object.keys(data)` | ✅ Runs immediately (whitelisted function) |
-| `items.push(x)` | ⚠️ Asks approval (mutation method) |
-| `x = 5` | ⚠️ Asks approval (assignment operator) |
+| `items.push(x)`     | ⚠️ Asks approval (mutation method)         |
+| `x = 5`             | ⚠️ Asks approval (assignment operator)     |
 
 ---
 
@@ -370,4 +405,3 @@ Start a debug session and ask your AI to evaluate expressions:
 - [ALLOWLIST_GUIDE.md](./ALLOWLIST_GUIDE.md) - MCP client allowlist configuration
 - [MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md) - Security implementation details
 - [README.md](./README.md) - Complete tool documentation
-

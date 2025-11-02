@@ -1,37 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import * as vscode from "vscode";
-import { Logger } from "../utils/Logger";
-import { MUTATION_METHODS } from "./expression/mutationMethods";
+import * as vscode from 'vscode';
+import { Logger } from '../utils/Logger';
+import { MUTATION_METHODS } from './expression/mutationMethods';
 import {
   JS_SAFE_METHODS,
   JS_SAFE_STATIC_FUNCTIONS,
   PYTHON_SAFE_METHODS,
   PYTHON_SAFE_STATIC_FUNCTIONS,
-} from "./expression/safeLists";
-import type {
-  RiskLevel,
-  ValidationLevel,
-  ValidationResult,
-} from "./expression/types";
-import {
-  detectJavaScriptCritical,
-  validateJavaScript,
-} from "./expression/validators/javascript";
-import {
-  detectPythonCritical,
-  validatePython,
-} from "./expression/validators/python";
-import {
-  detectCSharpCritical,
-  validateCSharp,
-} from "./expression/validators/csharp";
-import { detectJavaCritical, validateJava } from "./expression/validators/java";
-import { detectCppCritical, validateCpp } from "./expression/validators/cpp";
-import { detectGoCritical, validateGo } from "./expression/validators/go";
-import { detectRustCritical, validateRust } from "./expression/validators/rust";
-import { detectRubyCritical, validateRuby } from "./expression/validators/ruby";
-import { detectPHPCritical, validatePHP } from "./expression/validators/php";
+} from './expression/safeLists';
+import type { RiskLevel, ValidationLevel, ValidationResult } from './expression/types';
+import { detectJavaScriptCritical, validateJavaScript } from './expression/validators/javascript';
+import { detectPythonCritical, validatePython } from './expression/validators/python';
+import { detectCSharpCritical, validateCSharp } from './expression/validators/csharp';
+import { detectJavaCritical, validateJava } from './expression/validators/java';
+import { detectCppCritical, validateCpp } from './expression/validators/cpp';
+import { detectGoCritical, validateGo } from './expression/validators/go';
+import { detectRustCritical, validateRust } from './expression/validators/rust';
+import { detectRubyCritical, validateRuby } from './expression/validators/ruby';
+import { detectPHPCritical, validatePHP } from './expression/validators/php';
 
 export type { RiskLevel, ValidationLevel, ValidationResult };
 
@@ -78,10 +65,7 @@ export class ExpressionValidator {
     // Pre-compile all mutation regex patterns to avoid repeated compilation
     this.mutationRegexCache = new Map();
     for (const method of MUTATION_METHODS) {
-      this.mutationRegexCache.set(
-        method,
-        new RegExp(`(?:\\.|\\?\\.)${method}\\s*\\(`, "i"),
-      );
+      this.mutationRegexCache.set(method, new RegExp(`(?:\\.|\\?\\.)${method}\\s*\\(`, 'i'));
     }
 
     // Initialize language cache
@@ -89,11 +73,10 @@ export class ExpressionValidator {
 
     // Listen for debug session termination to clear cache entries
     // Store the disposable for proper cleanup when validator is disposed
-    if (typeof vscode !== "undefined") {
-      this.sessionTerminationDisposable =
-        vscode.debug.onDidTerminateDebugSession((session) => {
-          this.languageCache.delete(session.id);
-        });
+    if (typeof vscode !== 'undefined') {
+      this.sessionTerminationDisposable = vscode.debug.onDidTerminateDebugSession((session) => {
+        this.languageCache.delete(session.id);
+      });
     }
   }
 
@@ -116,15 +99,12 @@ export class ExpressionValidator {
    * 3. MEDIUM - Unknown functions (user-defined)
    * 4. LOW - Getter patterns (likely safe)
    */
-  validateExpression(
-    expression: string,
-    session?: vscode.DebugSession,
-  ): ValidationResult {
+  validateExpression(expression: string, session?: vscode.DebugSession): ValidationResult {
     // Trim whitespace for consistent validation
     const trimmed = expression.trim();
 
     if (!trimmed) {
-      return { allowed: false, reason: "Empty expression", riskLevel: "low" };
+      return { allowed: false, reason: 'Empty expression', riskLevel: 'low' };
     }
 
     // Detect language once if session is provided to optimize subsequent checks
@@ -153,11 +133,8 @@ export class ExpressionValidator {
    * Determines if we should elicit user approval based on risk level and validation level.
    * Uses threshold-based logic like log levels.
    */
-  shouldElicit(
-    riskLevel: RiskLevel | undefined,
-    validationLevel: ValidationLevel,
-  ): boolean {
-    if (validationLevel === "disabled") {
+  shouldElicit(riskLevel: RiskLevel | undefined, validationLevel: ValidationLevel): boolean {
+    if (validationLevel === 'disabled') {
       return false;
     }
     if (!riskLevel) {
@@ -166,9 +143,9 @@ export class ExpressionValidator {
 
     // Map validation levels to minimum risk thresholds
     const thresholds: Record<ValidationLevel, RiskLevel[]> = {
-      strict: ["critical", "high", "medium", "low"], // Elicit for all risks
-      moderate: ["critical", "high", "medium"], // Elicit for CRITICAL + HIGH + MEDIUM
-      permissive: ["critical", "high"], // Elicit for CRITICAL + HIGH only
+      strict: ['critical', 'high', 'medium', 'low'], // Elicit for all risks
+      moderate: ['critical', 'high', 'medium'], // Elicit for CRITICAL + HIGH + MEDIUM
+      permissive: ['critical', 'high'], // Elicit for CRITICAL + HIGH only
       disabled: [], // Never elicit
     };
 
@@ -181,32 +158,29 @@ export class ExpressionValidator {
    * @param _expression - The expression being validated (shown by MCP client in parameters, unused here)
    * @param result - The validation result containing risk level and reason
    */
-  formatElicitationMessage(
-    _expression: string,
-    result: ValidationResult,
-  ): string {
+  formatElicitationMessage(_expression: string, result: ValidationResult): string {
     // Expression is shown in the MCP client's parameter display, so we don't repeat it in the message
     const { riskLevel, reason } = result;
 
     switch (riskLevel) {
-      case "critical":
+      case 'critical':
         return `🔴 CRITICAL: ${reason}.
 
 This operation can modify files, execute processes, or make network requests.
 
 Only proceed if you fully understand the consequences.`;
 
-      case "high":
+      case 'high':
         return `⚠️ ${reason}.
 
 This will modify your application's state during debugging. Changes may cause unexpected behavior or mask bugs.`;
 
-      case "medium":
+      case 'medium':
         return `⚠️ ${reason}.
 
 This function could modify state, trigger side effects, or perform unexpected operations. Safe built-in functions (Array.map, Object.keys, JSON.stringify) are allowed automatically.`;
 
-      case "low":
+      case 'low':
       default:
         return `ℹ️ ${reason}.
 
@@ -221,30 +195,27 @@ Getter methods are typically safe, but custom getters may include logging or sta
    * If language is known, only checks language-specific patterns for efficiency.
    * Otherwise, checks all patterns as a safety measure for unknown languages.
    */
-  private detectCriticalOperations(
-    expression: string,
-    language?: string,
-  ): ValidationResult | null {
+  private detectCriticalOperations(expression: string, language?: string): ValidationResult | null {
     // If language is known, only check language-specific critical operations
     if (language) {
       switch (language) {
-        case "javascript":
+        case 'javascript':
           return detectJavaScriptCritical(expression);
-        case "python":
+        case 'python':
           return detectPythonCritical(expression);
-        case "cpp":
+        case 'cpp':
           return detectCppCritical(expression);
-        case "csharp":
+        case 'csharp':
           return detectCSharpCritical(expression);
-        case "java":
+        case 'java':
           return detectJavaCritical(expression);
-        case "go":
+        case 'go':
           return detectGoCritical(expression);
-        case "rust":
+        case 'rust':
           return detectRustCritical(expression);
-        case "ruby":
+        case 'ruby':
           return detectRubyCritical(expression);
-        case "php":
+        case 'php':
           return detectPHPCritical(expression);
         default:
           // For unknown languages, check all patterns as a safety measure
@@ -293,62 +264,53 @@ Getter methods are typically safe, but custom getters may include logging or sta
     // Common debug adapter types
     // JavaScript/TypeScript family
     if (
-      type === "node" ||
-      type === "chrome" ||
-      type === "pwa-node" ||
-      type === "pwa-chrome" ||
-      type === "node2" ||
-      type === "extensionhost" ||
-      type === "pwa-extensionhost" ||
-      type === "msedge" ||
-      type === "pwa-msedge" ||
-      type === "webkit"
+      type === 'node' ||
+      type === 'chrome' ||
+      type === 'pwa-node' ||
+      type === 'pwa-chrome' ||
+      type === 'node2' ||
+      type === 'extensionhost' ||
+      type === 'pwa-extensionhost' ||
+      type === 'msedge' ||
+      type === 'pwa-msedge' ||
+      type === 'webkit'
     ) {
-      language = "javascript";
+      language = 'javascript';
     }
     // Python family
-    else if (
-      type === "python" ||
-      type === "debugpy" ||
-      type === "pythonexperimental"
-    ) {
-      language = "python";
+    else if (type === 'python' || type === 'debugpy' || type === 'pythonexperimental') {
+      language = 'python';
     }
     // Go
-    else if (type === "go" || type === "dlv" || type === "go-debug") {
-      language = "go";
+    else if (type === 'go' || type === 'dlv' || type === 'go-debug') {
+      language = 'go';
     }
     // Java family
-    else if (type === "java" || type === "javadebug") {
-      language = "java";
+    else if (type === 'java' || type === 'javadebug') {
+      language = 'java';
     }
     // Rust (check before C++ since lldb is ambiguous)
-    else if (type === "rust" || type === "rust-lldb") {
-      language = "rust";
+    else if (type === 'rust' || type === 'rust-lldb') {
+      language = 'rust';
     }
     // C/C++ family (includes lldb which could be Rust, but Rust-specific is checked above)
-    else if (
-      type === "cppdbg" ||
-      type === "lldb" ||
-      type === "gdb" ||
-      type === "cppvsdbg"
-    ) {
-      language = "cpp";
+    else if (type === 'cppdbg' || type === 'lldb' || type === 'gdb' || type === 'cppvsdbg') {
+      language = 'cpp';
     }
     // C# family
-    else if (type === "coreclr" || type === "clr" || type === "dotnet") {
-      language = "csharp";
+    else if (type === 'coreclr' || type === 'clr' || type === 'dotnet') {
+      language = 'csharp';
     }
     // Ruby
-    else if (type === "ruby" || type === "rdbg") {
-      language = "ruby";
+    else if (type === 'ruby' || type === 'rdbg') {
+      language = 'ruby';
     }
     // PHP
-    else if (type === "php" || type === "php-debug") {
-      language = "php";
+    else if (type === 'php' || type === 'php-debug') {
+      language = 'php';
     } else {
       this.logger.debug(
-        `Unknown debug session type: ${type}, using generic validation with whitelists`,
+        `Unknown debug session type: ${type}, using generic validation with whitelists`
       );
       language = type;
     }
@@ -362,69 +324,66 @@ Getter methods are typically safe, but custom getters may include logging or sta
    * Apply language-specific validation rules if available.
    * Returns null if no specific rules apply, falling back to generic validation.
    */
-  private validateByLanguage(
-    expression: string,
-    language: string,
-  ): ValidationResult | null {
+  private validateByLanguage(expression: string, language: string): ValidationResult | null {
     switch (language) {
-      case "javascript":
+      case 'javascript':
         return validateJavaScript(
           expression,
           this.checkMutationMethods.bind(this),
           this.checkAgainstWhitelists.bind(this),
-          this.extractFunctionCalls.bind(this),
+          this.extractFunctionCalls.bind(this)
         );
-      case "python":
+      case 'python':
         return validatePython(
           expression,
           this.checkMutationMethods.bind(this),
           this.checkAgainstWhitelists.bind(this),
-          this.extractFunctionCalls.bind(this),
+          this.extractFunctionCalls.bind(this)
         );
-      case "csharp":
+      case 'csharp':
         return validateCSharp(
           expression,
           this.checkMutationMethods.bind(this),
           this.checkAgainstWhitelists.bind(this),
-          this.extractFunctionCalls.bind(this),
+          this.extractFunctionCalls.bind(this)
         );
-      case "java":
+      case 'java':
         return validateJava(
           expression,
           this.checkMutationMethods.bind(this),
           this.checkAgainstWhitelists.bind(this),
-          this.extractFunctionCalls.bind(this),
+          this.extractFunctionCalls.bind(this)
         );
-      case "cpp":
+      case 'cpp':
         return validateCpp(
           expression,
           this.checkAgainstWhitelists.bind(this),
-          this.extractFunctionCalls.bind(this),
+          this.extractFunctionCalls.bind(this)
         );
-      case "go":
+      case 'go':
         return validateGo(
           expression,
           this.checkAgainstWhitelists.bind(this),
-          this.extractFunctionCalls.bind(this),
+          this.extractFunctionCalls.bind(this)
         );
-      case "rust":
+      case 'rust':
         return validateRust(
           expression,
           this.checkAgainstWhitelists.bind(this),
-          this.extractFunctionCalls.bind(this),
+          this.extractFunctionCalls.bind(this)
         );
-      case "ruby":
+      case 'ruby':
         return validateRuby(
           expression,
           this.checkMutationMethods.bind(this),
           this.checkAgainstWhitelists.bind(this),
-          this.extractFunctionCalls.bind(this),
+          this.extractFunctionCalls.bind(this)
         );
-      case "php":
+      case 'php':
         return validatePHP(
           expression,
           this.checkAgainstWhitelists.bind(this),
-          this.extractFunctionCalls.bind(this),
+          this.extractFunctionCalls.bind(this)
         );
       default:
         // No specific rules for this language
@@ -439,7 +398,7 @@ Getter methods are typically safe, but custom getters may include logging or sta
    */
   private checkMutationMethods(
     expression: string,
-    mutationMethods: string[],
+    mutationMethods: string[]
   ): ValidationResult | null {
     for (const method of mutationMethods) {
       const regex = this.mutationRegexCache.get(method);
@@ -447,7 +406,7 @@ Getter methods are typically safe, but custom getters may include logging or sta
         return {
           allowed: false,
           reason: `State Mutation: ${method}() modifies data`,
-          riskLevel: "high",
+          riskLevel: 'high',
         };
       }
     }
@@ -461,15 +420,15 @@ Getter methods are typically safe, but custom getters may include logging or sta
   private checkAgainstWhitelists(
     calls: string[],
     staticWhitelist: Set<string>,
-    methodWhitelist: Set<string>,
+    methodWhitelist: Set<string>
   ): ValidationResult | null {
     for (const call of calls) {
       // Check for suspicious bracket notation marker
-      if (call === "__SUSPICIOUS_BRACKET_NOTATION__") {
+      if (call === '__SUSPICIOUS_BRACKET_NOTATION__') {
         return {
           allowed: false,
-          reason: "Suspicious Pattern: bracket notation with expressions",
-          riskLevel: "high",
+          reason: 'Suspicious Pattern: bracket notation with expressions',
+          riskLevel: 'high',
         };
       }
 
@@ -479,7 +438,7 @@ Getter methods are typically safe, but custom getters may include logging or sta
       }
 
       // Check if it's a whitelisted method
-      const methodName = call.split(".").pop() || call;
+      const methodName = call.split('.').pop() || call;
       if (methodWhitelist.has(methodName)) {
         continue;
       }
@@ -489,7 +448,7 @@ Getter methods are typically safe, but custom getters may include logging or sta
         return {
           allowed: false,
           reason: `Getter Method: ${call}()`,
-          riskLevel: "low",
+          riskLevel: 'low',
         };
       }
 
@@ -497,7 +456,7 @@ Getter methods are typically safe, but custom getters may include logging or sta
       return {
         allowed: false,
         reason: `User-Defined Function: ${call}()`,
-        riskLevel: "medium",
+        riskLevel: 'medium',
       };
     }
     return null;
@@ -538,20 +497,20 @@ Getter methods are typically safe, but custom getters may include logging or sta
     // Pattern 1: Any + operator inside brackets (string concatenation)
     // Matches: ['a' + 'b'], ["x" + "y"], [a + b], ['del' + 'ete' + 'Task']
     if (/\[[^\]]*\+[^\]]*\]\s*\(/.test(expression)) {
-      calls.push("__SUSPICIOUS_BRACKET_NOTATION__");
+      calls.push('__SUSPICIOUS_BRACKET_NOTATION__');
     }
 
     // Pattern 2: Template literals inside brackets
     // Matches: [`methodName`], [delete${x}]
     else if (/\[[^\]]*`[^\]]*\]\s*\(/.test(expression)) {
-      calls.push("__SUSPICIOUS_BRACKET_NOTATION__");
+      calls.push('__SUSPICIOUS_BRACKET_NOTATION__');
     }
 
     // Pattern 3: Unquoted identifiers (variables) inside brackets
     // Matches: [variableName](, [x](, but NOT ['string'](
     // Look for brackets containing identifiers without surrounding quotes
     else if (/\[\s*[a-zA-Z_$][\w$]*\s*\]\s*\(/.test(expression)) {
-      calls.push("__SUSPICIOUS_BRACKET_NOTATION__");
+      calls.push('__SUSPICIOUS_BRACKET_NOTATION__');
     }
 
     // Pattern 4: Character escape sequences (hex, unicode, octal) inside brackets
@@ -559,10 +518,10 @@ Getter methods are typically safe, but custom getters may include logging or sta
     // These are evaluated by JS before validation, used to obfuscate method names
     else if (
       /\[[^\]]*\\(?:x[0-9a-fA-F]{1,2}|u[0-9a-fA-F]{4}|u\{[0-9a-fA-F]+\}|[0-7]{1,3})[^\]]*\]\s*\(/.test(
-        expression,
+        expression
       )
     ) {
-      calls.push("__SUSPICIOUS_BRACKET_NOTATION__");
+      calls.push('__SUSPICIOUS_BRACKET_NOTATION__');
     }
 
     return calls;
@@ -579,8 +538,8 @@ Getter methods are typically safe, but custom getters may include logging or sta
     if (/(?<![=!<>])=(?!=)/.test(expression)) {
       return {
         allowed: false,
-        reason: "State Mutation: assignment modifies variables",
-        riskLevel: "high",
+        reason: 'State Mutation: assignment modifies variables',
+        riskLevel: 'high',
       };
     }
 
@@ -588,8 +547,8 @@ Getter methods are typically safe, but custom getters may include logging or sta
     if (/(\+=|-=|\*=|\/=|%=|&=|\|=|\^=|<<=|>>=)/.test(expression)) {
       return {
         allowed: false,
-        reason: "State Mutation: compound assignment modifies variables",
-        riskLevel: "high",
+        reason: 'State Mutation: compound assignment modifies variables',
+        riskLevel: 'high',
       };
     }
 
@@ -597,8 +556,8 @@ Getter methods are typically safe, but custom getters may include logging or sta
     if (/(\+\+|--)/.test(expression)) {
       return {
         allowed: false,
-        reason: "State Mutation: increment/decrement modifies variables",
-        riskLevel: "high",
+        reason: 'State Mutation: increment/decrement modifies variables',
+        riskLevel: 'high',
       };
     }
 
@@ -617,16 +576,13 @@ Getter methods are typically safe, but custom getters may include logging or sta
 
         // Check JavaScript methods (filter, map, etc.)
         // Many languages have similar collection methods
-        const methodName = call.split(".").pop() || call;
+        const methodName = call.split('.').pop() || call;
         if (this.jsSafeFunctions.has(methodName)) {
           continue; // This call is safe
         }
 
         // Also check Python built-ins as they're common debugging functions
-        if (
-          this.pythonSafeFunctions.has(methodName) ||
-          this.pythonSafeStaticFunctions.has(call)
-        ) {
+        if (this.pythonSafeFunctions.has(methodName) || this.pythonSafeStaticFunctions.has(call)) {
           continue; // This call is safe
         }
 
@@ -635,7 +591,7 @@ Getter methods are typically safe, but custom getters may include logging or sta
           return {
             allowed: false,
             reason: `Getter Method: ${call}()`,
-            riskLevel: "low",
+            riskLevel: 'low',
           };
         }
 
@@ -643,7 +599,7 @@ Getter methods are typically safe, but custom getters may include logging or sta
         return {
           allowed: false,
           reason: `User-Defined Function: ${call}()`,
-          riskLevel: "medium",
+          riskLevel: 'medium',
         };
       }
 
@@ -655,8 +611,8 @@ Getter methods are typically safe, but custom getters may include logging or sta
     if (/[&|^~](?![&|])/.test(expression) || /(<<|>>)/.test(expression)) {
       return {
         allowed: false,
-        reason: "Unusual Pattern: bitwise operators (rare in debugging)",
-        riskLevel: "medium",
+        reason: 'Unusual Pattern: bitwise operators (rare in debugging)',
+        riskLevel: 'medium',
       };
     }
 
@@ -665,8 +621,8 @@ Getter methods are typically safe, but custom getters may include logging or sta
     if (/(=>|->|\blambda\b|\bfunc\b)/.test(expression)) {
       return {
         allowed: false,
-        reason: "Anonymous Function: potential side effects",
-        riskLevel: "medium",
+        reason: 'Anonymous Function: potential side effects',
+        riskLevel: 'medium',
       };
     }
 
@@ -692,18 +648,18 @@ Getter methods are typically safe, but custom getters may include logging or sta
 
     // Common getter prefixes
     if (
-      name.startsWith("get") ||
-      name.startsWith("is") ||
-      name.startsWith("has") ||
-      name.startsWith("should") ||
-      name.startsWith("can") ||
-      name.startsWith("to")
+      name.startsWith('get') ||
+      name.startsWith('is') ||
+      name.startsWith('has') ||
+      name.startsWith('should') ||
+      name.startsWith('can') ||
+      name.startsWith('to')
     ) {
       return true;
     }
 
     // Common read-only property-like methods
-    if (name === "length" || name === "size" || name === "count") {
+    if (name === 'length' || name === 'size' || name === 'count') {
       return true;
     }
 

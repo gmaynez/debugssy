@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import * as vscode from "vscode";
-import { ConfigManager } from "../Config";
+import * as vscode from 'vscode';
+import { ConfigManager } from '../Config';
 
 export interface DebugControlResult {
   success: boolean;
@@ -35,11 +35,11 @@ export class DebugControlTools {
     try {
       // Check automation level
       const automationLevel = this.configManager.getConfig().automationLevel;
-      if (automationLevel === "assisted") {
+      if (automationLevel === 'assisted') {
         return {
           success: false,
           error:
-            "Cannot start debugging in assisted mode. Please start debugging manually using VS Code UI, or switch to full automation mode.",
+            'Cannot start debugging in assisted mode. Please start debugging manually using VS Code UI, or switch to full automation mode.',
         };
       }
 
@@ -47,7 +47,7 @@ export class DebugControlTools {
       if (!workspaceFolders || workspaceFolders.length === 0) {
         return {
           success: false,
-          error: "No workspace folder open",
+          error: 'No workspace folder open',
         };
       }
 
@@ -56,15 +56,13 @@ export class DebugControlTools {
       if (!folder) {
         return {
           success: false,
-          error: "No workspace folder available",
+          error: 'No workspace folder available',
         };
       }
 
       if (args.workspaceFolder) {
         const found = workspaceFolders.find(
-          (f) =>
-            f.name === args.workspaceFolder ||
-            f.uri.fsPath === args.workspaceFolder,
+          (f) => f.name === args.workspaceFolder || f.uri.fsPath === args.workspaceFolder
         );
         if (found) {
           folder = found;
@@ -75,30 +73,27 @@ export class DebugControlTools {
       let config = args.configuration;
       if (!config && args.name) {
         const configs = vscode.workspace
-          .getConfiguration("launch", folder.uri)
-          .get<any[]>("configurations", []);
+          .getConfiguration('launch', folder.uri)
+          .get<any[]>('configurations', []);
         config = configs.find((c) => c.name === args.name);
       }
 
       if (!config) {
         return {
           success: false,
-          error: "No debug configuration provided or found",
+          error: 'No debug configuration provided or found',
         };
       }
 
       const success = await vscode.debug.startDebugging(folder, config);
       return {
         success,
-        message: success
-          ? "Debug session started"
-          : "Failed to start debug session",
+        message: success ? 'Debug session started' : 'Failed to start debug session',
       };
     } catch (error: unknown) {
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
   }
@@ -108,69 +103,68 @@ export class DebugControlTools {
       if (!this.activeSession) {
         return {
           success: false,
-          error: "No active debug session",
+          error: 'No active debug session',
         };
       }
 
       await vscode.debug.stopDebugging(this.activeSession);
       return {
         success: true,
-        message: "Debug session stopped",
+        message: 'Debug session stopped',
       };
     } catch (error: unknown) {
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
   }
 
   async continueExecution(): Promise<DebugControlResult> {
     return this.executeCommandWithAutomationCheck(
-      "workbench.action.debug.continue",
-      "Execution continued",
-      "Please click Continue in VS Code debugger UI when ready to proceed.",
+      'workbench.action.debug.continue',
+      'Execution continued',
+      'Please click Continue in VS Code debugger UI when ready to proceed.'
     );
   }
 
   async stepOver(): Promise<DebugControlResult> {
     return this.executeCommandWithAutomationCheck(
-      "workbench.action.debug.stepOver",
-      "Stepped over",
-      "Please click Step Over in VS Code debugger UI.",
+      'workbench.action.debug.stepOver',
+      'Stepped over',
+      'Please click Step Over in VS Code debugger UI.'
     );
   }
 
   async stepInto(): Promise<DebugControlResult> {
     return this.executeCommandWithAutomationCheck(
-      "workbench.action.debug.stepInto",
-      "Stepped into",
-      "Please click Step Into in VS Code debugger UI.",
+      'workbench.action.debug.stepInto',
+      'Stepped into',
+      'Please click Step Into in VS Code debugger UI.'
     );
   }
 
   async stepOut(): Promise<DebugControlResult> {
     return this.executeCommandWithAutomationCheck(
-      "workbench.action.debug.stepOut",
-      "Stepped out",
-      "Please click Step Out in VS Code debugger UI.",
+      'workbench.action.debug.stepOut',
+      'Stepped out',
+      'Please click Step Out in VS Code debugger UI.'
     );
   }
 
   async pause(): Promise<DebugControlResult> {
     return this.executeCommandWithAutomationCheck(
-      "workbench.action.debug.pause",
-      "Execution paused",
-      "Please click Pause in VS Code debugger UI.",
+      'workbench.action.debug.pause',
+      'Execution paused',
+      'Please click Pause in VS Code debugger UI.'
     );
   }
 
   async restart(): Promise<DebugControlResult> {
     return this.executeCommandWithAutomationCheck(
-      "workbench.action.debug.restart",
-      "Debug session restarted",
-      "Please click Restart in VS Code debugger UI.",
+      'workbench.action.debug.restart',
+      'Debug session restarted',
+      'Please click Restart in VS Code debugger UI.'
     );
   }
 
@@ -181,10 +175,10 @@ export class DebugControlTools {
   private async executeCommandWithAutomationCheck(
     command: string,
     successMessage: string,
-    assistedMessage: string,
+    assistedMessage: string
   ): Promise<DebugControlResult> {
     const automationLevel = this.configManager.getConfig().automationLevel;
-    if (automationLevel === "assisted") {
+    if (automationLevel === 'assisted') {
       return {
         success: true,
         message: `Assisted mode: ${assistedMessage}`,
@@ -195,13 +189,13 @@ export class DebugControlTools {
 
   private async executeCommand(
     command: string,
-    successMessage: string,
+    successMessage: string
   ): Promise<DebugControlResult> {
     try {
       if (!this.activeSession) {
         return {
           success: false,
-          error: "No active debug session",
+          error: 'No active debug session',
         };
       }
 
@@ -213,8 +207,7 @@ export class DebugControlTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
   }

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import * as vscode from "vscode";
-import { DAPClient } from "../dap/Client";
-import { ConfigManager } from "../Config";
+import * as vscode from 'vscode';
+import { DAPClient } from '../dap/Client';
+import { ConfigManager } from '../Config';
 import {
   DEFAULT_CONSOLE_OUTPUT_LIMIT,
   DEFAULT_MAX_STACK_DEPTH,
   MAX_CONSOLE_OUTPUT_LIMIT,
-} from "../constants";
+} from '../constants';
 
 export interface InspectionResult {
   success: boolean;
@@ -22,7 +22,7 @@ export interface InspectionResult {
 export class InspectionTools {
   constructor(
     private dapClient: DAPClient,
-    private configManager: ConfigManager,
+    private configManager: ConfigManager
   ) {}
 
   /**
@@ -43,7 +43,7 @@ export class InspectionTools {
           success: true,
           data: {
             hasActiveSession: false,
-            executionState: "not_started",
+            executionState: 'not_started',
           },
         };
       }
@@ -56,11 +56,10 @@ export class InspectionTools {
       };
 
       // If paused, include location and reason information
-      if (executionState === "paused" && stoppedInfo) {
+      if (executionState === 'paused' && stoppedInfo) {
         // Try to get current stack frame for location
         const stackFrames = await this.dapClient.getStackTrace(session);
-        const currentFrame =
-          stackFrames.length > 0 ? stackFrames[0] : undefined;
+        const currentFrame = stackFrames.length > 0 ? stackFrames[0] : undefined;
 
         result.stoppedInfo = {
           reason: stoppedInfo.reason,
@@ -78,10 +77,7 @@ export class InspectionTools {
           };
         }
 
-        if (
-          stoppedInfo.hitBreakpointIds &&
-          stoppedInfo.hitBreakpointIds.length > 0
-        ) {
+        if (stoppedInfo.hitBreakpointIds && stoppedInfo.hitBreakpointIds.length > 0) {
           result.stoppedInfo.hitBreakpointIds = stoppedInfo.hitBreakpointIds;
         }
       }
@@ -93,8 +89,7 @@ export class InspectionTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
   }
@@ -110,28 +105,26 @@ export class InspectionTools {
    */
   async waitForBreakpoint(args: {
     timeout?: number;
-    automationLevel: "assisted" | "full";
+    automationLevel: 'assisted' | 'full';
   }): Promise<InspectionResult> {
     try {
       // Check automation level
-      if (args.automationLevel !== "full") {
+      if (args.automationLevel !== 'full') {
         return {
           success: false,
-          error:
-            "wait_for_breakpoint is only available in full automation mode",
+          error: 'wait_for_breakpoint is only available in full automation mode',
         };
       }
 
       if (!vscode.debug.activeDebugSession) {
         return {
           success: false,
-          error: "No active debug session",
+          error: 'No active debug session',
         };
       }
 
       // Use provided timeout, fallback to config, then default
-      const defaultTimeout =
-        this.configManager.getConfig().waitForBreakpointTimeout;
+      const defaultTimeout = this.configManager.getConfig().waitForBreakpointTimeout;
       const timeout = args.timeout || defaultTimeout;
 
       // CRITICAL: Avoid race condition by setting up listener BEFORE checking state
@@ -143,7 +136,7 @@ export class InspectionTools {
         // Set up event listener first
         const eventPromise = new Promise<InspectionResult>((resolve) => {
           disposable = this.dapClient.onStateChange((state) => {
-            if (state === "paused") {
+            if (state === 'paused') {
               // Get the current state info
               this.getDebugState().then(resolve);
             }
@@ -153,7 +146,7 @@ export class InspectionTools {
         // Now check current state - if already paused, resolve immediately
         // If state changed after listener setup, the event will still fire
         const currentState = this.dapClient.getExecutionState();
-        if (currentState === "paused") {
+        if (currentState === 'paused') {
           // Already paused - return immediately without waiting for events
           stateCheckPromise = this.getDebugState();
         } else {
@@ -166,13 +159,8 @@ export class InspectionTools {
           stateCheckPromise,
           new Promise<InspectionResult>((_, reject) => {
             setTimeout(
-              () =>
-                reject(
-                  new Error(
-                    `Timeout waiting for breakpoint after ${timeout}ms`,
-                  ),
-                ),
-              timeout,
+              () => reject(new Error(`Timeout waiting for breakpoint after ${timeout}ms`)),
+              timeout
             );
           }),
         ]);
@@ -187,8 +175,7 @@ export class InspectionTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
   }
@@ -202,16 +189,13 @@ export class InspectionTools {
    * @param args.frameId - Stack frame ID (defaults to current frame)
    * @returns InspectionResult with variables grouped by scope
    */
-  async getVariables(args: {
-    scope?: string;
-    frameId?: number;
-  }): Promise<InspectionResult> {
+  async getVariables(args: { scope?: string; frameId?: number }): Promise<InspectionResult> {
     try {
       const session = vscode.debug.activeDebugSession;
       if (!session) {
         return {
           success: false,
-          error: "No active debug session",
+          error: 'No active debug session',
         };
       }
 
@@ -220,12 +204,11 @@ export class InspectionTools {
       if (stackFrames.length === 0 || !stackFrames[0]) {
         return {
           success: false,
-          error: "No stack frames available",
+          error: 'No stack frames available',
         };
       }
 
-      const frameId =
-        args.frameId !== undefined ? args.frameId : stackFrames[0].id;
+      const frameId = args.frameId !== undefined ? args.frameId : stackFrames[0].id;
 
       // Get scopes for the frame
       const scopes = await this.dapClient.getScopes(session, frameId);
@@ -238,17 +221,11 @@ export class InspectionTools {
       // Get variables for each scope
       for (const scope of scopes) {
         // Filter by scope if specified - use startsWith to match "Local: functionName" with "Local"
-        if (
-          args.scope &&
-          !scope.name.toLowerCase().startsWith(args.scope.toLowerCase())
-        ) {
+        if (args.scope && !scope.name.toLowerCase().startsWith(args.scope.toLowerCase())) {
           continue;
         }
 
-        const variables = await this.dapClient.getVariables(
-          session,
-          scope.variablesReference,
-        );
+        const variables = await this.dapClient.getVariables(session, scope.variablesReference);
         result.scopes.push({
           name: scope.name,
           variables: variables.map((v) => ({
@@ -266,8 +243,7 @@ export class InspectionTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
   }
@@ -286,7 +262,7 @@ export class InspectionTools {
       if (!session) {
         return {
           success: false,
-          error: "No active debug session",
+          error: 'No active debug session',
         };
       }
 
@@ -302,7 +278,7 @@ export class InspectionTools {
           frames: limitedFrames.map((frame) => ({
             id: frame.id,
             name: frame.name,
-            source: frame.source?.path || frame.source?.name || "unknown",
+            source: frame.source?.path || frame.source?.name || 'unknown',
             line: frame.line,
             column: frame.column,
           })),
@@ -313,8 +289,7 @@ export class InspectionTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
   }
@@ -337,7 +312,7 @@ export class InspectionTools {
       if (!session) {
         return {
           success: false,
-          error: "No active debug session",
+          error: 'No active debug session',
         };
       }
 
@@ -353,7 +328,7 @@ export class InspectionTools {
       const result = await this.dapClient.evaluateExpression(
         session,
         args.expression,
-        args.frameId,
+        args.frameId
       );
 
       return {
@@ -367,8 +342,7 @@ export class InspectionTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
   }
@@ -386,7 +360,7 @@ export class InspectionTools {
     return {
       success: false,
       error:
-        "Watch expressions are not directly accessible via VS Code API. Use evaluate_expression instead.",
+        'Watch expressions are not directly accessible via VS Code API. Use evaluate_expression instead.',
     };
   }
 
@@ -401,11 +375,11 @@ export class InspectionTools {
       if (!session) {
         return {
           success: false,
-          error: "No active debug session",
+          error: 'No active debug session',
         };
       }
 
-      const response = await session.customRequest("threads");
+      const response = await session.customRequest('threads');
 
       return {
         success: true,
@@ -416,8 +390,7 @@ export class InspectionTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
   }
@@ -467,8 +440,7 @@ export class InspectionTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
   }
@@ -484,14 +456,13 @@ export class InspectionTools {
       return {
         success: true,
         data: {
-          message: "Console output buffer cleared",
+          message: 'Console output buffer cleared',
         },
       };
     } catch (error: unknown) {
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
   }

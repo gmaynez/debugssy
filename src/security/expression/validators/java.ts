@@ -1,53 +1,47 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import type { ValidationResult } from "../types";
-import { JAVA_SAFE_METHODS, JAVA_SAFE_STATIC_FUNCTIONS } from "../safeLists";
+import type { ValidationResult } from '../types';
+import { JAVA_SAFE_METHODS, JAVA_SAFE_STATIC_FUNCTIONS } from '../safeLists';
 
 /**
  * Detects critical Java operations (Runtime.exec, File, Network).
  */
-export function detectJavaCritical(
-  expression: string,
-): ValidationResult | null {
+export function detectJavaCritical(expression: string): ValidationResult | null {
   // Process execution
   if (
-    /\b(Runtime\s*\.\s*getRuntime\s*\(\s*\)\s*\.\s*exec|ProcessBuilder)\s*[.([]/i.test(
-      expression,
-    )
+    /\b(Runtime\s*\.\s*getRuntime\s*\(\s*\)\s*\.\s*exec|ProcessBuilder)\s*[.([]/i.test(expression)
   ) {
     return {
       allowed: false,
-      reason: "Process Execution: can run system commands (Java)",
-      riskLevel: "critical",
+      reason: 'Process Execution: can run system commands (Java)',
+      riskLevel: 'critical',
     };
   }
 
   // File operations (dot and bracket notation)
   if (
     /\b(File|Files)\s*(?:\.\s*|\[['"])(delete|createNewFile|mkdir|mkdirs|renameTo|write|writeString|writeBytes|move|copy|deleteIfExists)(?:['"]\]|\s*\()/i.test(
-      expression,
+      expression
     ) ||
-    /\bnew\s+File(Writer|OutputStream|Reader|InputStream)\s*\(/i.test(
-      expression,
-    )
+    /\bnew\s+File(Writer|OutputStream|Reader|InputStream)\s*\(/i.test(expression)
   ) {
     return {
       allowed: false,
-      reason: "File System Operation: can modify/delete files (Java)",
-      riskLevel: "critical",
+      reason: 'File System Operation: can modify/delete files (Java)',
+      riskLevel: 'critical',
     };
   }
 
   // Network operations
   if (
     /\b(HttpClient|HttpURLConnection|URL\s*\([^)]*\)\s*\.\s*openConnection|URLConnection)\s*[.([]/i.test(
-      expression,
+      expression
     )
   ) {
     return {
       allowed: false,
-      reason: "Network Operation: can make external requests (Java)",
-      riskLevel: "critical",
+      reason: 'Network Operation: can make external requests (Java)',
+      riskLevel: 'critical',
     };
   }
 
@@ -60,31 +54,28 @@ export function detectJavaCritical(
  */
 export function validateJava(
   expression: string,
-  checkMutationMethods: (
-    expression: string,
-    methods: string[],
-  ) => ValidationResult | null,
+  checkMutationMethods: (expression: string, methods: string[]) => ValidationResult | null,
   checkAgainstWhitelists: (
     calls: string[],
     staticWhitelist: Set<string>,
-    methodWhitelist: Set<string>,
+    methodWhitelist: Set<string>
   ) => ValidationResult | null,
-  extractFunctionCalls: (expression: string) => string[],
+  extractFunctionCalls: (expression: string) => string[]
 ): ValidationResult | null {
   // Block common mutation methods
   const mutationCheck = checkMutationMethods(expression, [
-    "add",
-    "remove",
-    "clear",
-    "set",
-    "addAll",
-    "removeAll",
-    "retainAll",
-    "put",
-    "putAll",
-    "replaceAll",
-    "sort",
-    "shuffle",
+    'add',
+    'remove',
+    'clear',
+    'set',
+    'addAll',
+    'removeAll',
+    'retainAll',
+    'put',
+    'putAll',
+    'replaceAll',
+    'sort',
+    'shuffle',
   ]);
   if (mutationCheck) {
     return mutationCheck;
@@ -93,13 +84,13 @@ export function validateJava(
   // Block reflection and dynamic class loading
   if (
     /\b(Class\.forName|Method\.invoke|Field\.set|Constructor\.newInstance|ClassLoader\.loadClass)/i.test(
-      expression,
+      expression
     )
   ) {
     return {
       allowed: false,
-      reason: "Code Execution: reflection/dynamic class loading not allowed",
-      riskLevel: "high",
+      reason: 'Code Execution: reflection/dynamic class loading not allowed',
+      riskLevel: 'high',
     };
   }
 
@@ -109,7 +100,7 @@ export function validateJava(
     const whitelistResult = checkAgainstWhitelists(
       calls,
       JAVA_SAFE_STATIC_FUNCTIONS,
-      JAVA_SAFE_METHODS,
+      JAVA_SAFE_METHODS
     );
     // If whitelist check returned a result (blocked), return it
     if (whitelistResult) {

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { DebugControlTools } from "../DebugControl";
-import { ConfigManager } from "../../Config";
-import { vscode } from "../../__tests__/setup";
-import { createMockDebugSession } from "../../__tests__/helpers/vscode-mock";
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { DebugControlTools } from '../DebugControl';
+import { ConfigManager } from '../../Config';
+import { vscode } from '../../__tests__/setup';
+import { createMockDebugSession } from '../../__tests__/helpers/vscode-mock';
 
-describe("DebugControlTools", () => {
+describe('DebugControlTools', () => {
   let tools: DebugControlTools;
   let configManager: ConfigManager;
 
@@ -16,9 +16,9 @@ describe("DebugControlTools", () => {
     tools = new DebugControlTools(configManager);
   });
 
-  describe("Session Management", () => {
-    it("should track active debug session on start", () => {
-      const session = createMockDebugSession("test", "node");
+  describe('Session Management', () => {
+    it('should track active debug session on start', () => {
+      const session = createMockDebugSession('test', 'node');
       vscode.debug.activeDebugSession = session;
 
       // Create new instance to trigger initialization
@@ -26,121 +26,118 @@ describe("DebugControlTools", () => {
       expect(newTools.getActiveSession()).toBeDefined();
     });
 
-    it("should update active session when debug starts", () => {
-      const session = createMockDebugSession("test", "node");
+    it('should update active session when debug starts', () => {
+      const session = createMockDebugSession('test', 'node');
 
       // Simulate debug session start
-      const startHandler = (vscode.debug.onDidStartDebugSession as any).mock
-        .calls[0][0];
+      const startHandler = (vscode.debug.onDidStartDebugSession as any).mock.calls[0][0];
       startHandler(session);
 
       expect(tools.getActiveSession()).toBe(session);
     });
 
-    it("should clear active session when debug terminates", () => {
-      const session = createMockDebugSession("test", "node");
-      const startHandler = (vscode.debug.onDidStartDebugSession as any).mock
-        .calls[0][0];
+    it('should clear active session when debug terminates', () => {
+      const session = createMockDebugSession('test', 'node');
+      const startHandler = (vscode.debug.onDidStartDebugSession as any).mock.calls[0][0];
       startHandler(session);
 
       // Simulate debug session termination
-      const terminateHandler = (vscode.debug.onDidTerminateDebugSession as any)
-        .mock.calls[0][0];
+      const terminateHandler = (vscode.debug.onDidTerminateDebugSession as any).mock.calls[0][0];
       terminateHandler(session);
 
       expect(tools.getActiveSession()).toBeUndefined();
     });
   });
 
-  describe("startDebugging", () => {
-    it("should fail in assisted mode", async () => {
+  describe('startDebugging', () => {
+    it('should fail in assisted mode', async () => {
       // Mock configuration to return assisted mode
-      vi.spyOn(configManager, "getConfig").mockReturnValue({
+      vi.spyOn(configManager, 'getConfig').mockReturnValue({
         enabled: true,
         port: 3000,
-        automationLevel: "assisted",
+        automationLevel: 'assisted',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
         maxExpressionLength: 100,
-        expressionValidationLevel: "moderate",
+        expressionValidationLevel: 'moderate',
       });
 
       const result = await tools.startDebugging({
-        configuration: { type: "node", request: "launch", name: "test" },
+        configuration: { type: 'node', request: 'launch', name: 'test' },
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("assisted mode");
+      expect(result.error).toContain('assisted mode');
       expect(vscode.debug.startDebugging).not.toHaveBeenCalled();
     });
 
-    it("should start debugging in full automation mode", async () => {
+    it('should start debugging in full automation mode', async () => {
       // Mock configuration to return full automation mode
-      vi.spyOn(configManager, "getConfig").mockReturnValue({
+      vi.spyOn(configManager, 'getConfig').mockReturnValue({
         enabled: true,
         port: 3000,
-        automationLevel: "full",
+        automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
         maxExpressionLength: 100,
-        expressionValidationLevel: "moderate",
+        expressionValidationLevel: 'moderate',
       });
 
       // Mock workspace folders
       const mockFolder = {
-        uri: { fsPath: "/workspace", toString: () => "/workspace" },
-        name: "workspace",
+        uri: { fsPath: '/workspace', toString: () => '/workspace' },
+        name: 'workspace',
         index: 0,
       };
       vscode.workspace.workspaceFolders = [mockFolder as any];
 
       // Mock successful debug start
-      vi.spyOn(vscode.debug, "startDebugging").mockResolvedValue(true as any);
+      vi.spyOn(vscode.debug, 'startDebugging').mockResolvedValue(true as any);
 
       const result = await tools.startDebugging({
-        configuration: { type: "node", request: "launch", name: "test" },
+        configuration: { type: 'node', request: 'launch', name: 'test' },
       });
 
       expect(result.success).toBe(true);
-      expect(result.message).toContain("Debug session started");
+      expect(result.message).toContain('Debug session started');
       expect(vscode.debug.startDebugging).toHaveBeenCalledTimes(1);
     });
 
-    it("should fail when no workspace folder open", async () => {
-      vi.spyOn(configManager, "getConfig").mockReturnValue({
+    it('should fail when no workspace folder open', async () => {
+      vi.spyOn(configManager, 'getConfig').mockReturnValue({
         enabled: true,
         port: 3000,
-        automationLevel: "full",
+        automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
         maxExpressionLength: 100,
-        expressionValidationLevel: "moderate",
+        expressionValidationLevel: 'moderate',
       });
 
       vscode.workspace.workspaceFolders = [];
 
       const result = await tools.startDebugging({
-        configuration: { type: "node", request: "launch", name: "test" },
+        configuration: { type: 'node', request: 'launch', name: 'test' },
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("No workspace folder");
+      expect(result.error).toContain('No workspace folder');
     });
 
-    it("should fail when no configuration provided", async () => {
-      vi.spyOn(configManager, "getConfig").mockReturnValue({
+    it('should fail when no configuration provided', async () => {
+      vi.spyOn(configManager, 'getConfig').mockReturnValue({
         enabled: true,
         port: 3000,
-        automationLevel: "full",
+        automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
         maxExpressionLength: 100,
-        expressionValidationLevel: "moderate",
+        expressionValidationLevel: 'moderate',
       });
 
       const mockFolder = {
-        uri: { fsPath: "/workspace", toString: () => "/workspace" },
-        name: "workspace",
+        uri: { fsPath: '/workspace', toString: () => '/workspace' },
+        name: 'workspace',
         index: 0,
       };
       vscode.workspace.workspaceFolders = [mockFolder as any];
@@ -148,23 +145,23 @@ describe("DebugControlTools", () => {
       const result = await tools.startDebugging({});
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("No debug configuration");
+      expect(result.error).toContain('No debug configuration');
     });
 
-    it("should find configuration by name", async () => {
-      vi.spyOn(configManager, "getConfig").mockReturnValue({
+    it('should find configuration by name', async () => {
+      vi.spyOn(configManager, 'getConfig').mockReturnValue({
         enabled: true,
         port: 3000,
-        automationLevel: "full",
+        automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
         maxExpressionLength: 100,
-        expressionValidationLevel: "moderate",
+        expressionValidationLevel: 'moderate',
       });
 
       const mockFolder = {
-        uri: { fsPath: "/workspace", toString: () => "/workspace" },
-        name: "workspace",
+        uri: { fsPath: '/workspace', toString: () => '/workspace' },
+        name: 'workspace',
         index: 0,
       };
       vscode.workspace.workspaceFolders = [mockFolder as any];
@@ -172,354 +169,338 @@ describe("DebugControlTools", () => {
       // Mock workspace configuration
       vscode.workspace.getConfiguration = vi.fn(() => ({
         get: vi.fn((key: string) => {
-          if (key === "configurations") {
+          if (key === 'configurations') {
             return [
-              { type: "node", request: "launch", name: "Launch Program" },
-              { type: "node", request: "attach", name: "Attach" },
+              { type: 'node', request: 'launch', name: 'Launch Program' },
+              { type: 'node', request: 'attach', name: 'Attach' },
             ];
           }
           return undefined;
         }),
       })) as any;
 
-      vi.spyOn(vscode.debug, "startDebugging").mockResolvedValue(true as any);
+      vi.spyOn(vscode.debug, 'startDebugging').mockResolvedValue(true as any);
 
-      const result = await tools.startDebugging({ name: "Attach" });
+      const result = await tools.startDebugging({ name: 'Attach' });
 
       expect(result.success).toBe(true);
       expect(vscode.debug.startDebugging).toHaveBeenCalledWith(
         mockFolder,
-        expect.objectContaining({ name: "Attach" }),
+        expect.objectContaining({ name: 'Attach' })
       );
     });
 
-    it("should handle start debugging errors", async () => {
-      vi.spyOn(configManager, "getConfig").mockReturnValue({
+    it('should handle start debugging errors', async () => {
+      vi.spyOn(configManager, 'getConfig').mockReturnValue({
         enabled: true,
         port: 3000,
-        automationLevel: "full",
+        automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
         maxExpressionLength: 100,
-        expressionValidationLevel: "moderate",
+        expressionValidationLevel: 'moderate',
       });
 
       const mockFolder = {
-        uri: { fsPath: "/workspace", toString: () => "/workspace" },
-        name: "workspace",
+        uri: { fsPath: '/workspace', toString: () => '/workspace' },
+        name: 'workspace',
         index: 0,
       };
       vscode.workspace.workspaceFolders = [mockFolder as any];
 
-      vi.spyOn(vscode.debug, "startDebugging").mockRejectedValue(
-        new Error("Failed to start"),
-      );
+      vi.spyOn(vscode.debug, 'startDebugging').mockRejectedValue(new Error('Failed to start'));
 
       const result = await tools.startDebugging({
-        configuration: { type: "node", request: "launch", name: "test" },
+        configuration: { type: 'node', request: 'launch', name: 'test' },
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("Failed to start");
+      expect(result.error).toContain('Failed to start');
     });
   });
 
-  describe("stopDebugging", () => {
-    it("should stop active debug session", async () => {
-      const session = createMockDebugSession("test", "node");
-      const startHandler = (vscode.debug.onDidStartDebugSession as any).mock
-        .calls[0][0];
+  describe('stopDebugging', () => {
+    it('should stop active debug session', async () => {
+      const session = createMockDebugSession('test', 'node');
+      const startHandler = (vscode.debug.onDidStartDebugSession as any).mock.calls[0][0];
       startHandler(session);
 
-      vi.spyOn(vscode.debug, "stopDebugging").mockResolvedValue(undefined);
+      vi.spyOn(vscode.debug, 'stopDebugging').mockResolvedValue(undefined);
 
       const result = await tools.stopDebugging();
 
       expect(result.success).toBe(true);
-      expect(result.message).toContain("Debug session stopped");
+      expect(result.message).toContain('Debug session stopped');
       expect(vscode.debug.stopDebugging).toHaveBeenCalledWith(session);
     });
 
-    it("should fail when no active debug session", async () => {
+    it('should fail when no active debug session', async () => {
       const result = await tools.stopDebugging();
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("No active debug session");
+      expect(result.error).toContain('No active debug session');
     });
 
-    it("should handle stop debugging errors", async () => {
-      const session = createMockDebugSession("test", "node");
-      const startHandler = (vscode.debug.onDidStartDebugSession as any).mock
-        .calls[0][0];
+    it('should handle stop debugging errors', async () => {
+      const session = createMockDebugSession('test', 'node');
+      const startHandler = (vscode.debug.onDidStartDebugSession as any).mock.calls[0][0];
       startHandler(session);
 
-      vi.spyOn(vscode.debug, "stopDebugging").mockRejectedValue(
-        new Error("Failed to stop"),
-      );
+      vi.spyOn(vscode.debug, 'stopDebugging').mockRejectedValue(new Error('Failed to stop'));
 
       const result = await tools.stopDebugging();
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("Failed to stop");
+      expect(result.error).toContain('Failed to stop');
     });
   });
 
-  describe("Automation Level Checks", () => {
+  describe('Automation Level Checks', () => {
     beforeEach(() => {
       // Set up active session for command tests
-      const session = createMockDebugSession("test", "node");
-      const startHandler = (vscode.debug.onDidStartDebugSession as any).mock
-        .calls[0][0];
+      const session = createMockDebugSession('test', 'node');
+      const startHandler = (vscode.debug.onDidStartDebugSession as any).mock.calls[0][0];
       startHandler(session);
     });
 
-    describe("continueExecution", () => {
-      it("should return assisted message in assisted mode", async () => {
-        vi.spyOn(configManager, "getConfig").mockReturnValue({
+    describe('continueExecution', () => {
+      it('should return assisted message in assisted mode', async () => {
+        vi.spyOn(configManager, 'getConfig').mockReturnValue({
           enabled: true,
           port: 3000,
-          automationLevel: "assisted",
+          automationLevel: 'assisted',
           waitForBreakpointTimeout: 5000,
           allowStepOperations: false,
           maxExpressionLength: 100,
-          expressionValidationLevel: "moderate",
+          expressionValidationLevel: 'moderate',
         });
 
         const result = await tools.continueExecution();
 
         expect(result.success).toBe(true);
-        expect(result.message).toContain("Assisted mode");
-        expect(result.message).toContain("Continue");
+        expect(result.message).toContain('Assisted mode');
+        expect(result.message).toContain('Continue');
         expect(vscode.commands.executeCommand).not.toHaveBeenCalled();
       });
 
-      it("should execute command in full automation mode", async () => {
-        vi.spyOn(configManager, "getConfig").mockReturnValue({
+      it('should execute command in full automation mode', async () => {
+        vi.spyOn(configManager, 'getConfig').mockReturnValue({
           enabled: true,
           port: 3000,
-          automationLevel: "full",
+          automationLevel: 'full',
           waitForBreakpointTimeout: 5000,
           allowStepOperations: false,
           maxExpressionLength: 100,
-          expressionValidationLevel: "moderate",
+          expressionValidationLevel: 'moderate',
         });
 
         const result = await tools.continueExecution();
 
         expect(result.success).toBe(true);
-        expect(result.message).toContain("Execution continued");
+        expect(result.message).toContain('Execution continued');
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
-          "workbench.action.debug.continue",
+          'workbench.action.debug.continue'
         );
       });
     });
 
-    describe("stepOver", () => {
-      it("should return assisted message in assisted mode", async () => {
-        vi.spyOn(configManager, "getConfig").mockReturnValue({
+    describe('stepOver', () => {
+      it('should return assisted message in assisted mode', async () => {
+        vi.spyOn(configManager, 'getConfig').mockReturnValue({
           enabled: true,
           port: 3000,
-          automationLevel: "assisted",
+          automationLevel: 'assisted',
           waitForBreakpointTimeout: 5000,
           allowStepOperations: false,
           maxExpressionLength: 100,
-          expressionValidationLevel: "moderate",
+          expressionValidationLevel: 'moderate',
         });
 
         const result = await tools.stepOver();
 
         expect(result.success).toBe(true);
-        expect(result.message).toContain("Step Over");
+        expect(result.message).toContain('Step Over');
         expect(vscode.commands.executeCommand).not.toHaveBeenCalled();
       });
 
-      it("should execute command in full automation mode", async () => {
-        vi.spyOn(configManager, "getConfig").mockReturnValue({
+      it('should execute command in full automation mode', async () => {
+        vi.spyOn(configManager, 'getConfig').mockReturnValue({
           enabled: true,
           port: 3000,
-          automationLevel: "full",
+          automationLevel: 'full',
           waitForBreakpointTimeout: 5000,
           allowStepOperations: false,
           maxExpressionLength: 100,
-          expressionValidationLevel: "moderate",
+          expressionValidationLevel: 'moderate',
         });
 
         const result = await tools.stepOver();
 
         expect(result.success).toBe(true);
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
-          "workbench.action.debug.stepOver",
+          'workbench.action.debug.stepOver'
         );
       });
     });
 
-    describe("stepInto", () => {
-      it("should execute command in full automation mode", async () => {
-        vi.spyOn(configManager, "getConfig").mockReturnValue({
+    describe('stepInto', () => {
+      it('should execute command in full automation mode', async () => {
+        vi.spyOn(configManager, 'getConfig').mockReturnValue({
           enabled: true,
           port: 3000,
-          automationLevel: "full",
+          automationLevel: 'full',
           waitForBreakpointTimeout: 5000,
           allowStepOperations: false,
           maxExpressionLength: 100,
-          expressionValidationLevel: "moderate",
+          expressionValidationLevel: 'moderate',
         });
 
         const result = await tools.stepInto();
 
         expect(result.success).toBe(true);
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
-          "workbench.action.debug.stepInto",
+          'workbench.action.debug.stepInto'
         );
       });
     });
 
-    describe("stepOut", () => {
-      it("should execute command in full automation mode", async () => {
-        vi.spyOn(configManager, "getConfig").mockReturnValue({
+    describe('stepOut', () => {
+      it('should execute command in full automation mode', async () => {
+        vi.spyOn(configManager, 'getConfig').mockReturnValue({
           enabled: true,
           port: 3000,
-          automationLevel: "full",
+          automationLevel: 'full',
           waitForBreakpointTimeout: 5000,
           allowStepOperations: false,
           maxExpressionLength: 100,
-          expressionValidationLevel: "moderate",
+          expressionValidationLevel: 'moderate',
         });
 
         const result = await tools.stepOut();
 
         expect(result.success).toBe(true);
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
-          "workbench.action.debug.stepOut",
+          'workbench.action.debug.stepOut'
         );
       });
     });
 
-    describe("pause", () => {
-      it("should execute command in full automation mode", async () => {
-        vi.spyOn(configManager, "getConfig").mockReturnValue({
+    describe('pause', () => {
+      it('should execute command in full automation mode', async () => {
+        vi.spyOn(configManager, 'getConfig').mockReturnValue({
           enabled: true,
           port: 3000,
-          automationLevel: "full",
+          automationLevel: 'full',
           waitForBreakpointTimeout: 5000,
           allowStepOperations: false,
           maxExpressionLength: 100,
-          expressionValidationLevel: "moderate",
+          expressionValidationLevel: 'moderate',
         });
 
         const result = await tools.pause();
 
         expect(result.success).toBe(true);
-        expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
-          "workbench.action.debug.pause",
-        );
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith('workbench.action.debug.pause');
       });
     });
 
-    describe("restart", () => {
-      it("should execute command in full automation mode", async () => {
-        vi.spyOn(configManager, "getConfig").mockReturnValue({
+    describe('restart', () => {
+      it('should execute command in full automation mode', async () => {
+        vi.spyOn(configManager, 'getConfig').mockReturnValue({
           enabled: true,
           port: 3000,
-          automationLevel: "full",
+          automationLevel: 'full',
           waitForBreakpointTimeout: 5000,
           allowStepOperations: false,
           maxExpressionLength: 100,
-          expressionValidationLevel: "moderate",
+          expressionValidationLevel: 'moderate',
         });
 
         const result = await tools.restart();
 
         expect(result.success).toBe(true);
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
-          "workbench.action.debug.restart",
+          'workbench.action.debug.restart'
         );
       });
     });
   });
 
-  describe("Command Execution Error Handling", () => {
-    it("should fail when no active session for commands", async () => {
-      vi.spyOn(configManager, "getConfig").mockReturnValue({
+  describe('Command Execution Error Handling', () => {
+    it('should fail when no active session for commands', async () => {
+      vi.spyOn(configManager, 'getConfig').mockReturnValue({
         enabled: true,
         port: 3000,
-        automationLevel: "full",
+        automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
         maxExpressionLength: 100,
-        expressionValidationLevel: "moderate",
+        expressionValidationLevel: 'moderate',
       });
 
       const result = await tools.continueExecution();
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("No active debug session");
+      expect(result.error).toContain('No active debug session');
     });
 
-    it("should handle command execution errors", async () => {
-      const session = createMockDebugSession("test", "node");
-      const startHandler = (vscode.debug.onDidStartDebugSession as any).mock
-        .calls[0][0];
+    it('should handle command execution errors', async () => {
+      const session = createMockDebugSession('test', 'node');
+      const startHandler = (vscode.debug.onDidStartDebugSession as any).mock.calls[0][0];
       startHandler(session);
 
-      vi.spyOn(configManager, "getConfig").mockReturnValue({
+      vi.spyOn(configManager, 'getConfig').mockReturnValue({
         enabled: true,
         port: 3000,
-        automationLevel: "full",
+        automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
         maxExpressionLength: 100,
-        expressionValidationLevel: "moderate",
+        expressionValidationLevel: 'moderate',
       });
 
-      vi.spyOn(vscode.commands, "executeCommand").mockRejectedValue(
-        new Error("Command failed"),
-      );
+      vi.spyOn(vscode.commands, 'executeCommand').mockRejectedValue(new Error('Command failed'));
 
       const result = await tools.continueExecution();
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain("Command failed");
+      expect(result.error).toContain('Command failed');
     });
 
-    it("should handle unknown errors", async () => {
-      const session = createMockDebugSession("test", "node");
-      const startHandler = (vscode.debug.onDidStartDebugSession as any).mock
-        .calls[0][0];
+    it('should handle unknown errors', async () => {
+      const session = createMockDebugSession('test', 'node');
+      const startHandler = (vscode.debug.onDidStartDebugSession as any).mock.calls[0][0];
       startHandler(session);
 
-      vi.spyOn(configManager, "getConfig").mockReturnValue({
+      vi.spyOn(configManager, 'getConfig').mockReturnValue({
         enabled: true,
         port: 3000,
-        automationLevel: "full",
+        automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
         maxExpressionLength: 100,
-        expressionValidationLevel: "moderate",
+        expressionValidationLevel: 'moderate',
       });
 
-      vi.spyOn(vscode.commands, "executeCommand").mockRejectedValue(
-        "String error",
-      );
+      vi.spyOn(vscode.commands, 'executeCommand').mockRejectedValue('String error');
 
       const result = await tools.continueExecution();
 
       expect(result.success).toBe(false);
-      expect(result.error).toBe("Unknown error occurred");
+      expect(result.error).toBe('Unknown error occurred');
     });
   });
 
-  describe("getActiveSession", () => {
-    it("should return active session", () => {
-      const session = createMockDebugSession("test", "node");
-      const startHandler = (vscode.debug.onDidStartDebugSession as any).mock
-        .calls[0][0];
+  describe('getActiveSession', () => {
+    it('should return active session', () => {
+      const session = createMockDebugSession('test', 'node');
+      const startHandler = (vscode.debug.onDidStartDebugSession as any).mock.calls[0][0];
       startHandler(session);
 
       expect(tools.getActiveSession()).toBe(session);
     });
 
-    it("should return undefined when no active session", () => {
+    it('should return undefined when no active session', () => {
       expect(tools.getActiveSession()).toBeUndefined();
     });
   });

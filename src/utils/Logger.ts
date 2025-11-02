@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import * as vscode from "vscode";
+import * as vscode from 'vscode';
 
 /**
  * Centralized logging utility using VS Code Log Output Channel.
@@ -11,7 +11,7 @@ export class Logger {
   private outputChannel: vscode.LogOutputChannel;
 
   private constructor() {
-    this.outputChannel = vscode.window.createOutputChannel("Debugssy", {
+    this.outputChannel = vscode.window.createOutputChannel('Debugssy', {
       log: true,
     });
   }
@@ -70,10 +70,7 @@ export class Logger {
    * LogOutputChannel handles timestamp and level formatting automatically
    */
   private formatArgs(message: string, args: unknown[]): string {
-    const argsStr =
-      args.length > 0
-        ? " " + args.map((arg) => this.stringify(arg)).join(" ")
-        : "";
+    const argsStr = args.length > 0 ? ' ' + args.map((arg) => this.stringify(arg)).join(' ') : '';
     return `${message}${argsStr}`;
   }
 
@@ -82,20 +79,20 @@ export class Logger {
    */
   private stringify(value: unknown): string {
     if (value === null) {
-      return "null";
+      return 'null';
     }
     if (value === undefined) {
-      return "undefined";
+      return 'undefined';
     }
-    if (typeof value === "string") {
+    if (typeof value === 'string') {
       return value;
     }
-    if (typeof value === "number" || typeof value === "boolean") {
+    if (typeof value === 'number' || typeof value === 'boolean') {
       return String(value);
     }
 
     if (value instanceof Error) {
-      return `${value.name}: ${value.message}${value.stack ? "\n" + value.stack : ""}`;
+      return `${value.name}: ${value.message}${value.stack ? '\n' + value.stack : ''}`;
     }
 
     try {

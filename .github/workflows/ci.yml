@@ -15,12 +15,12 @@ on:
 jobs:
   build-and-test:
     runs-on: ${{ matrix.os }}
-
+    
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         node-version: [20]
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -61,7 +61,7 @@ jobs:
 
   security-audit:
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -124,7 +124,7 @@ jobs:
 
   code-quality:
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -138,14 +138,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Check formatting (if prettier is configured)
-        run: |
-          if [ -f ".prettierrc" ] || [ -f "prettier.config.js" ]; then
-            npx prettier --check "src/**/*.ts"
-          else
-            echo "Prettier not configured, skipping..."
-          fi
-        continue-on-error: true
+      - name: Check code formatting
+        run: npm run format:check
 
       - name: Count lines of code
         run: |

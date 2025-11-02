@@ -5,13 +5,8 @@
     "ecmaVersion": 2020,
     "sourceType": "module"
   },
-  "plugins": [
-    "@typescript-eslint"
-  ],
-  "extends": [
-    "eslint:recommended",
-    "plugin:@typescript-eslint/recommended"
-  ],
+  "plugins": ["@typescript-eslint"],
+  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
   "rules": {
     "@typescript-eslint/naming-convention": "warn",
     "@typescript-eslint/semi": "warn",
@@ -21,10 +16,5 @@
     "semi": "off",
     "@typescript-eslint/no-explicit-any": "off"
   },
-  "ignorePatterns": [
-    "out",
-    "dist",
-    "**/*.d.ts"
-  ]
+  "ignorePatterns": ["out", "dist", "**/*.d.ts"]
 }
-
