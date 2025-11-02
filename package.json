@@ -134,21 +134,21 @@
     "publish-marketplace": "npm run prepare-publish && npm run package && npm run restore-publish"
   },
   "devDependencies": {
-    "@eslint/js": "^9.38.0",
-    "@types/express": "^5.0.3",
-    "@types/node": "^24.9.0",
+    "@eslint/js": "^9.39.0",
+    "@types/express": "^5.0.5",
+    "@types/node": "^24.9.2",
     "@types/vscode": "^1.90.0",
     "@typescript-eslint/eslint-plugin": "^8.46.2",
     "@typescript-eslint/parser": "^8.46.2",
     "@vitest/coverage-v8": "^4.0.6",
     "@vitest/ui": "^4.0.6",
     "@vscode/vsce": "^3.6.2",
-    "esbuild": "^0.25.11",
-    "eslint": "^9.38.0",
+    "esbuild": "^0.25.12",
+    "eslint": "^9.39.0",
     "npm-run-all": "^4.1.5",
     "ovsx": "^0.10.6",
     "prettier": "3.6.2",
-    "typescript": "^5.3.2",
+    "typescript": "^5.9.3",
     "vitest": "^4.0.6"
   },
   "dependencies": {
