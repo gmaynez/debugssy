@@ -4,26 +4,33 @@ import * as vscode from "vscode";
 import { Logger } from "../utils/Logger";
 import { MUTATION_METHODS } from "./expression/mutationMethods";
 import {
-  CPP_SAFE_FUNCTIONS,
-  CSHARP_SAFE_METHODS,
-  CSHARP_SAFE_STATIC_FUNCTIONS,
-  GO_SAFE_FUNCTIONS,
-  JAVA_SAFE_METHODS,
-  JAVA_SAFE_STATIC_FUNCTIONS,
   JS_SAFE_METHODS,
   JS_SAFE_STATIC_FUNCTIONS,
   PYTHON_SAFE_METHODS,
   PYTHON_SAFE_STATIC_FUNCTIONS,
 } from "./expression/safeLists";
+import type {
+  RiskLevel,
+  ValidationLevel,
+  ValidationResult,
+} from "./expression/types";
+import {
+  detectJavaScriptCritical,
+  validateJavaScript,
+} from "./expression/validators/javascript";
+import {
+  detectPythonCritical,
+  validatePython,
+} from "./expression/validators/python";
+import {
+  detectCSharpCritical,
+  validateCSharp,
+} from "./expression/validators/csharp";
+import { detectJavaCritical, validateJava } from "./expression/validators/java";
+import { detectCppCritical, validateCpp } from "./expression/validators/cpp";
+import { validateGo } from "./expression/validators/go";
 
-export type RiskLevel = "critical" | "high" | "medium" | "low";
-export type ValidationLevel = "strict" | "moderate" | "permissive" | "disabled";
-
-export interface ValidationResult {
-  allowed: boolean;
-  reason?: string;
-  riskLevel?: RiskLevel;
-}
+export type { RiskLevel, ValidationLevel, ValidationResult };
 
 /**
  * Validates expressions for potential side effects before evaluation.
@@ -46,6 +53,11 @@ export class ExpressionValidator {
   // Safe built-in JavaScript/TypeScript static functions
   private readonly jsSafeStaticFunctions = JS_SAFE_STATIC_FUNCTIONS;
 
+  // Safe built-in Python functions and methods
+  private readonly pythonSafeFunctions = PYTHON_SAFE_METHODS;
+  // Safe built-in Python module functions (module.function)
+  private readonly pythonSafeStaticFunctions = PYTHON_SAFE_STATIC_FUNCTIONS;
+
   private logger: Logger;
 
   // Pre-compiled regex patterns for mutation detection to avoid repeated compilation
@@ -56,22 +68,6 @@ export class ExpressionValidator {
 
   // Disposable for the session termination listener
   private readonly sessionTerminationDisposable: vscode.Disposable | undefined;
-  // Safe built-in Python functions and methods
-  private readonly pythonSafeFunctions = PYTHON_SAFE_METHODS;
-  // Safe built-in Python module functions (module.function)
-  private readonly pythonSafeStaticFunctions = PYTHON_SAFE_STATIC_FUNCTIONS;
-  // Safe C# methods (LINQ, Collections, String)
-  private readonly csharpSafeFunctions = CSHARP_SAFE_METHODS;
-  // Safe C# static functions (System namespace)
-  private readonly csharpSafeStaticFunctions = CSHARP_SAFE_STATIC_FUNCTIONS;
-  // Safe Java methods (Stream API, Collections, String)
-  private readonly javaSafeFunctions = JAVA_SAFE_METHODS;
-  // Safe Java static functions
-  private readonly javaSafeStaticFunctions = JAVA_SAFE_STATIC_FUNCTIONS;
-  // Safe C/C++ functions (standard library read-only)
-  private readonly cppSafeFunctions = CPP_SAFE_FUNCTIONS;
-  // Safe Go functions (standard library read-only)
-  private readonly goSafeFunctions = GO_SAFE_FUNCTIONS;
 
   constructor() {
     this.logger = Logger.getInstance();
@@ -230,297 +226,35 @@ Getter methods are typically safe, but custom getters may include logging or sta
     if (language) {
       switch (language) {
         case "javascript":
-          return this.detectJavaScriptCritical(expression);
+          return detectJavaScriptCritical(expression);
         case "python":
-          return this.detectPythonCritical(expression);
+          return detectPythonCritical(expression);
         case "cpp":
-          return this.detectCppCritical(expression);
+          return detectCppCritical(expression);
         case "csharp":
-          return this.detectCSharpCritical(expression);
+          return detectCSharpCritical(expression);
         case "java":
-          return this.detectJavaCritical(expression);
+          return detectJavaCritical(expression);
         default:
           // For unknown languages, check all patterns as a safety measure
           return (
-            this.detectJavaScriptCritical(expression) ||
-            this.detectPythonCritical(expression) ||
-            this.detectCppCritical(expression) ||
-            this.detectCSharpCritical(expression) ||
-            this.detectJavaCritical(expression)
+            detectJavaScriptCritical(expression) ||
+            detectPythonCritical(expression) ||
+            detectCppCritical(expression) ||
+            detectCSharpCritical(expression) ||
+            detectJavaCritical(expression)
           );
       }
     }
 
     // No language provided (no session), check all patterns
     return (
-      this.detectJavaScriptCritical(expression) ||
-      this.detectPythonCritical(expression) ||
-      this.detectCppCritical(expression) ||
-      this.detectCSharpCritical(expression) ||
-      this.detectJavaCritical(expression)
+      detectJavaScriptCritical(expression) ||
+      detectPythonCritical(expression) ||
+      detectCppCritical(expression) ||
+      detectCSharpCritical(expression) ||
+      detectJavaCritical(expression)
     );
-  }
-
-  /**
-   * Detects critical JavaScript/Node.js operations (file system, process, network).
-   */
-  private detectJavaScriptCritical(
-    expression: string,
-  ): ValidationResult | null {
-    // File system operations
-    if (
-      /\bfs\s*\.\s*(unlink|rmdir|rm|write|mkdir|rename|delete|chmod|chown|truncate|appendFile|writeFile)/i.test(
-        expression,
-      )
-    ) {
-      return {
-        allowed: false,
-        reason: "File System Operation: can modify/delete files",
-        riskLevel: "critical",
-      };
-    }
-
-    // Process execution
-    if (
-      /\b(child_process|exec|execSync|spawn|spawnSync|fork|execFile)\s*[.([]/i.test(
-        expression,
-      )
-    ) {
-      return {
-        allowed: false,
-        reason: "Process Execution: can run system commands",
-        riskLevel: "critical",
-      };
-    }
-
-    // Process control
-    if (/\bprocess\s*\.\s*(exit|kill|abort)\s*\(/i.test(expression)) {
-      return {
-        allowed: false,
-        reason: "Process Control: can terminate application",
-        riskLevel: "critical",
-      };
-    }
-
-    // Network operations (fetch, axios, http)
-    if (
-      /\b(fetch|axios|XMLHttpRequest)\s*[.([]/i.test(expression) ||
-      /\bhttps?\s*\.\s*(get|post|put|delete|request)/i.test(expression)
-    ) {
-      return {
-        allowed: false,
-        reason: "Network Operation: can make external requests",
-        riskLevel: "critical",
-      };
-    }
-
-    // Dynamic module loading - only flag dangerous modules
-    if (
-      /\brequire\s*\(\s*['"](?:fs|child_process|net|http|https|crypto|vm)['"]/.test(
-        expression,
-      )
-    ) {
-      return {
-        allowed: false,
-        reason: "System Module Loading: dangerous module detected",
-        riskLevel: "critical",
-      };
-    }
-
-    return null;
-  }
-
-  /**
-   * Detects critical Python operations (os, subprocess, file operations).
-   */
-  private detectPythonCritical(expression: string): ValidationResult | null {
-    // Python os module operations
-    if (
-      /\bos\s*\.\s*(system|popen|exec[lv]?p?e?|spawn[lv]?p?e?|remove|unlink|rmdir|rename|chmod|chown|kill|mkdir|makedirs)\s*\(/i.test(
-        expression,
-      )
-    ) {
-      return {
-        allowed: false,
-        reason:
-          "System Operation: os module can execute commands or modify files",
-        riskLevel: "critical",
-      };
-    }
-
-    // Python subprocess module
-    if (
-      /\bsubprocess\s*\.\s*(run|call|check_call|check_output|Popen|getoutput|getstatusoutput)\s*\(/i.test(
-        expression,
-      )
-    ) {
-      return {
-        allowed: false,
-        reason: "Process Execution: subprocess module can run system commands",
-        riskLevel: "critical",
-      };
-    }
-
-    // Python file operations with write modes
-    const openPositionalWritePattern =
-      /\bopen\s*\(\s*[^,]+,\s*(?:mode\s*=\s*)?['"][^'"]*(?:[wax]|\+)[^'"]*['"]/i;
-    const openNamedModeWritePattern =
-      /\bopen\s*\([^)]*mode\s*=\s*['"][^'"]*(?:[wax]|\+)[^'"]*['"]/i;
-
-    if (
-      openPositionalWritePattern.test(expression) ||
-      openNamedModeWritePattern.test(expression) ||
-      /\bPath\s*\([^)]*\)\s*\.\s*(write_text|write_bytes|unlink|rmdir|mkdir|rename|replace|chmod)\s*\(/i.test(
-        expression,
-      )
-    ) {
-      return {
-        allowed: false,
-        reason: "File System Operation: can modify or delete files",
-        riskLevel: "critical",
-      };
-    }
-
-    return null;
-  }
-
-  /**
-   * Detects critical C/C++ operations (system, file operations).
-   */
-  private detectCppCritical(expression: string): ValidationResult | null {
-    // System and process operations
-    if (
-      /\b(system|exec[lv]?p?e?|popen|_popen|_wsystem)\s*\(/i.test(expression)
-    ) {
-      return {
-        allowed: false,
-        reason: "System Command: can execute shell commands (C/C++)",
-        riskLevel: "critical",
-      };
-    }
-
-    // File operations
-    if (
-      /\b(remove|unlink|rmdir|rename|chmod|chown|creat|mkdir)\s*\(/i.test(
-        expression,
-      ) ||
-      /\b(fopen|freopen)\s*\([^)]*['"][wa]/i.test(expression)
-    ) {
-      return {
-        allowed: false,
-        reason: "File System Operation: can modify or delete files (C/C++)",
-        riskLevel: "critical",
-      };
-    }
-
-    return null;
-  }
-
-  /**
-   * Detects critical C# operations (Process, File, Directory, Network).
-   */
-  private detectCSharpCritical(expression: string): ValidationResult | null {
-    // Process operations
-    if (
-      /\b(Process\s*\.\s*Start|ProcessStartInfo|System\s*\.\s*Diagnostics\s*\.\s*Process)\s*[.([]/i.test(
-        expression,
-      )
-    ) {
-      return {
-        allowed: false,
-        reason: "Process Execution: can run system commands (C#)",
-        riskLevel: "critical",
-      };
-    }
-
-    // File and Directory operations
-    if (
-      /\b(File|Directory)\s*\.\s*(Delete|WriteAllText|WriteAllBytes|Create|Move|Replace|Copy|AppendAllText|CreateDirectory)\s*\(/i.test(
-        expression,
-      )
-    ) {
-      return {
-        allowed: false,
-        reason: "File System Operation: can modify/delete files (C#)",
-        riskLevel: "critical",
-      };
-    }
-
-    // FileStream/StreamWriter with write modes
-    if (
-      /\b(FileStream|StreamWriter|FileInfo|DirectoryInfo)\s*\(/i.test(
-        expression,
-      ) &&
-      /\b(FileMode\s*\.\s*(Create|Append|Truncate|OpenOrCreate)|FileAccess\s*\.\s*Write)/i.test(
-        expression,
-      )
-    ) {
-      return {
-        allowed: false,
-        reason: "File System Operation: opening file for writing (C#)",
-        riskLevel: "critical",
-      };
-    }
-
-    // Network operations
-    if (/\b(HttpClient|WebClient|HttpWebRequest)\s*[.([]/i.test(expression)) {
-      return {
-        allowed: false,
-        reason: "Network Operation: can make external requests (C#)",
-        riskLevel: "critical",
-      };
-    }
-
-    return null;
-  }
-
-  /**
-   * Detects critical Java operations (Runtime.exec, File, Network).
-   */
-  private detectJavaCritical(expression: string): ValidationResult | null {
-    // Process execution
-    if (
-      /\b(Runtime\s*\.\s*getRuntime\s*\(\s*\)\s*\.\s*exec|ProcessBuilder)\s*[.([]/i.test(
-        expression,
-      )
-    ) {
-      return {
-        allowed: false,
-        reason: "Process Execution: can run system commands (Java)",
-        riskLevel: "critical",
-      };
-    }
-
-    // File operations
-    if (
-      /\b(File|Files)\s*\.\s*(delete|createNewFile|mkdir|mkdirs|renameTo|write|writeString|writeBytes|move|copy|deleteIfExists)\s*\(/i.test(
-        expression,
-      ) ||
-      /\bnew\s+File(Writer|OutputStream|Reader|InputStream)\s*\(/i.test(
-        expression,
-      )
-    ) {
-      return {
-        allowed: false,
-        reason: "File System Operation: can modify/delete files (Java)",
-        riskLevel: "critical",
-      };
-    }
-
-    // Network operations
-    if (
-      /\b(HttpClient|HttpURLConnection|URL\s*\([^)]*\)\s*\.\s*openConnection|URLConnection)\s*[.([]/i.test(
-        expression,
-      )
-    ) {
-      return {
-        allowed: false,
-        reason: "Network Operation: can make external requests (Java)",
-        riskLevel: "critical",
-      };
-    }
-
-    return null;
   }
 
   /**
@@ -615,17 +349,45 @@ Getter methods are typically safe, but custom getters may include logging or sta
   ): ValidationResult | null {
     switch (language) {
       case "javascript":
-        return this.validateJavaScript(expression);
+        return validateJavaScript(
+          expression,
+          this.checkMutationMethods.bind(this),
+          this.checkAgainstWhitelists.bind(this),
+          this.extractFunctionCalls.bind(this),
+        );
       case "python":
-        return this.validatePython(expression);
+        return validatePython(
+          expression,
+          this.checkMutationMethods.bind(this),
+          this.checkAgainstWhitelists.bind(this),
+          this.extractFunctionCalls.bind(this),
+        );
       case "csharp":
-        return this.validateCSharp(expression);
+        return validateCSharp(
+          expression,
+          this.checkMutationMethods.bind(this),
+          this.checkAgainstWhitelists.bind(this),
+          this.extractFunctionCalls.bind(this),
+        );
       case "java":
-        return this.validateJava(expression);
+        return validateJava(
+          expression,
+          this.checkMutationMethods.bind(this),
+          this.checkAgainstWhitelists.bind(this),
+          this.extractFunctionCalls.bind(this),
+        );
       case "cpp":
-        return this.validateCpp(expression);
+        return validateCpp(
+          expression,
+          this.checkAgainstWhitelists.bind(this),
+          this.extractFunctionCalls.bind(this),
+        );
       case "go":
-        return this.validateGo(expression);
+        return validateGo(
+          expression,
+          this.checkAgainstWhitelists.bind(this),
+          this.extractFunctionCalls.bind(this),
+        );
       default:
         // No specific rules for this language
         return null;
@@ -691,238 +453,6 @@ Getter methods are typically safe, but custom getters may include logging or sta
         riskLevel: "medium",
       };
     }
-    return null;
-  }
-
-  /**
-   * JavaScript/TypeScript specific validation.
-   * Allows whitelisted safe functions, blocks mutation methods and code generation.
-   */
-  private validateJavaScript(expression: string): ValidationResult | null {
-    // Block common mutation methods
-    const mutationCheck = this.checkMutationMethods(expression, [
-      "push",
-      "pop",
-      "shift",
-      "unshift",
-      "splice",
-      "sort",
-      "reverse",
-      "fill",
-      "copyWithin",
-      "delete",
-      "clear",
-      "set",
-      "add",
-    ]);
-    if (mutationCheck) {
-      return mutationCheck;
-    }
-
-    // Block eval, Function constructor, etc. (code generation)
-    if (/\beval\s*\(|\bFunction\s*\(/i.test(expression)) {
-      return {
-        allowed: false,
-        reason: "Code Execution: eval/Function not allowed",
-        riskLevel: "high",
-      };
-    }
-
-    // Check function calls against whitelists
-    if (/[\w_\]]\s*\(/.test(expression)) {
-      const calls = this.extractFunctionCalls(expression);
-      return this.checkAgainstWhitelists(
-        calls,
-        this.jsSafeStaticFunctions,
-        this.jsSafeFunctions,
-      );
-    }
-
-    return null;
-  }
-
-  /**
-   * Python-specific validation.
-   * Allows whitelisted safe functions, blocks mutation methods and code execution.
-   */
-  private validatePython(expression: string): ValidationResult | null {
-    // Block common mutation methods
-    const mutationCheck = this.checkMutationMethods(expression, [
-      "append",
-      "extend",
-      "insert",
-      "remove",
-      "pop",
-      "clear",
-      "sort",
-      "reverse",
-      "update",
-      "add",
-      "discard",
-    ]);
-    if (mutationCheck) {
-      return mutationCheck;
-    }
-
-    // Block eval, exec, compile, __import__ (code execution)
-    if (/\b(eval|exec|compile|__import__)\s*\(/i.test(expression)) {
-      return {
-        allowed: false,
-        reason: "Code Execution: eval/exec not allowed",
-        riskLevel: "high",
-      };
-    }
-
-    // Check function calls against whitelists
-    if (/[\w_\]]\s*\(/.test(expression)) {
-      const calls = this.extractFunctionCalls(expression);
-      return this.checkAgainstWhitelists(
-        calls,
-        this.pythonSafeStaticFunctions,
-        this.pythonSafeFunctions,
-      );
-    }
-
-    return null;
-  }
-
-  /**
-   * C# specific validation.
-   * Allows whitelisted LINQ, collections, and safe functions, blocks mutation and reflection.
-   */
-  private validateCSharp(expression: string): ValidationResult | null {
-    // Block common mutation methods
-    const mutationCheck = this.checkMutationMethods(expression, [
-      "Add",
-      "Remove",
-      "RemoveAt",
-      "RemoveAll",
-      "Clear",
-      "Insert",
-      "Sort",
-      "Reverse",
-      "AddRange",
-      "InsertRange",
-      "RemoveRange",
-      "Push",
-      "Pop",
-      "Enqueue",
-      "Dequeue",
-    ]);
-    if (mutationCheck) {
-      return mutationCheck;
-    }
-
-    // Block reflection and dynamic code execution
-    if (
-      /\b(Activator\.CreateInstance|Assembly\.Load|Invoke|GetType\(\)|typeof\(|nameof\()/i.test(
-        expression,
-      )
-    ) {
-      return {
-        allowed: false,
-        reason: "Code Execution: reflection/dynamic invocation not allowed",
-        riskLevel: "high",
-      };
-    }
-
-    // Check function calls against whitelists
-    if (/[\w_\]]\s*\(/.test(expression)) {
-      const calls = this.extractFunctionCalls(expression);
-      return this.checkAgainstWhitelists(
-        calls,
-        this.csharpSafeStaticFunctions,
-        this.csharpSafeFunctions,
-      );
-    }
-
-    return null;
-  }
-
-  /**
-   * Java specific validation.
-   * Allows whitelisted Stream API, collections, and safe functions, blocks mutation and reflection.
-   */
-  private validateJava(expression: string): ValidationResult | null {
-    // Block common mutation methods
-    const mutationCheck = this.checkMutationMethods(expression, [
-      "add",
-      "remove",
-      "clear",
-      "set",
-      "addAll",
-      "removeAll",
-      "retainAll",
-      "put",
-      "putAll",
-      "replaceAll",
-      "sort",
-      "shuffle",
-    ]);
-    if (mutationCheck) {
-      return mutationCheck;
-    }
-
-    // Block reflection and dynamic class loading
-    if (
-      /\b(Class\.forName|Method\.invoke|Field\.set|Constructor\.newInstance|ClassLoader\.loadClass)/i.test(
-        expression,
-      )
-    ) {
-      return {
-        allowed: false,
-        reason: "Code Execution: reflection/dynamic class loading not allowed",
-        riskLevel: "high",
-      };
-    }
-
-    // Check function calls against whitelists
-    if (/[\w_\]]\s*\(/.test(expression)) {
-      const calls = this.extractFunctionCalls(expression);
-      return this.checkAgainstWhitelists(
-        calls,
-        this.javaSafeStaticFunctions,
-        this.javaSafeFunctions,
-      );
-    }
-
-    return null;
-  }
-
-  /**
-   * C/C++ specific validation.
-   * Allows whitelisted standard library functions, blocks dangerous operations.
-   */
-  private validateCpp(expression: string): ValidationResult | null {
-    // Check function calls against whitelist (C/C++ doesn't use separate static/method sets)
-    if (/[\w_\]]\s*\(/.test(expression)) {
-      const calls = this.extractFunctionCalls(expression);
-      // Use empty set for static functions since C/C++ functions are in cppSafeFunctions
-      return this.checkAgainstWhitelists(
-        calls,
-        new Set(),
-        this.cppSafeFunctions,
-      );
-    }
-
-    return null;
-  }
-
-  /**
-   * Go specific validation.
-   * Allows whitelisted standard library functions, blocks dangerous operations.
-   */
-  private validateGo(expression: string): ValidationResult | null {
-    // Check function calls against whitelist (Go uses goSafeFunctions for both static and methods)
-    if (/[\w_\]]\s*\(/.test(expression)) {
-      const calls = this.extractFunctionCalls(expression);
-      return this.checkAgainstWhitelists(
-        calls,
-        this.goSafeFunctions,
-        this.goSafeFunctions,
-      );
-    }
-
     return null;
   }
 
