@@ -47,14 +47,22 @@ import { Logger } from "./utils/Logger";
  *
  * 2. Concurrent Initialization Requests:
  *    - Detects multiple simultaneous initialization attempts (no Mcp-Session-Id header)
- *    - First request processes immediately; subsequent ones receive HTTP 503 with a retry hint
- *    - SSE fallback requests are permitted even when another initialization is running
+ *    - Uses an async mutex to serialize initialization requests properly
+ *    - First request acquires lock and processes; concurrent requests receive HTTP 503
+ *    - After ONE successful initialization, all subsequent init attempts are rejected with 503
+ *    - This matches MCP SDK behavior (one init per transport instance)
+ *    - SSE fallback requests bypass the lock as they're concurrent-safe by design
  *    - Prevents "Server already initialized" errors while keeping fallback mechanisms responsive
  *
  * 3. Multiple Client Instances:
  *    - Some MCP clients (like Cursor) create multiple client instances for the same server
  *    - When "Server already initialized" is reported by the transport, we return HTTP 503 to trigger client backoff
  *    - Avoids tearing down established sessions while nudging clients to retry instead of spinning up extra instances
+ *
+ * 4. Resource Management:
+ *    - Tracks all pending timers and in-flight requests for proper cleanup
+ *    - Graceful shutdown waits for in-flight requests to complete (with timeout)
+ *    - dispose() cancels all pending timers and releases locks
  *
  * This handles the common scenario where MCP clients like Cursor start before the
  * VS Code extension has fully initialized, and make multiple rapid retry attempts.
@@ -66,7 +74,17 @@ export class MCPServer {
   private transport: StreamableHTTPServerTransport | undefined;
   private currentAutomationLevel: "assisted" | "full";
   private isTransportReady: boolean = false;
-  private initializationInProgress: boolean = false;
+
+  // Resource tracking for proper cleanup
+  private pendingTimers: Set<ReturnType<typeof setTimeout>> = new Set();
+  private inflightRequests: Set<Promise<void>> = new Set();
+  private isDisposed: boolean = false;
+
+  // Async mutex for serializing initialization requests
+  private initLock: Promise<void> = Promise.resolve();
+  private initLockRelease: (() => void) | null = null;
+  private isInitLockHeld: boolean = false;
+  private hasSuccessfulInit: boolean = false;
 
   // Extracted components for better separation of concerns
   private securityValidator: SecurityValidator;
@@ -98,9 +116,61 @@ export class MCPServer {
     this.setupHTTPRoutes();
   }
 
+  /**
+   * Acquires the initialization lock to serialize concurrent init requests.
+   * Returns a release function that must be called when done.
+   */
+  private async acquireInitLock(): Promise<() => void> {
+    // Wait for any existing lock to be released
+    await this.initLock;
+
+    // Mark lock as held
+    this.isInitLockHeld = true;
+
+    // Create a new lock that others will wait on
+    let release: () => void;
+    this.initLock = new Promise((resolve) => {
+      release = () => {
+        this.isInitLockHeld = false;
+        resolve();
+      };
+    });
+
+    return release!;
+  }
+
+  /**
+   * Schedules a timer and tracks it for cleanup.
+   * Returns the timer ID for potential early cancellation.
+   */
+  private scheduleTimer(
+    callback: () => void,
+    delayMs: number,
+  ): ReturnType<typeof setTimeout> {
+    const timer = setTimeout(() => {
+      this.pendingTimers.delete(timer);
+      if (!this.isDisposed) {
+        callback();
+      }
+    }, delayMs);
+    this.pendingTimers.add(timer);
+    return timer;
+  }
+
+  /**
+   * Tracks an in-flight request for graceful shutdown.
+   */
+  private trackRequest(requestPromise: Promise<void>): void {
+    this.inflightRequests.add(requestPromise);
+    requestPromise.finally(() => {
+      this.inflightRequests.delete(requestPromise);
+    });
+  }
+
   async start(options?: { silent?: boolean }): Promise<void> {
-    // Reset ready flag during initialization
+    // Reset ready flag and initialization state during startup
     this.isTransportReady = false;
+    this.hasSuccessfulInit = false;
 
     // Initialize transport before starting HTTP server
     this.transport = new StreamableHTTPServerTransport({
@@ -157,7 +227,32 @@ export class MCPServer {
   async stop(): Promise<void> {
     // Mark as not ready immediately to stop accepting new requests
     this.isTransportReady = false;
-    this.initializationInProgress = false;
+    this.hasSuccessfulInit = false;
+
+    // Wait for in-flight requests to complete (with timeout)
+    if (this.inflightRequests.size > 0) {
+      this.logger.info(
+        `Waiting for ${this.inflightRequests.size} in-flight request(s) to complete...`,
+      );
+      try {
+        await Promise.race([
+          Promise.allSettled(Array.from(this.inflightRequests)),
+          new Promise((resolve) => setTimeout(resolve, 5000)), // 5 second timeout
+        ]);
+      } catch (error) {
+        this.logger.warn(
+          "Some requests did not complete before timeout:",
+          error,
+        );
+      }
+    }
+
+    // Release any pending init lock
+    if (this.initLockRelease) {
+      this.initLockRelease();
+      this.initLockRelease = null;
+    }
+    this.isInitLockHeld = false;
 
     // Close MCP Server and transport
     if (this.transport) {
@@ -185,6 +280,26 @@ export class MCPServer {
    * Should be called when the MCP server is being permanently shut down.
    */
   dispose(): void {
+    this.isDisposed = true;
+
+    // Cancel all pending timers
+    for (const timer of this.pendingTimers) {
+      clearTimeout(timer);
+    }
+    this.pendingTimers.clear();
+
+    // Note: inflightRequests are already awaited in stop()
+    // Just clear the set to prevent any new tracking
+    this.inflightRequests.clear();
+
+    // Release init lock if held
+    if (this.initLockRelease) {
+      this.initLockRelease();
+      this.initLockRelease = null;
+    }
+    this.isInitLockHeld = false;
+
+    // Dispose component resources
     this.toolRouter.dispose();
   }
 
@@ -419,84 +534,153 @@ export class MCPServer {
         if (isInitRequest) {
           const requestId = Math.random().toString(36).substring(7);
           this.logger.info(
-            `[${requestId}] Init request received, flag=${this.initializationInProgress}, isSSE=${isSSERequest}`,
+            `[${requestId}] Init request received, isSSE=${isSSERequest}`,
           );
 
-          // Allow SSE requests to bypass concurrent initialization check
-          // SSE is a fallback mechanism that should always work
-          if (!isSSERequest && this.initializationInProgress) {
-            this.logger.info(
-              `[${requestId}] Rejecting concurrent init - server busy`,
-            );
-            if (!res.headersSent) {
-              res.status(503).json({
-                error: "Server busy with another initialization - please retry",
-                jsonrpc: "2.0",
-                id: null,
-                retryAfter: 1,
-              });
-            }
-            return;
-          }
-
-          // Set flag immediately before any async operations (only for non-SSE requests)
-          // SSE requests don't set the flag as they're meant to be concurrent-safe fallbacks
-          if (!isSSERequest) {
-            this.initializationInProgress = true;
-            this.logger.info(
-              `[${requestId}] Processing initialization request (flag now true)`,
-            );
-          } else {
-            this.logger.info(
-              `[${requestId}] Processing SSE initialization request (not setting flag)`,
-            );
-          }
-
-          try {
-            // Let the transport handle the request - it manages sessions internally
-            await this.transport.handleRequest(req, res);
-            this.logger.info(`[${requestId}] Transport completed successfully`);
-          } catch (error: unknown) {
-            const errorMessage =
-              error instanceof Error ? error.message : String(error);
-            this.logger.error(`[${requestId}] Transport error:`, errorMessage);
-
-            // Check if this is a "Server already initialized" error from the MCP transport
-            // This can happen when MCP clients create multiple instances for the same server
-            if (errorMessage.includes("Server already initialized")) {
-              this.logger.info(
-                `[${requestId}] Transport reported server already initialized (isSSE=${isSSERequest})`,
-              );
-
-              if (!res.headersSent) {
-                res.status(503).json({
-                  error:
-                    "Server busy with another initialization - please retry",
-                  jsonrpc: "2.0",
-                  id: null,
-                  retryAfter: 1,
-                });
-              }
-              return;
-            }
-
-            throw error;
-          } finally {
-            // Reset flag on next tick (setTimeout 0) to allow truly concurrent requests
-            // (same millisecond) to be caught, but fast enough for SSE fallbacks
-            // Only reset if this was a non-SSE request that set the flag
+          // Track this request for graceful shutdown
+          const requestPromise = (async () => {
+            // Allow SSE requests to bypass serialization
+            // SSE is a fallback mechanism that should always work concurrently
             if (!isSSERequest) {
-              this.logger.info(`[${requestId}] Will reset flag on next tick`);
-              setTimeout(() => {
-                this.logger.info(`[${requestId}] Resetting flag`);
-                this.initializationInProgress = false;
-              }, 0);
+              // Try to acquire the initialization lock
+              // This serializes concurrent init requests properly
+              let release: (() => void) | null = null;
+              try {
+                // Check if an initialization has already succeeded
+                // MCP transport only allows ONE initialization per server instance
+                if (this.hasSuccessfulInit) {
+                  this.logger.info(
+                    `[${requestId}] Rejecting init - transport already initialized by another client`,
+                  );
+                  if (!res.headersSent) {
+                    res.status(503).json({
+                      error:
+                        "Server busy with another initialization - please retry",
+                      jsonrpc: "2.0",
+                      id: null,
+                      retryAfter: 1,
+                    });
+                  }
+                  return;
+                }
+
+                // Check if lock is already held by another request
+                if (this.isInitLockHeld) {
+                  // Another init is in progress - reject with 503
+                  this.logger.info(
+                    `[${requestId}] Rejecting concurrent init - lock held`,
+                  );
+                  if (!res.headersSent) {
+                    res.status(503).json({
+                      error:
+                        "Server busy with another initialization - please retry",
+                      jsonrpc: "2.0",
+                      id: null,
+                      retryAfter: 1,
+                    });
+                  }
+                  return;
+                }
+
+                // Acquire the lock
+                release = await this.acquireInitLock();
+                this.initLockRelease = release;
+                this.logger.info(
+                  `[${requestId}] Processing initialization request (lock acquired)`,
+                );
+
+                // Double-check transport is still available
+                if (!this.transport) {
+                  throw new Error(
+                    "Transport became unavailable during initialization",
+                  );
+                }
+
+                // Handle the request
+                await this.transport.handleRequest(req, res);
+                this.logger.info(
+                  `[${requestId}] Transport completed successfully`,
+                );
+
+                // Mark that an initialization has succeeded
+                // This prevents subsequent init attempts from trying
+                this.hasSuccessfulInit = true;
+                this.logger.info(
+                  `[${requestId}] Marked transport as initialized`,
+                );
+              } catch (error: unknown) {
+                const errorMessage =
+                  error instanceof Error ? error.message : String(error);
+                this.logger.error(
+                  `[${requestId}] Transport error:`,
+                  errorMessage,
+                );
+
+                // Check if this is a "Server already initialized" error from the MCP transport
+                // This can happen when MCP clients create multiple instances for the same server
+                if (errorMessage.includes("Server already initialized")) {
+                  this.logger.info(
+                    `[${requestId}] Transport reported server already initialized`,
+                  );
+
+                  if (!res.headersSent) {
+                    res.status(503).json({
+                      error:
+                        "Server busy with another initialization - please retry",
+                      jsonrpc: "2.0",
+                      id: null,
+                      retryAfter: 1,
+                    });
+                  }
+                  return;
+                }
+
+                throw error;
+              } finally {
+                // Release the lock
+                if (release) {
+                  // Small delay to ensure response is fully sent before allowing next init
+                  // This prevents race conditions in quick succession scenarios
+                  this.scheduleTimer(() => {
+                    if (release) {
+                      release();
+                      this.initLockRelease = null;
+                      this.logger.info(`[${requestId}] Lock released`);
+                    }
+                  }, 10);
+                }
+              }
             } else {
+              // SSE requests bypass the lock entirely
               this.logger.info(
-                `[${requestId}] SSE request completed (flag unchanged)`,
+                `[${requestId}] Processing SSE initialization request (no lock)`,
               );
+              try {
+                // Double-check transport is still available
+                if (!this.transport) {
+                  throw new Error(
+                    "Transport became unavailable during initialization",
+                  );
+                }
+
+                await this.transport.handleRequest(req, res);
+                this.logger.info(
+                  `[${requestId}] SSE transport completed successfully`,
+                );
+              } catch (error: unknown) {
+                const errorMessage =
+                  error instanceof Error ? error.message : String(error);
+                this.logger.error(
+                  `[${requestId}] SSE transport error:`,
+                  errorMessage,
+                );
+                throw error;
+              }
             }
-          }
+          })();
+
+          this.trackRequest(requestPromise);
+          await requestPromise;
           return; // Exit early to prevent duplicate handling
         }
 
