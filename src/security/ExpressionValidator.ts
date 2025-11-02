@@ -28,7 +28,10 @@ import {
 } from "./expression/validators/csharp";
 import { detectJavaCritical, validateJava } from "./expression/validators/java";
 import { detectCppCritical, validateCpp } from "./expression/validators/cpp";
-import { validateGo } from "./expression/validators/go";
+import { detectGoCritical, validateGo } from "./expression/validators/go";
+import { detectRustCritical, validateRust } from "./expression/validators/rust";
+import { detectRubyCritical, validateRuby } from "./expression/validators/ruby";
+import { detectPHPCritical, validatePHP } from "./expression/validators/php";
 
 export type { RiskLevel, ValidationLevel, ValidationResult };
 
@@ -235,6 +238,14 @@ Getter methods are typically safe, but custom getters may include logging or sta
           return detectCSharpCritical(expression);
         case "java":
           return detectJavaCritical(expression);
+        case "go":
+          return detectGoCritical(expression);
+        case "rust":
+          return detectRustCritical(expression);
+        case "ruby":
+          return detectRubyCritical(expression);
+        case "php":
+          return detectPHPCritical(expression);
         default:
           // For unknown languages, check all patterns as a safety measure
           return (
@@ -242,7 +253,11 @@ Getter methods are typically safe, but custom getters may include logging or sta
             detectPythonCritical(expression) ||
             detectCppCritical(expression) ||
             detectCSharpCritical(expression) ||
-            detectJavaCritical(expression)
+            detectJavaCritical(expression) ||
+            detectGoCritical(expression) ||
+            detectRustCritical(expression) ||
+            detectRubyCritical(expression) ||
+            detectPHPCritical(expression)
           );
       }
     }
@@ -253,7 +268,11 @@ Getter methods are typically safe, but custom getters may include logging or sta
       detectPythonCritical(expression) ||
       detectCppCritical(expression) ||
       detectCSharpCritical(expression) ||
-      detectJavaCritical(expression)
+      detectJavaCritical(expression) ||
+      detectGoCritical(expression) ||
+      detectRustCritical(expression) ||
+      detectRubyCritical(expression) ||
+      detectPHPCritical(expression)
     );
   }
 
@@ -384,6 +403,25 @@ Getter methods are typically safe, but custom getters may include logging or sta
         );
       case "go":
         return validateGo(
+          expression,
+          this.checkAgainstWhitelists.bind(this),
+          this.extractFunctionCalls.bind(this),
+        );
+      case "rust":
+        return validateRust(
+          expression,
+          this.checkAgainstWhitelists.bind(this),
+          this.extractFunctionCalls.bind(this),
+        );
+      case "ruby":
+        return validateRuby(
+          expression,
+          this.checkMutationMethods.bind(this),
+          this.checkAgainstWhitelists.bind(this),
+          this.extractFunctionCalls.bind(this),
+        );
+      case "php":
+        return validatePHP(
           expression,
           this.checkAgainstWhitelists.bind(this),
           this.extractFunctionCalls.bind(this),
