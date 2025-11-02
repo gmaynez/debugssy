@@ -6,9 +6,10 @@ import tsPlugin from "@typescript-eslint/eslint-plugin";
 import js from "@eslint/js";
 
 export default [
-  // Apply to all TypeScript files
+  // Apply to all TypeScript files (except tests)
   {
     files: ["src/**/*.ts"],
+    ignores: ["src/**/*.test.ts", "src/**/__tests__/**"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
@@ -107,8 +108,55 @@ export default [
       ],
     },
   },
+  // Test files - relaxed rules
+  {
+    files: ["src/**/*.test.ts", "src/**/__tests__/**/*.ts"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: 2020,
+        sourceType: "module",
+      },
+      globals: {
+        console: "readonly",
+        process: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        setInterval: "readonly",
+        clearInterval: "readonly",
+        URL: "readonly",
+        Buffer: "readonly",
+        __dirname: "readonly",
+        __filename: "readonly",
+      },
+    },
+    plugins: {
+      "@typescript-eslint": tsPlugin,
+    },
+    rules: {
+      // Base ESLint recommended rules
+      ...js.configs.recommended.rules,
+
+      // TypeScript ESLint recommended rules
+      ...tsPlugin.configs.recommended.rules,
+
+      // Relaxed rules for test files
+      "@typescript-eslint/naming-convention": "off", // Allow any naming in tests (mocks, test data)
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+      "no-throw-literal": "off", // Tests often throw strings/numbers for testing error handling
+      curly: "off", // Allow single-line if statements in tests for brevity
+    },
+  },
   // Ignore patterns
   {
-    ignores: ["out/**", "dist/**", "**/*.d.ts", "node_modules/**"],
+    ignores: ["out/**", "dist/**", "**/*.d.ts", "node_modules/**", "coverage/**"],
   },
 ];
