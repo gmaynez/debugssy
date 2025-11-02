@@ -2,6 +2,20 @@
 
 All notable changes to the "Debugssy" extension will be documented in this file.
 
+## [1.2.4] - 2025-11-01
+
+### Security
+- Enhanced detection of obfuscated code attempts using bracket notation
+- Added detection of character escape sequences (hex, unicode, octal) that could hide dangerous operations
+- Improved detection of suspicious patterns like string concatenation and template literals in bracket notation
+- Better validation across all supported languages (C++, C#, Go, Java, JavaScript, Python)
+
+### Changed
+- More consistent and clear error messages when code validation fails
+- Improved security checks for bracket notation in function calls
+- Enhanced whitelist checking logic for better security and clarity
+- Better support for safe code patterns like lambdas and anonymous functions when using whitelisted operations
+
 ## [1.2.3] - 2025-11-01
 
 ### Added
