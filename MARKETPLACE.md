@@ -5,7 +5,8 @@
 
 > **Stop clicking through the debugger. Just tell your AI what's broken.**
 
-Debug with natural language through any AI assistant (Cursor, GitHub Copilot, Claude Desktop, etc.) using the Model Context Protocol.
+Debug with natural language through any AI assistant (Cursor, GitHub Copilot,
+Claude Desktop, etc.) using the Model Context Protocol.
 
 ---
 
@@ -14,7 +15,8 @@ Debug with natural language through any AI assistant (Cursor, GitHub Copilot, Cl
 Debugging is tedious:
 
 - ❌ **Manual breakpoint hunting** - "Maybe line 42? No, line 58? Try 63..."
-- ❌ **Repetitive stepping** - Click step, check variable, step again, check again...
+- ❌ **Repetitive stepping** - Click step, check variable, step again, check
+  again...
 - ❌ **Context switching** - Jump between code, debugger UI, and documentation
 - ❌ **Time wasted** - 30+ minutes to find a simple null reference
 
@@ -50,9 +52,12 @@ AI: Sets breakpoint → Inspects user object → Finds role check fails →
 
 ### Step 1: Install Extension
 
-**In VS Code:** Press `Ctrl+Shift+X` (or `Cmd+Shift+X` on Mac) → Search "Debugssy" → Click Install
+**In VS Code:** Press `Ctrl+Shift+X` (or `Cmd+Shift+X` on Mac) → Search
+"Debugssy" → Click Install
 
-**Or install from:** [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy) · [Open VSX](https://open-vsx.org/extension/gamag/debugssy)
+**Or install from:**
+[VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy)
+· [Open VSX](https://open-vsx.org/extension/gamag/debugssy)
 
 ### Step 2: Connect Your AI (One Click!)
 
@@ -61,7 +66,9 @@ AI: Sets breakpoint → Inspects user object → Finds role check fails →
 <details>
 <summary><b>🤖 GitHub Copilot (VS Code)</b> - Click to expand</summary>
 
-**One-click setup:** [Install in VS Code](vscode:mcp/install?%7B%22name%22%3A%22debugssy%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22http%3A%2F%2Flocalhost%3A3000%2Fmcp%22%7D) or [Open from browser](https://gmaynez.github.io/debugssy/oneclick-vscode.html)
+**One-click setup:**
+[Install in VS Code](vscode:mcp/install?%7B%22name%22%3A%22debugssy%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22http%3A%2F%2Flocalhost%3A3000%2Fmcp%22%7D)
+or [Open from browser](https://gmaynez.github.io/debugssy/oneclick-vscode.html)
 
 <details>
 <summary>Or add manually to settings.json</summary>
@@ -78,14 +85,16 @@ AI: Sets breakpoint → Inspects user object → Finds role check fails →
 
 </details>
 
-> ⚠️ **Note:** Restart VS Code after changing automation modes for Copilot to see updated tools.
+> ⚠️ **Note:** Restart VS Code after changing automation modes for Copilot to
+> see updated tools.
 
 </details>
 
 <details>
 <summary><b>⚡ Cursor</b> - Click to expand</summary>
 
-**One-click setup:** [Install in Cursor](https://cursor.com/en-US/install-mcp?name=debugssy&config=eyJ0eXBlIjoiaHR0cCIsInVybCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMC9tY3AifQ%3D%3D)
+**One-click setup:**
+[Install in Cursor](https://cursor.com/en-US/install-mcp?name=debugssy&config=eyJ0eXBlIjoiaHR0cCIsInVybCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMC9tY3AifQ%3D%3D)
 
 <details>
 <summary>Or add manually to ~/.cursor/mcp.json</summary>
@@ -134,13 +143,15 @@ Add to config file:
 > 💬 "Find where cartTotal becomes 0"  
 > 💬 "Trace why this loop runs 1000x instead of 10x"
 
-**Pro tip:** Type `/` in your AI chat to see guided debugging workflows (`/debug-crash`, `/trace-variable`, etc.)
+**Pro tip:** Type `/` in your AI chat to see guided debugging workflows
+(`/debug-crash`, `/trace-variable`, etc.)
 
 ---
 
 ## ⚙️ How It Works
 
-Debugssy connects your AI assistant to VS Code's debugging tools via the Model Context Protocol (MCP). Your AI gets access to:
+Debugssy connects your AI assistant to VS Code's debugging tools via the Model
+Context Protocol (MCP). Your AI gets access to:
 
 | Tool Category      | What It Does                                                           |
 | ------------------ | ---------------------------------------------------------------------- |
@@ -150,10 +161,13 @@ Debugssy connects your AI assistant to VS Code's debugging tools via the Model C
 
 **Two modes:**
 
-- **Assisted** (default): You control execution via VS Code UI, AI inspects & sets breakpoints
-- **Full automation**: AI controls everything (start debugging, continue, step through)
+- **Assisted** (default): You control execution via VS Code UI, AI inspects &
+  sets breakpoints
+- **Full automation**: AI controls everything (start debugging, continue, step
+  through)
 
-**Secure:** Localhost-only, origin validation, follows [MCP security standards](https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices)
+**Secure:** Localhost-only, origin validation, follows
+[MCP security standards](https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices)
 
 ---
 
@@ -194,13 +208,15 @@ Debugssy connects your AI assistant to VS Code's debugging tools via the Model C
 - `/debug-loop` - Loop debugging
 - `/auto-debug-session` - Full automation (full mode)
 
-> 💡 **Recommended models:** Claude 4.5 Haiku or Grok 4 Fast (fast, accurate, cost-effective)
+> 💡 **Recommended models:** Claude 4.5 Haiku or Grok 4 Fast (fast, accurate,
+> cost-effective)
 
 ---
 
 ## ⚙️ Settings
 
-**Key settings** (access via `File → Preferences → Settings`, search "debugssy"):
+**Key settings** (access via `File → Preferences → Settings`, search
+"debugssy"):
 
 | Setting                     | Default    | Description                                      |
 | --------------------------- | ---------- | ------------------------------------------------ |
@@ -243,7 +259,8 @@ Debugssy connects your AI assistant to VS Code's debugging tools via the Model C
 | **Variables not available**    | Ensure execution is paused at a breakpoint                   |
 | **Copilot not seeing changes** | Restart VS Code after changing `automationLevel`             |
 
-**Still stuck?** Check full docs at [github.com/gmaynez/debugssy](https://github.com/gmaynez/debugssy)
+**Still stuck?** Check full docs at
+[github.com/gmaynez/debugssy](https://github.com/gmaynez/debugssy)
 
 ---
 
@@ -251,10 +268,12 @@ Debugssy connects your AI assistant to VS Code's debugging tools via the Model C
 
 - ✅ **Localhost only** - No network access, binds to 127.0.0.1
 - ✅ **Origin validation** - Prevents DNS rebinding attacks
-- ✅ **Expression validation** - Optional safeguards against unsafe code execution
+- ✅ **Expression validation** - Optional safeguards against unsafe code
+  execution
 - ✅ **No telemetry** - Your code stays on your machine
 
-Follows [MCP Security Best Practices 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices)
+Follows
+[MCP Security Best Practices 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices)
 
 ---
 
@@ -267,16 +286,23 @@ Follows [MCP Security Best Practices 2025-06-18](https://modelcontextprotocol.io
 
 ## 💝 Support This Project
 
-If Debugssy saves you time, [consider buying me a coffee](https://www.paypal.com/donate/?hosted_button_id=FH3S38FT3NYGE)! Every contribution helps maintain and improve the extension. [![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/donate/?hosted_button_id=FH3S38FT3NYGE)
+If Debugssy saves you time,
+[consider buying me a coffee](https://www.paypal.com/donate/?hosted_button_id=FH3S38FT3NYGE)!
+Every contribution helps maintain and improve the extension.
+[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/donate/?hosted_button_id=FH3S38FT3NYGE)
 
 ---
 
 ## 📚 Learn More
 
-- **[GitHub Repository](https://github.com/gmaynez/debugssy)** - Full docs, source code, contribute
-- **[Allowlist Guide](https://github.com/gmaynez/debugssy/blob/main/ALLOWLIST_GUIDE.md)** - Security configuration examples
-- **[MCP Compliance](https://github.com/gmaynez/debugssy/blob/main/MCP_COMPLIANCE.md)** - Security implementation details
-- **[Model Context Protocol](https://modelcontextprotocol.io)** - Learn about MCP
+- **[GitHub Repository](https://github.com/gmaynez/debugssy)** - Full docs,
+  source code, contribute
+- **[Allowlist Guide](https://github.com/gmaynez/debugssy/blob/main/ALLOWLIST_GUIDE.md)** -
+  Security configuration examples
+- **[MCP Compliance](https://github.com/gmaynez/debugssy/blob/main/MCP_COMPLIANCE.md)** -
+  Security implementation details
+- **[Model Context Protocol](https://modelcontextprotocol.io)** - Learn about
+  MCP
 
 ---
 

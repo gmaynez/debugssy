@@ -11,9 +11,13 @@
 
 **AI-Powered Debugging for VS Code**
 
-Control your debugger with natural language through any AI assistant using the Model Context Protocol (MCP).
+Control your debugger with natural language through any AI assistant using the
+Model Context Protocol (MCP).
 
-[Install Now](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy) · [Documentation](#documentation) · [Report Bug](https://github.com/gmaynez/debugssy/issues) · [Request Feature](https://github.com/gmaynez/debugssy/issues)
+[Install Now](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy)
+· [Documentation](#documentation) ·
+[Report Bug](https://github.com/gmaynez/debugssy/issues) ·
+[Request Feature](https://github.com/gmaynez/debugssy/issues)
 
 </div>
 
@@ -21,7 +25,9 @@ Control your debugger with natural language through any AI assistant using the M
 
 ## 🎯 Overview
 
-**Stop clicking through the debugger.** Debugssy lets you debug with natural language by connecting your AI assistant (Cursor, GitHub Copilot, Claude Desktop) to VS Code's debugging engine via the Model Context Protocol.
+**Stop clicking through the debugger.** Debugssy lets you debug with natural
+language by connecting your AI assistant (Cursor, GitHub Copilot, Claude
+Desktop) to VS Code's debugging engine via the Model Context Protocol.
 
 ```
 💬 You: "Debug why users get null when logging in"
@@ -38,7 +44,8 @@ Control your debugger with natural language through any AI assistant using the M
 - ⚡ **Two automation modes** - You control, or AI controls
 - 🔒 **Secure by design** - Localhost-only, follows MCP security standards
 
-**Recommended AI models:** Claude 4.5 Haiku or Grok 4 Fast (fast, smart, cost-effective)
+**Recommended AI models:** Claude 4.5 Haiku or Grok 4 Fast (fast, smart,
+cost-effective)
 
 ---
 
@@ -110,7 +117,8 @@ Control your debugger with natural language through any AI assistant using the M
 Or install from:
 
 - [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy)
-- [Open VSX Registry](https://open-vsx.org/extension/gamag/debugssy) (for VSCodium, Gitpod, etc.)
+- [Open VSX Registry](https://open-vsx.org/extension/gamag/debugssy) (for
+  VSCodium, Gitpod, etc.)
 
 **Option 2: Manual Installation (VSIX)**
 
@@ -156,7 +164,8 @@ Add to VS Code `settings.json`:
 }
 ```
 
-> ⚠️ **Note:** Restart VS Code after changing `debugssy.automationLevel` for Copilot to see updated tools.
+> ⚠️ **Note:** Restart VS Code after changing `debugssy.automationLevel` for
+> Copilot to see updated tools.
 
 </details>
 
@@ -210,7 +219,8 @@ Add to config file:
    - Traces execution
    - Identifies root cause
 
-**Pro tip:** Type `/` in your AI chat to see guided debugging workflows (`/debug-crash`, `/trace-variable`, etc.)
+**Pro tip:** Type `/` in your AI chat to see guided debugging workflows
+(`/debug-crash`, `/trace-variable`, etc.)
 
 ---
 
@@ -269,7 +279,8 @@ Access via `File → Preferences → Settings` (search "debugssy"):
 }
 ```
 
-> **📋 Complete allowlist examples:** See [ALLOWLIST_GUIDE.md](./ALLOWLIST_GUIDE.md)
+> **📋 Complete allowlist examples:** See
+> [ALLOWLIST_GUIDE.md](./ALLOWLIST_GUIDE.md)
 
 ---
 
@@ -293,7 +304,8 @@ Debugssy offers two automation levels to match your workflow:
 
 **AI controls everything**
 
-- ✅ **AI:** Start debugging, set breakpoints, continue execution, step through code
+- ✅ **AI:** Start debugging, set breakpoints, continue execution, step through
+  code
 - ✅ **You:** Watch the AI debug or review results afterward
 - ✅ **Best for:** Batch debugging, known issues, automated testing
 
@@ -301,7 +313,8 @@ Debugssy offers two automation levels to match your workflow:
 { "debugssy.automationLevel": "full" }
 ```
 
-> ⚠️ **GitHub Copilot users:** Restart VS Code after changing modes to refresh the tool list.
+> ⚠️ **GitHub Copilot users:** Restart VS Code after changing modes to refresh
+> the tool list.
 
 ---
 
@@ -346,15 +359,18 @@ Your AI assistant gets access to these debugging tools via MCP:
 
 **Optional (Full Mode + Enabled):**
 
-- `step_over`, `step_into`, `step_out` (enable via `debugssy.allowStepOperations`)
+- `step_over`, `step_into`, `step_out` (enable via
+  `debugssy.allowStepOperations`)
 
-> **📝 Note:** For AI debugging, setting strategic breakpoints + `continue` is more efficient than stepping.
+> **📝 Note:** For AI debugging, setting strategic breakpoints + `continue` is
+> more efficient than stepping.
 
 ---
 
 ## 📚 MCP Prompts
 
-Debugssy provides structured debugging workflows accessible via `/` in your AI chat:
+Debugssy provides structured debugging workflows accessible via `/` in your AI
+chat:
 
 | Prompt                | When to Use         | What It Does                                               |
 | --------------------- | ------------------- | ---------------------------------------------------------- |
@@ -370,7 +386,8 @@ Debugssy provides structured debugging workflows accessible via `/` in your AI c
 /debug-crash errorMessage:"Cannot read property 'id' of undefined" filePath:"UserService.ts"
 ```
 
-> **💡 AI models:** Claude 4.5 Haiku or Grok 4 Fast recommended for interactive debugging
+> **💡 AI models:** Claude 4.5 Haiku or Grok 4 Fast recommended for interactive
+> debugging
 
 ---
 
@@ -492,7 +509,8 @@ curl -X POST http://localhost:3000/mcp \
 
 ## 🔒 Security
 
-Debugssy follows [MCP Security Best Practices 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices):
+Debugssy follows
+[MCP Security Best Practices 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices):
 
 ### Security Features
 
@@ -516,7 +534,8 @@ Four validation levels:
 | `permissive` | Only dangerous operations blocked     | Minimal interruptions           |
 | `disabled`   | No validation                         | Fully trusted environments only |
 
-**Validation uses elicitation** for user approval of potentially unsafe operations.
+**Validation uses elicitation** for user approval of potentially unsafe
+operations.
 
 > **📋 Complete security details:** See [MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md)
 
@@ -571,7 +590,8 @@ Four validation levels:
 }
 ```
 
-**Note:** Scope filtering uses prefix matching. "Local" matches "Local: functionName".
+**Note:** Scope filtering uses prefix matching. "Local" matches "Local:
+functionName".
 
 </details>
 
@@ -636,7 +656,8 @@ Four validation levels:
 }
 ```
 
-**Tip:** Use MCP resources to read launch.json first to find configuration names.
+**Tip:** Use MCP resources to read launch.json first to find configuration
+names.
 
 </details>
 
@@ -881,35 +902,41 @@ lsof -ti:3000 | xargs kill -9
 <details>
 <summary><b>Q: Can I debug remote applications?</b></summary>
 
-A: No, Debugssy binds to localhost for security. It debugs applications running in your local VS Code.
+A: No, Debugssy binds to localhost for security. It debugs applications running
+in your local VS Code.
 
 </details>
 
 <details>
 <summary><b>Q: Does this work with all programming languages?</b></summary>
 
-A: Debugssy works with any language that has VS Code debug adapter support (JavaScript, TypeScript, Python, Go, Java, C++, C#, PHP, Ruby, Rust, etc.).
+A: Debugssy works with any language that has VS Code debug adapter support
+(JavaScript, TypeScript, Python, Go, Java, C++, C#, PHP, Ruby, Rust, etc.).
 
 </details>
 
 <details>
 <summary><b>Q: Can I use this without an AI assistant?</b></summary>
 
-A: No, Debugssy requires an MCP-compatible AI assistant to send debugging commands.
+A: No, Debugssy requires an MCP-compatible AI assistant to send debugging
+commands.
 
 </details>
 
 <details>
 <summary><b>Q: Is my code sent to any external servers?</b></summary>
 
-A: No. Debugssy runs entirely on localhost. Your code never leaves your machine. The AI assistant connects to your local MCP server.
+A: No. Debugssy runs entirely on localhost. Your code never leaves your machine.
+The AI assistant connects to your local MCP server.
 
 </details>
 
 <details>
 <summary><b>Q: Why use MCP instead of a VS Code extension API?</b></summary>
 
-A: MCP allows any AI assistant (Cursor, Copilot, Claude, custom clients) to use Debugssy, not just VS Code's built-in features. It's more flexible and follows an open standard.
+A: MCP allows any AI assistant (Cursor, Copilot, Claude, custom clients) to use
+Debugssy, not just VS Code's built-in features. It's more flexible and follows
+an open standard.
 
 </details>
 
@@ -917,10 +944,13 @@ A: MCP allows any AI assistant (Cursor, Copilot, Claude, custom clients) to use 
 
 ## 🚧 Known Limitations
 
-- **Copilot dynamic refresh:** Requires VS Code restart when changing automation modes
-- **Watch expressions:** Not directly accessible (use `evaluate_expression` instead)
+- **Copilot dynamic refresh:** Requires VS Code restart when changing automation
+  modes
+- **Watch expressions:** Not directly accessible (use `evaluate_expression`
+  instead)
 - **Thread assumption:** Assumes thread ID 1 for single-threaded debugging
-- **Manual flow detection:** In assisted mode, AI can't detect when you manually click continue/step
+- **Manual flow detection:** In assisted mode, AI can't detect when you manually
+  click continue/step
 - **`wait_for_breakpoint`:** Requires debug session to be running
 - **Variable formatting:** Complex nested objects may be abbreviated by debugger
 
@@ -932,10 +962,13 @@ Contributions are welcome! Here's how you can help:
 
 ### Ways to Contribute
 
-- 🐛 **Report bugs** - [Open an issue](https://github.com/gmaynez/debugssy/issues)
-- 💡 **Suggest features** - [Request a feature](https://github.com/gmaynez/debugssy/issues)
+- 🐛 **Report bugs** -
+  [Open an issue](https://github.com/gmaynez/debugssy/issues)
+- 💡 **Suggest features** -
+  [Request a feature](https://github.com/gmaynez/debugssy/issues)
 - 📖 **Improve docs** - Submit PRs for documentation
-- 🔧 **Fix issues** - Check [good first issues](https://github.com/gmaynez/debugssy/labels/good%20first%20issue)
+- 🔧 **Fix issues** - Check
+  [good first issues](https://github.com/gmaynez/debugssy/labels/good%20first%20issue)
 - 🌍 **Add language support** - Help with internationalization
 
 ### Development Setup
@@ -974,17 +1007,23 @@ Every contribution helps maintain and improve Debugssy. Thank you! 🙏
 
 ### Documentation
 
-- **[ALLOWLIST_GUIDE.md](./ALLOWLIST_GUIDE.md)** - MCP client allowlist configuration
+- **[ALLOWLIST_GUIDE.md](./ALLOWLIST_GUIDE.md)** - MCP client allowlist
+  configuration
 - **[MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md)** - Security implementation details
-- **[DEBUGSSY_PROMPT.md](./DEBUGSSY_PROMPT.md)** - Comprehensive guide for AI assistants
+- **[DEBUGSSY_PROMPT.md](./DEBUGSSY_PROMPT.md)** - Comprehensive guide for AI
+  assistants
 - **[COMPACT_PROMPT.txt](./COMPACT_PROMPT.txt)** - Quick AI assistant reference
 
 ### External Links
 
-- **[Model Context Protocol Specification](https://modelcontextprotocol.io)** - MCP standard
-- **[VS Code Debug API](https://code.visualstudio.com/api/references/vscode-api#debug)** - VS Code debugging
-- **[Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/)** - DAP specification
-- **[MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)** - SDK documentation
+- **[Model Context Protocol Specification](https://modelcontextprotocol.io)** -
+  MCP standard
+- **[VS Code Debug API](https://code.visualstudio.com/api/references/vscode-api#debug)** -
+  VS Code debugging
+- **[Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/)** -
+  DAP specification
+- **[MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)** -
+  SDK documentation
 
 ---
 
@@ -994,17 +1033,16 @@ Every contribution helps maintain and improve Debugssy. Thank you! 🙏
 
 Copyright © 2025 Guillermo Garcia Maynez
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this file except in compliance with the License. You may obtain a copy of the
+License at
 
     http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+Unless required by applicable law or agreed to in writing, software distributed
+under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
 
 See the [LICENSE](./LICENSE) file for details.
 

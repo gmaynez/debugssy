@@ -2,7 +2,9 @@
 
 > **How Debugssy follows the Model Context Protocol security standards**
 
-This document outlines Debugssy's compliance with the [MCP Specification 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports) security best practices.
+This document outlines Debugssy's compliance with the
+[MCP Specification 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)
+security best practices.
 
 **Protocol Support:** 2025-03-26 and 2025-06-18 (backwards compatible)
 
@@ -42,7 +44,8 @@ Debugssy uses **Streamable HTTP** transport as defined in the MCP specification:
 | **Origin Validation** | ✅ **MUST** | Validates `Origin` header to prevent DNS rebinding attacks |
 | **Supported Origins** | ✅ Enforced | Only `localhost`, `127.0.0.1`, `[::1]` allowed             |
 
-**What this means:** Debugssy is unreachable from the network. Only applications running on your local machine can connect.
+**What this means:** Debugssy is unreachable from the network. Only applications
+running on your local machine can connect.
 
 ### Authentication
 
@@ -50,7 +53,8 @@ Debugssy uses **Streamable HTTP** transport as defined in the MCP specification:
 | -------------- | ------------------ | ------------------------------------------------------------------------------ |
 | **Token Auth** | ⚪ Not Implemented | Local-only VS Code extension, origin validation provides sufficient protection |
 
-**Note:** Authentication may be added in future versions for multi-user scenarios.
+**Note:** Authentication may be added in future versions for multi-user
+scenarios.
 
 ---
 
@@ -67,7 +71,8 @@ Debugssy uses **Streamable HTTP** transport as defined in the MCP specification:
 
 **Example Session ID:** `mcp-session-123e4567-e89b-12d3-a456-426614174000`
 
-**Security:** Session IDs are unpredictable and cannot be guessed or enumerated by attackers.
+**Security:** Session IDs are unpredictable and cannot be guessed or enumerated
+by attackers.
 
 ### Session Lifecycle
 
@@ -99,7 +104,8 @@ Debugssy uses **Streamable HTTP** transport as defined in the MCP specification:
 | Sends unsupported version | ❌ `400 Bad Request`               |
 | Omits header              | ✅ `200 OK` (assumes `2025-03-26`) |
 
-**Backwards Compatibility:** Clients using older MCP implementations without the version header are supported.
+**Backwards Compatibility:** Clients using older MCP implementations without the
+version header are supported.
 
 ---
 
@@ -113,7 +119,8 @@ Debugssy uses **Streamable HTTP** transport as defined in the MCP specification:
 | **Secure Random Generation** | ✅ **SHOULD**   | `crypto.randomUUID()`           |
 | **Session ≠ Authentication** | ✅ **MUST NOT** | Sessions track connections only |
 
-**Protection:** Session IDs cannot be predicted, guessed, or enumerated by attackers.
+**Protection:** Session IDs cannot be predicted, guessed, or enumerated by
+attackers.
 
 ### OAuth Security Patterns
 
@@ -122,7 +129,8 @@ Debugssy uses **Streamable HTTP** transport as defined in the MCP specification:
 | **Confused Deputy**   | MCP proxy servers forwarding to third-party APIs | ⚪ Not Applicable (not a proxy) |
 | **Token Passthrough** | Accepting OAuth tokens without validation        | ⚪ Not Applicable (no OAuth)    |
 
-**Note:** Debugssy operates exclusively within VS Code without third-party API integrations or OAuth flows.
+**Note:** Debugssy operates exclusively within VS Code without third-party API
+integrations or OAuth flows.
 
 ---
 
@@ -251,14 +259,19 @@ curl -H "Origin: http://evil-domain.com" http://localhost:3000/mcp
 
 ### MCP Specifications
 
-- **[MCP Specification 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)** - Current transport specification
-- **[MCP Security Best Practices 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices)** - Security guidelines
-- **[MCP Specification 2025-03-26](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports)** - Legacy transport specification
+- **[MCP Specification 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)** -
+  Current transport specification
+- **[MCP Security Best Practices 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices)** -
+  Security guidelines
+- **[MCP Specification 2025-03-26](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports)** -
+  Legacy transport specification
 
 ### Related Standards
 
-- **[MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)** - Official SDK documentation
-- **[JSON-RPC 2.0 Specification](https://www.jsonrpc.org/specification)** - Message format standard
+- **[MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)** -
+  Official SDK documentation
+- **[JSON-RPC 2.0 Specification](https://www.jsonrpc.org/specification)** -
+  Message format standard
 
 ### Additional Documentation
 

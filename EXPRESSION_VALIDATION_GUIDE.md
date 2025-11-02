@@ -1,8 +1,10 @@
 # Expression Validation Guide
 
-> **Control which expressions your AI can evaluate automatically during debugging**
+> **Control which expressions your AI can evaluate automatically during
+> debugging**
 
-This guide explains how Debugssy validates expressions for security while allowing flexibility through user approval.
+This guide explains how Debugssy validates expressions for security while
+allowing flexibility through user approval.
 
 ---
 
@@ -19,13 +21,17 @@ This guide explains how Debugssy validates expressions for security while allowi
 
 ## Overview
 
-Debugssy validates expressions before executing them via the `evaluate_expression` tool. This provides security to prevent unintended side effects while maintaining flexibility through user approval when needed.
+Debugssy validates expressions before executing them via the
+`evaluate_expression` tool. This provides security to prevent unintended side
+effects while maintaining flexibility through user approval when needed.
 
 ## How It Works
 
 ### 1. Automatic Validation
 
-When an expression is submitted to `evaluate_expression`, it's automatically validated using **whitelists of known-safe functions** combined with pattern-based validation:
+When an expression is submitted to `evaluate_expression`, it's automatically
+validated using **whitelists of known-safe functions** combined with
+pattern-based validation:
 
 **✅ Allowed automatically (safe operations):**
 
@@ -41,41 +47,54 @@ When an expression is submitted to `evaluate_expression`, it's automatically val
 
 **JavaScript/TypeScript - Whitelisted Safe Functions:**
 
-- **Array methods**: `filter()`, `map()`, `reduce()`, `find()`, `some()`, `every()`, `includes()`, `slice()`, `concat()`, `join()`, `flat()`, `flatMap()`, etc.
-- **String methods**: `toLowerCase()`, `toUpperCase()`, `trim()`, `split()`, `charAt()`, `substring()`, `includes()`, `startsWith()`, `endsWith()`, etc.
-- **Object utilities**: `Object.keys()`, `Object.values()`, `Object.entries()`, `Object.fromEntries()`, `Object.is()`, etc.
+- **Array methods**: `filter()`, `map()`, `reduce()`, `find()`, `some()`,
+  `every()`, `includes()`, `slice()`, `concat()`, `join()`, `flat()`,
+  `flatMap()`, etc.
+- **String methods**: `toLowerCase()`, `toUpperCase()`, `trim()`, `split()`,
+  `charAt()`, `substring()`, `includes()`, `startsWith()`, `endsWith()`, etc.
+- **Object utilities**: `Object.keys()`, `Object.values()`, `Object.entries()`,
+  `Object.fromEntries()`, `Object.is()`, etc.
 - **JSON methods**: `JSON.stringify()`, `JSON.parse()`
-- **Math methods**: `Math.abs()`, `Math.max()`, `Math.min()`, `Math.floor()`, `Math.ceil()`, etc. (all Math methods)
+- **Math methods**: `Math.abs()`, `Math.max()`, `Math.min()`, `Math.floor()`,
+  `Math.ceil()`, etc. (all Math methods)
 - **Number methods**: `toFixed()`, `toPrecision()`, `toExponential()`
-- **Date getters**: `getDate()`, `getHours()`, `getTime()`, `toISOString()`, etc.
+- **Date getters**: `getDate()`, `getHours()`, `getTime()`, `toISOString()`,
+  etc.
 - **Type checks**: `Array.isArray()`, `Number.isInteger()`, `Number.isNaN()`
 
 **Python - Whitelisted Safe Functions:**
 
 - **List methods**: `count()`, `index()`, `copy()`
-- **String methods**: `lower()`, `upper()`, `strip()`, `split()`, `join()`, `replace()`, `find()`, `startswith()`, `endswith()`, etc.
+- **String methods**: `lower()`, `upper()`, `strip()`, `split()`, `join()`,
+  `replace()`, `find()`, `startswith()`, `endswith()`, etc.
 - **Dict methods**: `get()`, `keys()`, `values()`, `items()`, `copy()`
 - **Set methods**: `copy()`, `union()`, `intersection()`, `difference()`
-- **Built-ins**: `len()`, `type()`, `str()`, `int()`, `float()`, `abs()`, `max()`, `min()`, `sum()`, `sorted()`, `filter()`, `map()`, etc.
+- **Built-ins**: `len()`, `type()`, `str()`, `int()`, `float()`, `abs()`,
+  `max()`, `min()`, `sum()`, `sorted()`, `filter()`, `map()`, etc.
 - **JSON methods**: `json.dumps()`, `json.loads()`
-- **Math methods**: `math.sqrt()`, `math.ceil()`, `math.floor()`, etc. (all math module functions)
+- **Math methods**: `math.sqrt()`, `math.ceil()`, `math.floor()`, etc. (all math
+  module functions)
 
 **⚠️ Blocked (requires user approval):**
 
 - 🔴 **HIGH RISK**:
-  - **Mutation methods**: `push()`, `pop()`, `splice()`, `sort()`, `reverse()` (JS), `append()`, `extend()`, `remove()` (Python)
+  - **Mutation methods**: `push()`, `pop()`, `splice()`, `sort()`, `reverse()`
+    (JS), `append()`, `extend()`, `remove()` (Python)
   - **Assignment operators**: `x = 5`, `obj.prop = value`
   - **Compound assignments**: `x += 1`, `count *= 2`
   - **Increment/decrement**: `x++`, `--count`
-  - **Code generation**: `eval()`, `Function()` (JS), `eval()`, `exec()` (Python)
+  - **Code generation**: `eval()`, `Function()` (JS), `eval()`, `exec()`
+    (Python)
 - 🟡 **MEDIUM RISK**:
-  - **User-defined functions**: `myFunction()`, `obj.customMethod()` (not in whitelist)
+  - **User-defined functions**: `myFunction()`, `obj.customMethod()` (not in
+    whitelist)
   - **Bitwise operators**: `x & y`, `flags | mask`
   - **Anonymous functions**: `() => {}`, `lambda x: x`
 
 ### 2. Language Support
 
-Debugssy automatically detects your programming language and applies appropriate validation:
+Debugssy automatically detects your programming language and applies appropriate
+validation:
 
 **JavaScript/TypeScript**
 
@@ -94,7 +113,8 @@ Debugssy automatically detects your programming language and applies appropriate
 
 ### 3. MCP Elicitation (User Approval)
 
-When validation fails, Debugssy uses MCP's elicitation feature to request user approval:
+When validation fails, Debugssy uses MCP's elicitation feature to request user
+approval:
 
 ```
 🔴 HIGH RISK: Expression validation failed
@@ -356,16 +376,22 @@ count = 0;
 User-defined functions aren't automatically allowed for security. You can:
 
 1. **Approve via prompt**: Click "Approve" when the AI asks to use it
-2. **Lower validation level**: Set to `permissive` in settings to allow more functions
-3. **Disable validation**: Set to `disabled` for fully trusted environments (not recommended)
+2. **Lower validation level**: Set to `permissive` in settings to allow more
+   functions
+3. **Disable validation**: Set to `disabled` for fully trusted environments (not
+   recommended)
 
 ### Can I add my own functions to the whitelist?
 
-Not currently. The built-in whitelist includes 70+ JavaScript methods and 50+ Python built-ins that are proven safe. For custom functions, use the approval workflow or adjust validation levels.
+Not currently. The built-in whitelist includes 70+ JavaScript methods and 50+
+Python built-ins that are proven safe. For custom functions, use the approval
+workflow or adjust validation levels.
 
 ### Does validation work with all programming languages?
 
-Yes! Debugssy validates expressions for JavaScript, TypeScript, Python, Go, Java, C++, C#, Ruby, PHP, Rust, and more. Common safe functions work across languages.
+Yes! Debugssy validates expressions for JavaScript, TypeScript, Python, Go,
+Java, C++, C#, Ruby, PHP, Rust, and more. Common safe functions work across
+languages.
 
 ---
 
@@ -402,6 +428,7 @@ Start a debug session and ask your AI to evaluate expressions:
 
 ## Related Documentation
 
-- [ALLOWLIST_GUIDE.md](./ALLOWLIST_GUIDE.md) - MCP client allowlist configuration
+- [ALLOWLIST_GUIDE.md](./ALLOWLIST_GUIDE.md) - MCP client allowlist
+  configuration
 - [MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md) - Security implementation details
 - [README.md](./README.md) - Complete tool documentation

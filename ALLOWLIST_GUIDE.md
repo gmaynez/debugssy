@@ -1,8 +1,11 @@
 # MCP Allowlist Configuration Guide
 
-> **Configure which Debugssy tools your AI can use automatically without asking for permission each time**
+> **Configure which Debugssy tools your AI can use automatically without asking
+> for permission each time**
 
-This guide helps you set up allowlists for your MCP client (Claude Desktop, Cursor, Copilot) to streamline your debugging workflow while maintaining security.
+This guide helps you set up allowlists for your MCP client (Claude Desktop,
+Cursor, Copilot) to streamline your debugging workflow while maintaining
+security.
 
 ---
 
@@ -61,11 +64,13 @@ Debugssy has **2 automation modes** set via `debugssy.automationLevel`:
 | **`assisted`** (default) | Read-only + breakpoints + UI prompts                        | Start/stop debugging, step operations | Inspect state, set breakpoints |
 | **`full`**               | All tools including `start_debugging`, `continue`, `step_*` | Nothing (optional monitoring)         | Everything automatically       |
 
-**Why this matters:** The AI only sees tools it can use, preventing confusing error messages.
+**Why this matters:** The AI only sees tools it can use, preventing confusing
+error messages.
 
 ### Allowlist Levels (MCP Client Configuration)
 
-Within each automation mode, you can further restrict which tools the AI can use **without asking permission** via allowlists. Below are 3 common configurations:
+Within each automation mode, you can further restrict which tools the AI can use
+**without asking permission** via allowlists. Below are 3 common configurations:
 
 ---
 
@@ -84,7 +89,8 @@ Choose the configuration that matches your workflow and AI client:
 <details>
 <summary><b>📋 For Claude Desktop</b></summary>
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (Mac) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (Mac)
+or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
 ```json
 {
@@ -187,7 +193,8 @@ Add to VS Code `settings.json`:
 }
 ```
 
-> **Note:** In assisted mode, execution control tools (`continue`, `step_over`, etc.) return friendly messages prompting you to use VS Code UI.
+> **Note:** In assisted mode, execution control tools (`continue`, `step_over`,
+> etc.) return friendly messages prompting you to use VS Code UI.
 
 </details>
 
@@ -195,10 +202,12 @@ Add to VS Code `settings.json`:
 
 ### 🔴 Level 3: Full Automation (Advanced)
 
-**Automation mode:** `full` ⚠️ **Must set `"debugssy.automationLevel": "full"` in VS Code settings**  
+**Automation mode:** `full` ⚠️ **Must set `"debugssy.automationLevel": "full"`
+in VS Code settings**  
 **Allowlist:** All tools including execution control  
 **For:** Automated debugging, batch processing, experienced users  
-**AI can:** Complete control including starting/stopping sessions, continue, step operations  
+**AI can:** Complete control including starting/stopping sessions, continue,
+step operations  
 **You control:** Nothing (AI drives everything)
 
 **⚠️ Only use in trusted environments**
@@ -233,7 +242,8 @@ Add to VS Code `settings.json`:
 }
 ```
 
-> **⚠️ Warning:** Full automation gives AI complete control over debugging. Not recommended for production debugging or untrusted code.
+> **⚠️ Warning:** Full automation gives AI complete control over debugging. Not
+> recommended for production debugging or untrusted code.
 
 </details>
 
@@ -254,7 +264,8 @@ All Debugssy tools organized by category and safety level:
 | `get_console_output` | Read debug console output             | Both modes   |
 | `list_breakpoints`   | Show all active breakpoints           | Both modes   |
 
-**Why safe:** Cannot modify code, change execution, or execute expressions. Read-only access to what's visible in VS Code debugger UI.
+**Why safe:** Cannot modify code, change execution, or execute expressions.
+Read-only access to what's visible in VS Code debugger UI.
 
 ---
 
@@ -267,7 +278,8 @@ All Debugssy tools organized by category and safety level:
 | `toggle_breakpoint`      | Enable/disable breakpoint            | 🟡 Low     |
 | `remove_all_breakpoints` | Clear all breakpoints                | 🟡 Low     |
 
-**Why generally safe:** Only affects debugging, not your actual code. Easy to undo manually via VS Code UI.
+**Why generally safe:** Only affects debugging, not your actual code. Easy to
+undo manually via VS Code UI.
 
 ---
 
@@ -277,11 +289,14 @@ All Debugssy tools organized by category and safety level:
 | --------------------- | ------------------------------------- | --------------------------------------------------------------- |
 | `evaluate_expression` | Evaluate expressions in debug context | ✅ Built-in validation with user approval for unsafe operations |
 
-**Safety:** Expressions are validated for side effects. Safe operations (variable access, arithmetic) run automatically. Dangerous operations (function calls, assignments) require your approval via elicitation.
+**Safety:** Expressions are validated for side effects. Safe operations
+(variable access, arithmetic) run automatically. Dangerous operations (function
+calls, assignments) require your approval via elicitation.
 
 #### Expression Validation Levels
 
-Configure how strictly expressions are validated via `debugssy.expressionValidationLevel`:
+Configure how strictly expressions are validated via
+`debugssy.expressionValidationLevel`:
 
 | Validation Level          | What Requires Approval                        | What Runs Automatically                                                                                | Use Case                                   |
 | ------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------ |
@@ -307,7 +322,8 @@ Configure how strictly expressions are validated via `debugssy.expressionValidat
 }
 ```
 
-**Learn more:** See [EXPRESSION_VALIDATION_GUIDE.md](./EXPRESSION_VALIDATION_GUIDE.md)
+**Learn more:** See
+[EXPRESSION_VALIDATION_GUIDE.md](./EXPRESSION_VALIDATION_GUIDE.md)
 
 ---
 
@@ -334,7 +350,8 @@ Configure how strictly expressions are validated via `debugssy.expressionValidat
 | `start_debugging`     | Start debug session programmatically | **Only in full mode** |
 | `wait_for_breakpoint` | Block until execution pauses         | **Only in full mode** |
 
-**Why restricted:** These tools give AI complete control over debugging. Only visible when `automationLevel` is set to `"full"`.
+**Why restricted:** These tools give AI complete control over debugging. Only
+visible when `automationLevel` is set to `"full"`.
 
 ---
 
@@ -344,7 +361,8 @@ Configure how strictly expressions are validated via `debugssy.expressionValidat
 
 - ✅ **Start with Level 1** (read-only) and add tools as needed
 - ✅ **Use assisted mode by default** - You maintain control
-- ✅ **Trust the built-in validation** - Expression validator protects against unsafe code
+- ✅ **Trust the built-in validation** - Expression validator protects against
+  unsafe code
 - ✅ **Test with simple queries first** - "What's the value of x?"
 - ✅ **Review allowlist periodically** - Remove unused tools
 
@@ -352,7 +370,8 @@ Configure how strictly expressions are validated via `debugssy.expressionValidat
 
 - ❌ **Don't allowlist all tools blindly** - Only add what you need
 - ❌ **Don't use full automation for production** - Too risky
-- ❌ **Don't disable expression validation** - Keep `expressionValidationLevel` at `moderate`
+- ❌ **Don't disable expression validation** - Keep `expressionValidationLevel`
+  at `moderate`
 - ❌ **Don't expose remote access** - Server is localhost-only by design
 
 ### 🔒 Additional Security Layers
@@ -368,7 +387,8 @@ Debugssy has multiple security layers regardless of allowlist:
 | **Expressions** | Multi-level validation with elicitation         |
 | **Input**       | Zod schema validation for all parameters        |
 
-**Learn more:** See [MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md) for complete security details
+**Learn more:** See [MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md) for complete
+security details
 
 ---
 
@@ -481,7 +501,8 @@ Adjust the validation level in VS Code settings:
 | `permissive`  | **Critical, High**              | Safe built-ins + getters + user functions |
 | `disabled`    | Nothing                         | Everything (not recommended)              |
 
-See the [Expression Validation Levels](#expression-validation-levels) section for details on risk levels.
+See the [Expression Validation Levels](#expression-validation-levels) section
+for details on risk levels.
 
 </details>
 
@@ -537,14 +558,17 @@ See the [Expression Validation Levels](#expression-validation-levels) section fo
 
 - **[README.md](./README.md)** - Complete tool documentation and API reference
 - **[MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md)** - Security implementation details
-- **[EXPRESSION_VALIDATION_GUIDE.md](./EXPRESSION_VALIDATION_GUIDE.md)** - Expression safety guide
-- **[Model Context Protocol Specification](https://modelcontextprotocol.io/)** - Official MCP docs
+- **[EXPRESSION_VALIDATION_GUIDE.md](./EXPRESSION_VALIDATION_GUIDE.md)** -
+  Expression safety guide
+- **[Model Context Protocol Specification](https://modelcontextprotocol.io/)** -
+  Official MCP docs
 
 ---
 
 ## 💬 Need Help?
 
-- **Issues or bugs:** [Open an issue](https://github.com/gmaynez/debugssy/issues)
+- **Issues or bugs:**
+  [Open an issue](https://github.com/gmaynez/debugssy/issues)
 - **Questions:** Check [README.md FAQ](./README.md#faq)
 - **Security concerns:** See [MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md)
 

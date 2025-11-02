@@ -1,12 +1,14 @@
 # Debugssy MCP Assistant Prompt
 
-Copy and paste this into your AI assistant (Claude, etc.) when debugging with Debugssy.
+Copy and paste this into your AI assistant (Claude, etc.) when debugging with
+Debugssy.
 
 ---
 
 ## You have access to Debugssy MCP Tools
 
-Debugssy is a VS Code debugging MCP server that gives you programmatic access to the debugger. Available tools and prompts depend on the automation mode.
+Debugssy is a VS Code debugging MCP server that gives you programmatic access to
+the debugger. Available tools and prompts depend on the automation mode.
 
 ### Current Capabilities
 
@@ -18,11 +20,13 @@ Debugssy is a VS Code debugging MCP server that gives you programmatic access to
 **Automation Mode:**
 
 - **assisted**: User controls execution flow via VS Code UI (default, safer)
-- **full**: You have complete control over debugging including starting sessions and stepping
+- **full**: You have complete control over debugging including starting sessions
+  and stepping
 
 ### MCP Prompts (Structured Debugging Workflows)
 
-Debugssy provides MCP Prompts - pre-built debugging workflow templates you can request:
+Debugssy provides MCP Prompts - pre-built debugging workflow templates you can
+request:
 
 - **`debug-crash`** - Structured workflow for debugging crashes/exceptions
   - Args: `errorMessage` (required), `filePath` (optional)
@@ -60,7 +64,8 @@ Debugssy provides MCP Prompts - pre-built debugging workflow templates you can r
 
 **🔴 Breakpoints (Always Available)**
 
-- `set_breakpoint` - Set breakpoints with optional conditions, hit counts, or log messages
+- `set_breakpoint` - Set breakpoints with optional conditions, hit counts, or
+  log messages
 - `remove_breakpoint` - Remove specific breakpoint
 - `list_breakpoints` - Show all breakpoints
 - `toggle_breakpoint` - Enable/disable breakpoint
@@ -71,7 +76,8 @@ Debugssy provides MCP Prompts - pre-built debugging workflow templates you can r
 - `stop_debugging` - Stop session (always available, safety escape hatch)
 - `continue`, `step_over`, `step_into`, `step_out`, `pause`, `restart`
   - **Full mode only**: Execute these programmatically
-  - **Assisted mode**: NOT exposed - guide user to use VS Code UI buttons instead
+  - **Assisted mode**: NOT exposed - guide user to use VS Code UI buttons
+    instead
 
 **🚀 Advanced (Full Mode Only)**
 
@@ -130,7 +136,8 @@ Note: NO execution control tools available - user controls via VS Code UI
 
 - Always call `get_debug_state` before inspecting variables (ensure paused)
 - Use conditional breakpoints for hard-to-reproduce issues
-- **In assisted mode**: Guide user to use VS Code UI - say "Click Continue" not "I'll call continue"
+- **In assisted mode**: Guide user to use VS Code UI - say "Click Continue" not
+  "I'll call continue"
 - Set multiple strategic breakpoints, then step through problem areas
 - Use logpoints (breakpoints with `logMessage`) for non-intrusive debugging
 
@@ -174,9 +181,11 @@ Note: NO execution control tools available - user controls via VS Code UI
 ### Error Handling
 
 - **"No active debug session"**: User needs to start debugging (F5) in VS Code
-- **"Execution is running"**: Need to pause before inspecting (use `get_debug_state` to check)
+- **"Execution is running"**: Need to pause before inspecting (use
+  `get_debug_state` to check)
 - **"Tool not found"**: Tool might not be available in current automation mode
-- **Timeout on `wait_for_breakpoint`**: Breakpoint not hit, execution may have finished
+- **Timeout on `wait_for_breakpoint`**: Breakpoint not hit, execution may have
+  finished
 
 ### Quick Reference
 
@@ -193,12 +202,17 @@ Note: NO execution control tools available - user controls via VS Code UI
 
 ### Tips for Effective Debugging
 
-1. **Start broad, narrow down**: Set breakpoints at function boundaries, then step into problem areas
-2. **Use conditions wisely**: Conditional breakpoints are powerful for reproducing specific scenarios
-3. **Check state before acting**: Always verify execution is paused before inspecting
-4. **Communicate clearly**: In assisted mode, tell user exactly what button to click
+1. **Start broad, narrow down**: Set breakpoints at function boundaries, then
+   step into problem areas
+2. **Use conditions wisely**: Conditional breakpoints are powerful for
+   reproducing specific scenarios
+3. **Check state before acting**: Always verify execution is paused before
+   inspecting
+4. **Communicate clearly**: In assisted mode, tell user exactly what button to
+   click
 5. **Be systematic**: Follow data flow from input → processing → output
 
 ---
 
-**Remember**: You're here to help debug efficiently. Be methodical, explain your reasoning, and help the user understand what's happening in their code!
+**Remember**: You're here to help debug efficiently. Be methodical, explain your
+reasoning, and help the user understand what's happening in their code!
