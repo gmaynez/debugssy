@@ -3,15 +3,17 @@
 import * as vscode from "vscode";
 
 /**
- * Centralized logging utility using VS Code Output Channel.
- * Provides better logging than console.log for production extensions.
+ * Centralized logging utility using VS Code Log Output Channel.
+ * Provides automatic log formatting with syntax highlighting and filtering.
  */
 export class Logger {
   private static instance: Logger;
-  private outputChannel: vscode.OutputChannel;
+  private outputChannel: vscode.LogOutputChannel;
 
   private constructor() {
-    this.outputChannel = vscode.window.createOutputChannel("Debugssy");
+    this.outputChannel = vscode.window.createOutputChannel("Debugssy", {
+      log: true,
+    });
   }
 
   static getInstance(): Logger {
@@ -25,32 +27,28 @@ export class Logger {
    * Log informational message
    */
   info(message: string, ...args: unknown[]): void {
-    const formattedMessage = this.formatMessage("INFO", message, args);
-    this.outputChannel.appendLine(formattedMessage);
+    this.outputChannel.info(this.formatArgs(message, args));
   }
 
   /**
    * Log warning message
    */
   warn(message: string, ...args: unknown[]): void {
-    const formattedMessage = this.formatMessage("WARN", message, args);
-    this.outputChannel.appendLine(formattedMessage);
+    this.outputChannel.warn(this.formatArgs(message, args));
   }
 
   /**
    * Log error message
    */
   error(message: string, ...args: unknown[]): void {
-    const formattedMessage = this.formatMessage("ERROR", message, args);
-    this.outputChannel.appendLine(formattedMessage);
+    this.outputChannel.error(this.formatArgs(message, args));
   }
 
   /**
-   * Log debug message (only in development)
+   * Log debug message
    */
   debug(message: string, ...args: unknown[]): void {
-    const formattedMessage = this.formatMessage("DEBUG", message, args);
-    this.outputChannel.appendLine(formattedMessage);
+    this.outputChannel.debug(this.formatArgs(message, args));
   }
 
   /**
@@ -68,19 +66,15 @@ export class Logger {
   }
 
   /**
-   * Format log message with timestamp and level
+   * Format message with arguments
+   * LogOutputChannel handles timestamp and level formatting automatically
    */
-  private formatMessage(
-    level: string,
-    message: string,
-    args: unknown[],
-  ): string {
-    const timestamp = new Date().toISOString();
+  private formatArgs(message: string, args: unknown[]): string {
     const argsStr =
       args.length > 0
         ? " " + args.map((arg) => this.stringify(arg)).join(" ")
         : "";
-    return `[${timestamp}] [${level}] ${message}${argsStr}`;
+    return `${message}${argsStr}`;
   }
 
   /**
