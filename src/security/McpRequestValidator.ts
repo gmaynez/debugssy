@@ -10,7 +10,7 @@ import { Logger } from "../utils/Logger";
  * - Origin header validation to prevent DNS rebinding attacks
  * - Protocol version validation
  */
-export class SecurityValidator {
+export class McpRequestValidator {
   private logger: Logger;
 
   constructor() {

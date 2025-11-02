@@ -435,7 +435,7 @@ curl -X POST http://localhost:3000/mcp \
 │  ┌──────────────┴─────────────────────┐ │
 │  │     Security Layer                  │ │
 │  │  ┌──────────────────────────────┐  │ │
-│  │  │ SecurityValidator            │  │ │
+│  │  │ McpRequestValidator          │  │ │
 │  │  │ ExpressionValidator          │  │ │
 │  │  └──────────────────────────────┘  │ │
 │  └──────────────┬─────────────────────┘ │
@@ -479,7 +479,7 @@ curl -X POST http://localhost:3000/mcp \
 |-----------|----------------|----------|
 | `MCPServer` | MCP protocol orchestration | `src/MCPServer.ts` |
 | `ToolRouter` | Tool schema management & routing | `src/routing/ToolRouter.ts` |
-| `SecurityValidator` | Origin & protocol validation | `src/security/SecurityValidator.ts` |
+| `McpRequestValidator` | Origin & protocol validation | `src/security/McpRequestValidator.ts` |
 | `ExpressionValidator` | Expression safety checks | `src/security/ExpressionValidator.ts` |
 | `DAPClient` | Debug Adapter Protocol interaction | `src/dap/Client.ts` |
 
@@ -741,8 +741,8 @@ debugssy/
 │   │   └── types/                # TypeScript types
 │   │
 │   └── security/
-│       ├── SecurityValidator.ts  # Origin/protocol validation
-│       └── ExpressionValidator.ts # Expression safety checks
+│       ├── McpRequestValidator.ts  # Origin/protocol validation
+│       └── ExpressionValidator.ts  # Expression safety checks
 │
 ├── assets/
 │   └── debugssy_logo.png         # Extension icon

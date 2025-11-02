@@ -22,7 +22,7 @@ import {
   EXTENSION_VERSION,
   MCP_SERVER_READY_DELAY_MS,
 } from "./constants";
-import { SecurityValidator } from "./security/SecurityValidator";
+import { McpRequestValidator } from "./security/McpRequestValidator";
 import { ToolRouter } from "./routing/ToolRouter";
 import { PromptHandler } from "./routing/PromptHandler";
 import { CompletionProvider } from "./routing/CompletionProvider";
@@ -32,7 +32,7 @@ import { Logger } from "./utils/Logger";
 /**
  * Main MCP server class that orchestrates the debugging tools and prompts.
  * Refactored to use composition and delegation for better separation of concerns:
- * - SecurityValidator: Handles origin and protocol validation
+ * - McpRequestValidator: Handles origin and protocol validation
  * - ToolRouter: Manages tool schemas and routing
  * - PromptHandler: Manages prompt schemas and generation
  * - CompletionProvider: Provides autocomplete suggestions for prompt arguments
@@ -87,7 +87,7 @@ export class MCPServer {
   private hasSuccessfulInit: boolean = false;
 
   // Extracted components for better separation of concerns
-  private securityValidator: SecurityValidator;
+  private securityValidator: McpRequestValidator;
   private toolRouter: ToolRouter;
   private promptHandler: PromptHandler;
   private completionProvider: CompletionProvider;
@@ -106,7 +106,7 @@ export class MCPServer {
     // StreamableHTTPServerTransport needs to read the raw stream
 
     // Initialize components
-    this.securityValidator = new SecurityValidator();
+    this.securityValidator = new McpRequestValidator();
     this.toolRouter = new ToolRouter(toolRegistry, configManager);
     this.promptHandler = new PromptHandler(configManager);
     this.completionProvider = new CompletionProvider();
@@ -500,7 +500,7 @@ export class MCPServer {
 
   private setupHTTPRoutes(): void {
     // Security: Validate Origin header and Protocol Version
-    // Delegated to SecurityValidator
+    // Delegated to McpRequestValidator
     this.app.use("/mcp", this.securityValidator.createMiddleware());
 
     // Main MCP endpoint - StreamableHTTPServerTransport handles sessions internally
