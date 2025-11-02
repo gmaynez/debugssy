@@ -2,6 +2,62 @@
 
 All notable changes to the "Debugssy" extension will be documented in this file.
 
+## [1.3.0] - 2025-11-02
+
+### Added
+
+**New Language Support**
+
+- Expression validation now supports Go, Rust, Ruby, and PHP
+- Language-specific safety checks for file operations, network calls, and system commands
+- Comprehensive whitelists of safe functions for each new language
+
+**Testing Infrastructure**
+
+- Complete unit test suite with 210 tests covering all major components
+- Test coverage reporting with quality thresholds
+- New test commands: `npm test`, `npm run test:watch`, `npm run test:ui`, `npm run test:coverage`
+- Automated coverage checks in CI/CD pipeline
+
+**Code Quality Tools**
+
+- Prettier integration for consistent code formatting across the project
+- New format commands: `npm run format` and `npm run format:check`
+- Automated formatting checks in all CI/CD workflows
+
+**Monitoring & Diagnostics**
+
+- Server metrics tracking for better diagnostics
+- Health monitoring including initialization attempts, successes, and rejections
+- Enhanced logging with VS Code's native Log Output Channel (better syntax highlighting and timestamps)
+
+### Changed
+
+**Compatibility Updates**
+
+- Minimum VS Code version updated to 1.90.0 (from 1.85.0)
+- Node.js 20 compatibility explicitly configured
+- Updated all dependencies to latest stable versions
+
+**Development Improvements**
+
+- Enhanced CI/CD workflows with test coverage display
+- Improved build configuration for Node 20 compatibility
+- Better project organization with updated ignore files
+- Standardized code formatting throughout the codebase
+
+**Logging Enhancements**
+
+- Improved logging system using VS Code's LogOutputChannel
+- Automatic timestamp and level formatting
+- Better readability with syntax highlighting
+
+### Fixed
+
+- Better request handling during server initialization
+- Improved error handling and diagnostics
+- More reliable cleanup of resources
+
 ## [1.2.4] - 2025-11-01
 
 ### Security
