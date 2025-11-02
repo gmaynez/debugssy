@@ -107,7 +107,20 @@ jobs:
       - name: Display coverage summary
         run: |
           echo "📊 Test Coverage Summary:"
-          cat coverage/coverage-summary.json 2>/dev/null || echo "Coverage summary not found"
+          if [ -f coverage/coverage-summary.json ]; then
+            echo ""
+            node -e "
+              const summary = require('./coverage/coverage-summary.json');
+              const total = summary.total;
+              console.log('Lines:      ' + total.lines.pct + '%');
+              console.log('Statements: ' + total.statements.pct + '%');
+              console.log('Functions:  ' + total.functions.pct + '%');
+              console.log('Branches:   ' + total.branches.pct + '%');
+            "
+          else
+            echo "❌ Coverage summary file not found"
+            exit 1
+          fi
 
   code-quality:
     runs-on: ubuntu-latest

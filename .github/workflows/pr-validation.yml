@@ -63,8 +63,20 @@ jobs:
       - name: Display test results
         run: |
           echo "✅ All 210 tests passed!"
+          echo ""
           echo "📊 Coverage Summary:"
-          cat coverage/coverage-summary.json 2>/dev/null || echo "Coverage summary not available"
+          if [ -f coverage/coverage-summary.json ]; then
+            node -e "
+              const summary = require('./coverage/coverage-summary.json');
+              const total = summary.total;
+              console.log('Lines:      ' + total.lines.pct + '%');
+              console.log('Statements: ' + total.statements.pct + '%');
+              console.log('Functions:  ' + total.functions.pct + '%');
+              console.log('Branches:   ' + total.branches.pct + '%');
+            "
+          else
+            echo "⚠️ Coverage summary not available"
+          fi
 
       - name: Build and package extension (esbuild)
         run: npm run package
