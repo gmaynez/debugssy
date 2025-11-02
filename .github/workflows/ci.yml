@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node-version: [18, 20]
+        node-version: [20]
 
     steps:
       - name: Checkout code
@@ -46,12 +46,11 @@ jobs:
       - name: Build (esbuild)
         run: npm run compile
 
-      - name: Package extension (Node 20 only)
-        if: matrix.node-version == 20
+      - name: Package extension
         run: npm run package
 
       - name: Upload build artifacts (Ubuntu only)
-        if: matrix.os == 'ubuntu-latest' && matrix.node-version == 20
+        if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v5
         with:
           name: debugssy-build
