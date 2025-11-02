@@ -19,7 +19,17 @@ export function validateGo(
   // Check function calls against whitelist (Go uses goSafeFunctions for both static and methods)
   if (/[\w_\]]\s*\(/.test(expression)) {
     const calls = extractFunctionCalls(expression);
-    return checkAgainstWhitelists(calls, GO_SAFE_FUNCTIONS, GO_SAFE_FUNCTIONS);
+    const whitelistResult = checkAgainstWhitelists(
+      calls,
+      GO_SAFE_FUNCTIONS,
+      GO_SAFE_FUNCTIONS,
+    );
+    // If whitelist check returned a result (blocked), return it
+    if (whitelistResult) {
+      return whitelistResult;
+    }
+    // All calls are whitelisted - allow expression (including anonymous functions)
+    return { allowed: true };
   }
 
   return null;

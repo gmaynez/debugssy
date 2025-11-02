@@ -50,7 +50,17 @@ export function validateCpp(
   if (/[\w_\]]\s*\(/.test(expression)) {
     const calls = extractFunctionCalls(expression);
     // Use empty set for static functions since C/C++ functions are in cppSafeFunctions
-    return checkAgainstWhitelists(calls, new Set(), CPP_SAFE_FUNCTIONS);
+    const whitelistResult = checkAgainstWhitelists(
+      calls,
+      new Set(),
+      CPP_SAFE_FUNCTIONS,
+    );
+    // If whitelist check returned a result (blocked), return it
+    if (whitelistResult) {
+      return whitelistResult;
+    }
+    // All calls are whitelisted - allow expression (including lambdas)
+    return { allowed: true };
   }
 
   return null;

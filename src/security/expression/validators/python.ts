@@ -109,11 +109,17 @@ export function validatePython(
   // Check function calls against whitelists
   if (/[\w_\]]\s*\(/.test(expression)) {
     const calls = extractFunctionCalls(expression);
-    return checkAgainstWhitelists(
+    const whitelistResult = checkAgainstWhitelists(
       calls,
       PYTHON_SAFE_STATIC_FUNCTIONS,
       PYTHON_SAFE_METHODS,
     );
+    // If whitelist check returned a result (blocked), return it
+    if (whitelistResult) {
+      return whitelistResult;
+    }
+    // All calls are whitelisted - allow expression (including lambdas in callbacks)
+    return { allowed: true };
   }
 
   return null;

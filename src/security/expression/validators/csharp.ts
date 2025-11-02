@@ -121,11 +121,17 @@ export function validateCSharp(
   // Check function calls against whitelists
   if (/[\w_\]]\s*\(/.test(expression)) {
     const calls = extractFunctionCalls(expression);
-    return checkAgainstWhitelists(
+    const whitelistResult = checkAgainstWhitelists(
       calls,
       CSHARP_SAFE_STATIC_FUNCTIONS,
       CSHARP_SAFE_METHODS,
     );
+    // If whitelist check returned a result (blocked), return it
+    if (whitelistResult) {
+      return whitelistResult;
+    }
+    // All calls are whitelisted - allow expression (including lambdas in LINQ)
+    return { allowed: true };
   }
 
   return null;
