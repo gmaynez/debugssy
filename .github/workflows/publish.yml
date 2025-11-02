@@ -128,6 +128,21 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
+      - name: Get previous tag
+        id: previous_tag
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        run: |
+          # Get the previous tag
+          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -A1 "${{ github.ref_name }}" | tail -n1)
+          if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" = "${{ github.ref_name }}" ]; then
+            echo "No previous tag found"
+            echo "HAS_PREVIOUS=false" >> $GITHUB_OUTPUT
+          else
+            echo "PREVIOUS_TAG=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+            echo "HAS_PREVIOUS=true" >> $GITHUB_OUTPUT
+            echo "Previous tag: $PREVIOUS_TAG"
+          fi
+
       - name: Create GitHub Release
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
@@ -154,6 +169,10 @@ jobs:
             
             - [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy)
             - [Open VSX Registry](https://open-vsx.org/extension/gamag/debugssy)
+            ${{ steps.previous_tag.outputs.HAS_PREVIOUS == 'true' && format('
+            ## What Changed
+            
+            **Full Diff**: [{0}...{1}](https://github.com/{2}/compare/{0}...{1})', steps.previous_tag.outputs.PREVIOUS_TAG, github.ref_name, github.repository) || '' }}
 
 
 
