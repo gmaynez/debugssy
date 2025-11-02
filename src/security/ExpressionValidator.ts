@@ -187,25 +187,25 @@ export class ExpressionValidator {
 
     switch (riskLevel) {
       case "critical":
-        return `🔴 CRITICAL: ${reason}
+        return `🔴 CRITICAL: ${reason}.
 
 This operation can modify files, execute processes, or make network requests.
 
 Only proceed if you fully understand the consequences.`;
 
       case "high":
-        return `⚠️ ${reason}
+        return `⚠️ ${reason}.
 
 This will modify your application's state during debugging. Changes may cause unexpected behavior or mask bugs.`;
 
       case "medium":
-        return `⚠️ ${reason}
+        return `⚠️ ${reason}.
 
 This function could modify state, trigger side effects, or perform unexpected operations. Safe built-in functions (Array.map, Object.keys, JSON.stringify) are allowed automatically.`;
 
       case "low":
       default:
-        return `ℹ️ ${reason}
+        return `ℹ️ ${reason}.
 
 Getter methods are typically safe, but custom getters may include logging or state changes. Quick confirmation recommended.`;
     }
