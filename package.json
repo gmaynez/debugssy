@@ -122,6 +122,10 @@
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
     "package-extension": "npm run check-types && node esbuild.js --production",
     "pretest": "npm run compile",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
     "lint": "eslint src",
     "package": "vsce package",
     "prepare-publish": "node scripts/prepare-marketplace.js swap",
@@ -136,13 +140,15 @@
     "@types/vscode": "^1.85.0",
     "@typescript-eslint/eslint-plugin": "^8.46.2",
     "@typescript-eslint/parser": "^8.46.2",
+    "@vitest/ui": "^4.0.6",
     "@vscode/vsce": "^3.6.2",
     "esbuild": "^0.25.11",
     "eslint": "^9.38.0",
     "npm-run-all": "^4.1.5",
     "ovsx": "^0.10.6",
     "prettier": "3.6.2",
-    "typescript": "^5.3.2"
+    "typescript": "^5.3.2",
+    "vitest": "^4.0.6"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.20.2",
