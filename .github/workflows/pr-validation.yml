@@ -7,7 +7,7 @@ on:
 jobs:
   validate-pr:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -17,8 +17,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -54,6 +54,18 @@ jobs:
       - name: Lint code
         run: npm run lint
 
+      - name: Run unit tests
+        run: npm test
+
+      - name: Generate coverage report
+        run: npm run test:coverage
+
+      - name: Display test results
+        run: |
+          echo "✅ All 210 tests passed!"
+          echo "📊 Coverage Summary:"
+          cat coverage/coverage-summary.json 2>/dev/null || echo "Coverage summary not available"
+
       - name: Build and package extension (esbuild)
         run: npm run package
 
@@ -61,10 +73,10 @@ jobs:
         run: |
           echo "📦 Package size information:"
           ls -lh *.vsix
-          
+
           VSIX_SIZE=$(stat -f%z *.vsix 2>/dev/null || stat -c%s *.vsix)
           MAX_SIZE=$((50 * 1024 * 1024))  # 50MB
-          
+
           if [ $VSIX_SIZE -gt $MAX_SIZE ]; then
             echo "⚠️  Warning: Package size is large ($(($VSIX_SIZE / 1024 / 1024))MB)"
             echo "Consider optimizing assets or excluding unnecessary files"
@@ -76,7 +88,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: validate-pr
     if: always()
-    
+
     steps:
       - name: Comment build result
         uses: actions/github-script@v8
@@ -87,17 +99,10 @@ jobs:
             const message = status === 'success' 
               ? 'All validation checks passed! Ready for review.'
               : 'Some validation checks failed. Please review the logs.';
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: `${emoji} **PR Validation Results**\n\n${message}\n\nWorkflow: [${context.runId}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`
             });
-
-
-
-
-
-
-

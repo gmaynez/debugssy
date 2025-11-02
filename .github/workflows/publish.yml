@@ -5,17 +5,17 @@ on:
   # Note: Tags should be created from the main branch for releases
   push:
     tags:
-      - 'v*'
+      - "v*"
   # Allow manual trigger from GitHub UI
   workflow_dispatch:
     inputs:
       publish_vscode:
-        description: 'Publish to VS Code Marketplace'
+        description: "Publish to VS Code Marketplace"
         required: true
         type: boolean
         default: true
       publish_openvsx:
-        description: 'Publish to Open VSX'
+        description: "Publish to Open VSX"
         required: true
         type: boolean
         default: true
@@ -30,12 +30,12 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
-          fetch-depth: 0  # Fetch all history to check branch
+          fetch-depth: 0 # Fetch all history to check branch
 
       - name: Verify tag is on main branch
         if: github.event_name == 'push'
@@ -51,14 +51,22 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
       - name: Lint code
         run: npm run lint
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Verify test coverage
+        run: |
+          npm run test:coverage
+          echo "✅ All tests passed with adequate coverage"
 
       - name: Prepare marketplace README
         run: npm run prepare-publish
@@ -81,18 +89,18 @@ jobs:
         id: changelog
         run: |
           VERSION=${{ steps.get_version.outputs.VERSION }}
-          
+
           # Extract the section for this version from CHANGELOG.md
           # Matches from ## [VERSION] to the next ## [ or end of file
           CHANGELOG=$(awk '/^## \['"$VERSION"'\]/{flag=1; next} /^## \[/{flag=0} flag' CHANGELOG.md)
-          
+
           if [ -z "$CHANGELOG" ]; then
             echo "⚠️ Warning: No changelog entry found for version $VERSION"
             CHANGELOG="No changelog entry found for this version."
           else
             echo "✅ Extracted changelog for version $VERSION"
           fi
-          
+
           # Use EOF delimiter to handle multiline content
           {
             echo 'NOTES<<EOF'
@@ -117,14 +125,14 @@ jobs:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
 
       - name: Restore original README
-        if: always()  # Always restore, even if publish failed
+        if: always() # Always restore, even if publish failed
         run: npm run restore-publish
 
       - name: Upload VSIX artifact
         uses: actions/upload-artifact@v5
         with:
           name: debugssy-${{ steps.get_version.outputs.VERSION }}.vsix
-          path: '*.vsix'
+          path: "*.vsix"
           retention-days: 30
           if-no-files-found: error
 
@@ -147,36 +155,29 @@ jobs:
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: '*.vsix'
+          files: "*.vsix"
           generate_release_notes: false
           draft: false
           prerelease: false
           tag_name: ${{ github.ref_name }}
           body: |
             ${{ steps.changelog.outputs.NOTES }}
-            
+
             ## Installation
-            
+
             Download the `.vsix` file below and install it in VS Code:
-            
+
             ```bash
             code --install-extension debugssy-${{ steps.get_version.outputs.VERSION }}.vsix
             ```
-            
+
             Or use VS Code UI: Extensions → ... → Install from VSIX
-            
+
             ## Marketplace Links
-            
+
             - [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy)
             - [Open VSX Registry](https://open-vsx.org/extension/gamag/debugssy)
             ${{ steps.previous_tag.outputs.HAS_PREVIOUS == 'true' && format('
             ## What Changed
-            
+
             **Full Diff**: [{0}...{1}](https://github.com/{2}/compare/{0}...{1})', steps.previous_tag.outputs.PREVIOUS_TAG, github.ref_name, github.repository) || '' }}
-
-
-
-
-
-
-

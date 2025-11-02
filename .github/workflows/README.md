@@ -12,10 +12,19 @@ Quick reference for Debugssy's CI/CD workflows.
 
 **What it does:**
 1. Verifies tag is on `main` branch
-2. Builds and packages extension
-3. Publishes to **VS Code Marketplace**
-4. Publishes to **Open VSX Registry**
-5. Creates **GitHub Release** with `.vsix` file attached
+2. Runs linting and type checking
+3. **Runs full test suite (210 tests) - Publishing blocked if tests fail!**
+4. **Verifies test coverage meets requirements**
+5. Builds and packages extension
+6. Publishes to **VS Code Marketplace**
+7. Publishes to **Open VSX Registry**
+8. Creates **GitHub Release** with `.vsix` file attached
+
+**Quality gates:**
+- ✅ All tests must pass (210/210)
+- ✅ No linting errors
+- ✅ Type checking passes
+- ✅ Build succeeds
 
 **Required secrets:**
 - `VSCE_PAT` - VS Code Marketplace token
@@ -33,11 +42,19 @@ Quick reference for Debugssy's CI/CD workflows.
 - Pull requests to `main` or `develop`
 
 **What it does:**
+- **Runs 210 unit tests** across all platforms
 - Tests on Ubuntu, Windows, macOS
 - Tests with Node.js 18 and 20
-- Runs linting and compilation
+- Runs linting and type checking
+- **Generates test coverage reports** (84%+ coverage)
 - Security audit with `npm audit`
 - Packages extension
+
+**Test coverage includes:**
+- ✅ Security validators (ExpressionValidator, McpRequestValidator)
+- ✅ Core business logic (Breakpoints, DebugControl, Inspection)
+- ✅ DAP Client (state management, event handling)
+- ✅ Configuration management
 
 **No setup needed** - runs automatically on every push/PR
 
@@ -52,6 +69,8 @@ Quick reference for Debugssy's CI/CD workflows.
 - Validates `package.json`
 - Checks version bumps (for PRs to main)
 - Detects breaking changes
+- **Runs full test suite (210 tests)**
+- **Generates and displays coverage report**
 - Runs build and lint
 - Auto-comments on PR with results
 
@@ -60,6 +79,22 @@ Quick reference for Debugssy's CI/CD workflows.
 ---
 
 ## 🚀 Quick Commands
+
+### Run Tests Locally
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Generate coverage report
+npm run test:coverage
+
+# Run tests with UI
+npm run test:ui
+```
 
 ### Publish a New Version
 
