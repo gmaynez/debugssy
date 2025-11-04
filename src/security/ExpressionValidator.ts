@@ -155,36 +155,31 @@ export class ExpressionValidator {
   /**
    * Formats a validation result into a user-friendly message for elicitation.
    * Message severity is proportionate to the actual risk level.
-   * @param _expression - The expression being validated (shown by MCP client in parameters, unused here)
+   * Includes the expression in the message for visibility across all MCP clients.
+   * @param expression - The expression being validated
    * @param result - The validation result containing risk level and reason
    */
-  formatElicitationMessage(_expression: string, result: ValidationResult): string {
-    // Expression is shown in the MCP client's parameter display, so we don't repeat it in the message
+  formatElicitationMessage(expression: string, result: ValidationResult): string {
     const { riskLevel, reason } = result;
+
+    // Format the expression for display (truncate if very long)
+    const maxLength = 200;
+    const displayExpression =
+      expression.length > maxLength ? expression.substring(0, maxLength) + '...' : expression;
 
     switch (riskLevel) {
       case 'critical':
-        return `🔴 CRITICAL: ${reason}.
-
-This operation can modify files, execute processes, or make network requests.
-
-Only proceed if you fully understand the consequences.`;
+        return `🔴 CRITICAL: ${reason}. Expression: "${displayExpression}" — This operation can modify files, execute processes, or make network requests. Only proceed if you fully understand the consequences.`;
 
       case 'high':
-        return `⚠️ ${reason}.
-
-This will modify your application's state during debugging. Changes may cause unexpected behavior or mask bugs.`;
+        return `⚠️ ${reason}. Expression: "${displayExpression}" — This will modify your application's state during debugging. Changes may cause unexpected behavior or mask bugs.`;
 
       case 'medium':
-        return `⚠️ ${reason}.
-
-This function could modify state, trigger side effects, or perform unexpected operations. Safe built-in functions (Array.map, Object.keys, JSON.stringify) are allowed automatically.`;
+        return `⚠️ ${reason}. Expression: "${displayExpression}" — This function could modify state, trigger side effects, or perform unexpected operations. Safe built-in functions (Array.map, Object.keys, JSON.stringify) are allowed automatically.`;
 
       case 'low':
       default:
-        return `ℹ️ ${reason}.
-
-Getter methods are typically safe, but custom getters may include logging or state changes. Quick confirmation recommended.`;
+        return `ℹ️ ${reason}. Expression: "${displayExpression}" — Getter methods are typically safe, but custom getters may include logging or state changes. Quick confirmation recommended.`;
     }
   }
 
@@ -447,7 +442,7 @@ Getter methods are typically safe, but custom getters may include logging or sta
       if (this.isGetterPattern(methodName)) {
         return {
           allowed: false,
-          reason: `Getter Method: ${call}()`,
+          reason: 'Getter Method',
           riskLevel: 'low',
         };
       }
@@ -455,7 +450,7 @@ Getter methods are typically safe, but custom getters may include logging or sta
       // Unknown function call
       return {
         allowed: false,
-        reason: `User-Defined Function: ${call}()`,
+        reason: 'User-Defined Function',
         riskLevel: 'medium',
       };
     }
@@ -590,7 +585,7 @@ Getter methods are typically safe, but custom getters may include logging or sta
         if (this.isGetterPattern(methodName)) {
           return {
             allowed: false,
-            reason: `Getter Method: ${call}()`,
+            reason: 'Getter Method',
             riskLevel: 'low',
           };
         }
@@ -598,7 +593,7 @@ Getter methods are typically safe, but custom getters may include logging or sta
         // Unknown function call - not in any whitelist
         return {
           allowed: false,
-          reason: `User-Defined Function: ${call}()`,
+          reason: 'User-Defined Function',
           riskLevel: 'medium',
         };
       }
