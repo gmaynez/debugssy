@@ -280,6 +280,7 @@ export class MCPServer {
 
     // Dispose component resources
     this.toolRouter.dispose();
+    this.completionProvider.dispose();
   }
 
   /**

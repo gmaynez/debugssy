@@ -3,7 +3,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { Logger } from '../utils/Logger';
-import { MAX_COMPLETIONS, MAX_FILE_SEARCH_RESULTS } from '../constants';
+import { MAX_COMPLETIONS, MAX_FILE_CACHE_SIZE } from '../constants';
 
 /**
  * Provides completion suggestions for MCP prompt arguments.
@@ -11,9 +11,31 @@ import { MAX_COMPLETIONS, MAX_FILE_SEARCH_RESULTS } from '../constants';
  */
 export class CompletionProvider {
   private logger: Logger;
+  // Map workspace folder URI to array of relative file paths
+  private fileCache: Map<string, string[]> = new Map();
+  private cacheInitialized = false;
+  private cacheInitializing: Promise<void> | null = null;
+  private disposables: vscode.Disposable[] = [];
+  private fileWatchers: vscode.FileSystemWatcher[] = [];
+  private static readonly FILE_SEARCH_EXCLUDE =
+    '{**/node_modules/**,**/out/**,**/dist/**,**/.git/**,**/build/**}';
 
   constructor() {
     this.logger = Logger.getInstance();
+    this.setupFileSystemWatchers();
+  }
+
+  /**
+   * Dispose of event listeners to prevent memory leaks.
+   */
+  dispose(): void {
+    this.disposables.forEach((d) => d.dispose());
+    this.disposables = [];
+
+    this.fileWatchers.forEach((w) => w.dispose());
+    this.fileWatchers = [];
+
+    this.fileCache.clear();
   }
 
   /**
@@ -47,6 +69,14 @@ export class CompletionProvider {
 
   /**
    * Gets file path completions from the workspace.
+   *
+   * The initial call builds an in-memory cache of workspace files and subsequent
+   * calls simply filter that cache based on the user's partial input. The cache
+   * is kept in sync via FileSystemWatcher events (including external changes),
+   * allowing us to avoid expensive full-workspace globbing on every keystroke.
+   *
+   * Supports multi-root workspaces by indexing all folders and prefixing paths
+   * with the workspace folder name when multiple roots exist.
    */
   private async getFilePathCompletions(
     partial: string
@@ -56,30 +86,22 @@ export class CompletionProvider {
       return { values: [], total: 0, hasMore: false };
     }
 
-    const workspaceFolder = workspaceFolders[0];
-    if (!workspaceFolder) {
-      return { values: [], total: 0, hasMore: false };
+    await this.ensureFileCache(workspaceFolders);
+
+    // Aggregate all cached files from all workspace folders
+    let filePaths: string[] = [];
+    const isMultiRoot = workspaceFolders.length > 1;
+
+    for (const folder of workspaceFolders) {
+      const cached = this.fileCache.get(folder.uri.toString()) || [];
+      if (isMultiRoot) {
+        // Prefix with folder name for multi-root workspaces
+        const folderName = folder.name;
+        filePaths.push(...cached.map((p) => `${folderName}/${p}`));
+      } else {
+        filePaths.push(...cached);
+      }
     }
-
-    // Search for files matching the partial string
-    const searchPattern = partial ? `**/*${partial}*` : '**/*';
-
-    // Exclude common directories to improve performance
-    const excludePattern = '{**/node_modules/**,**/out/**,**/dist/**,**/.git/**,**/build/**}';
-
-    const files = await vscode.workspace.findFiles(
-      searchPattern,
-      excludePattern,
-      MAX_FILE_SEARCH_RESULTS
-    );
-
-    // Convert URIs to relative paths
-    const workspaceRoot = workspaceFolder.uri.fsPath;
-    let filePaths = files.map((uri) => {
-      const relativePath = path.relative(workspaceRoot, uri.fsPath);
-      // Normalize path separators to forward slashes for consistency
-      return relativePath.replace(/\\/g, '/');
-    });
 
     // Filter by partial match (case-insensitive)
     if (partial) {
@@ -112,6 +134,172 @@ export class CompletionProvider {
       total,
       hasMore: total > MAX_COMPLETIONS,
     };
+  }
+
+  /**
+   * Populates the file cache on first use and keeps it up to date with file events.
+   */
+  private async ensureFileCache(
+    workspaceFolders: readonly vscode.WorkspaceFolder[]
+  ): Promise<void> {
+    if (this.cacheInitialized) {
+      return;
+    }
+
+    if (!this.cacheInitializing) {
+      this.cacheInitializing = this.buildFileCache(workspaceFolders)
+        .then(() => {
+          this.cacheInitialized = true;
+        })
+        .catch((error) => {
+          this.logger.error('Failed to build file path cache', error);
+          this.fileCache.clear();
+          this.cacheInitialized = false;
+        })
+        .finally(() => {
+          this.cacheInitializing = null;
+        });
+    }
+
+    await this.cacheInitializing;
+  }
+
+  private async buildFileCache(workspaceFolders: readonly vscode.WorkspaceFolder[]): Promise<void> {
+    // Build cache for all workspace folders
+    for (const folder of workspaceFolders) {
+      const pattern = new vscode.RelativePattern(folder, '**/*');
+      const files = await vscode.workspace.findFiles(
+        pattern,
+        CompletionProvider.FILE_SEARCH_EXCLUDE,
+        MAX_FILE_CACHE_SIZE
+      );
+
+      const relativePaths = files
+        .map((uri) => this.toRelativePath(uri, folder))
+        .filter((relativePath): relativePath is string => relativePath !== null);
+
+      this.fileCache.set(folder.uri.toString(), relativePaths);
+    }
+  }
+
+  /**
+   * Sets up FileSystemWatchers for all workspace folders to track external file changes.
+   * These watchers catch changes from git, build tools, and external editors that
+   * onDidCreateFiles/onDidDeleteFiles events would miss.
+   */
+  private setupFileSystemWatchers(): void {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders) {
+      return;
+    }
+
+    for (const folder of workspaceFolders) {
+      const pattern = new vscode.RelativePattern(folder, '**/*');
+      const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+
+      // Watch for file creation (including from external sources)
+      watcher.onDidCreate((uri) => {
+        this.onFileCreated(uri, folder);
+      });
+
+      // Watch for file deletion (including from external sources)
+      watcher.onDidDelete((uri) => {
+        this.onFileDeleted(uri, folder);
+      });
+
+      this.fileWatchers.push(watcher);
+    }
+
+    // Listen for workspace folder changes to rebuild cache
+    this.disposables.push(
+      vscode.workspace.onDidChangeWorkspaceFolders((event) => {
+        this.onWorkspaceFoldersChanged(event);
+      })
+    );
+  }
+
+  private onFileCreated(uri: vscode.Uri, folder: vscode.WorkspaceFolder): void {
+    if (!this.cacheInitialized) {
+      return; // Cache not built yet, will be included when built
+    }
+
+    const relativePath = this.toRelativePath(uri, folder);
+    if (!relativePath || this.shouldExclude(relativePath)) {
+      return; // Skip excluded paths (node_modules, etc.)
+    }
+
+    const folderKey = folder.uri.toString();
+    const cached = this.fileCache.get(folderKey) || [];
+
+    // Use Set for O(1) lookup instead of O(N) includes
+    const cacheSet = new Set(cached);
+    if (!cacheSet.has(relativePath)) {
+      cached.push(relativePath);
+      this.fileCache.set(folderKey, cached);
+    }
+  }
+
+  private onFileDeleted(uri: vscode.Uri, folder: vscode.WorkspaceFolder): void {
+    if (!this.cacheInitialized) {
+      return; // Cache not built yet, nothing to remove
+    }
+
+    const relativePath = this.toRelativePath(uri, folder);
+    if (!relativePath) {
+      return;
+    }
+
+    const folderKey = folder.uri.toString();
+    const cached = this.fileCache.get(folderKey);
+    if (!cached) {
+      return;
+    }
+
+    const filtered = cached.filter((p) => p !== relativePath);
+    this.fileCache.set(folderKey, filtered);
+  }
+
+  private async onWorkspaceFoldersChanged(
+    event: vscode.WorkspaceFoldersChangeEvent
+  ): Promise<void> {
+    // Remove cache entries for removed folders
+    for (const removed of event.removed) {
+      this.fileCache.delete(removed.uri.toString());
+    }
+
+    // Rebuild cache to include new folders
+    if (event.added.length > 0) {
+      this.cacheInitialized = false;
+      this.cacheInitializing = null;
+
+      // Dispose old watchers and setup new ones
+      this.fileWatchers.forEach((w) => w.dispose());
+      this.fileWatchers = [];
+      this.setupFileSystemWatchers();
+    }
+  }
+
+  private toRelativePath(uri: vscode.Uri, folder: vscode.WorkspaceFolder): string | null {
+    const relativePath = path.relative(folder.uri.fsPath, uri.fsPath);
+    if (relativePath.startsWith('..')) {
+      return null; // File is outside workspace folder
+    }
+
+    // Normalize path separators to forward slashes
+    return relativePath.replace(/\\/g, '/');
+  }
+
+  /**
+   * Checks if a file path should be excluded based on common exclude patterns.
+   */
+  private shouldExclude(relativePath: string): boolean {
+    const excludePatterns = ['node_modules/', 'out/', 'dist/', '.git/', 'build/'];
+
+    const normalizedPath = relativePath.replace(/\\/g, '/');
+    return excludePatterns.some(
+      (pattern) =>
+        normalizedPath.includes(pattern) || normalizedPath.startsWith(pattern.replace('/', ''))
+    );
   }
 
   /**

@@ -137,3 +137,11 @@ export const MAX_COMPLETIONS = 20;
  * Limits search time and memory usage.
  */
 export const MAX_FILE_SEARCH_RESULTS = 100;
+
+/**
+ * Maximum number of files to cache for file path completions.
+ * Set high to support large projects. The cache is built once and
+ * kept in sync with file system events, so this doesn't impact
+ * per-keystroke performance.
+ */
+export const MAX_FILE_CACHE_SIZE = 100000;
