@@ -50,6 +50,7 @@ export class CompletionProvider {
       switch (argumentName) {
         case 'filePath':
         case 'entryPoint':
+        case 'loopLocation':
           return await this.getFilePathCompletions(partialValue);
 
         case 'functionName':

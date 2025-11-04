@@ -62,7 +62,8 @@ export const debugControlSchemas = [
   },
   {
     name: 'restart',
-    description: 'Restart the current debug session',
+    description:
+      'Restart the current debug session (only works if currently debugging). Use this to re-run debugging with the same configuration after making changes or to reset execution state.',
     inputSchema: {
       type: 'object',
       properties: {},
