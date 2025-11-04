@@ -2,6 +2,30 @@
 
 All notable changes to the "Debugssy" extension will be documented in this file.
 
+## [1.4.0] - 2025-11-03
+
+### Added
+
+- File path completions now work in remote environments (SSH, WSL, Codespaces)
+- Multi-root workspace support for better file navigation
+- Validation messages now show the evaluated expression for better context
+- Long expressions automatically truncated for readability (max 200 characters)
+
+### Changed
+
+- Extension no longer freezes when working with slow filesystems or network
+  drives
+- Enhanced prompts and instructions for better performance with less capable AI
+  models
+- Improved debugging guidance and best practices
+- Clearer security prompts and error messages
+
+### Fixed
+
+- VS Code freezing when accessing files on slow or network filesystems
+- Better error handling throughout the extension
+- Improved stability and resource management
+
 ## [1.3.0] - 2025-11-02
 
 ### Added
