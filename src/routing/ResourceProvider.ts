@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as vscode from 'vscode';
-import * as fs from 'fs';
-import * as path from 'path';
 
 /**
  * Provides MCP resources for debugging context.
@@ -20,7 +18,12 @@ export class ResourceProvider {
       mimeType?: string;
     }>
   > {
-    const resources = [];
+    const resources: Array<{
+      uri: string;
+      name: string;
+      description?: string;
+      mimeType?: string;
+    }> = [];
     const workspaceFolders = vscode.workspace.workspaceFolders;
 
     if (!workspaceFolders) {
@@ -29,10 +32,11 @@ export class ResourceProvider {
 
     // Add launch.json from each workspace folder
     for (const folder of workspaceFolders) {
-      const launchPath = path.join(folder.uri.fsPath, '.vscode', 'launch.json');
+      const launchUri = vscode.Uri.joinPath(folder.uri, '.vscode', 'launch.json');
 
-      // Check if launch.json exists
-      if (fs.existsSync(launchPath)) {
+      // Try to stat the file - only add to resources if it exists
+      try {
+        await vscode.workspace.fs.stat(launchUri);
         const uri = `debugssy:///${folder.name}/launch.json`;
         resources.push({
           uri,
@@ -40,6 +44,9 @@ export class ResourceProvider {
           description: `Debug configurations from ${folder.name}/.vscode/launch.json. Use the "name" field from configurations when calling start_debugging.`,
           mimeType: 'application/json',
         });
+      } catch {
+        // File doesn't exist or isn't readable - skip it
+        continue;
       }
     }
 
@@ -78,23 +85,24 @@ export class ResourceProvider {
       throw new Error(`Workspace folder "${workspaceName}" not found`);
     }
 
-    const launchPath = path.join(folder.uri.fsPath, '.vscode', 'launch.json');
+    const launchUri = vscode.Uri.joinPath(folder.uri, '.vscode', 'launch.json');
 
-    // Read the file
-    if (!fs.existsSync(launchPath)) {
-      throw new Error(`launch.json not found in ${folder.name}`);
+    // Read the file - single operation, no TOCTOU race
+    try {
+      const fileData = await vscode.workspace.fs.readFile(launchUri);
+      const content = Buffer.from(fileData).toString('utf-8');
+      return {
+        contents: [
+          {
+            uri,
+            mimeType: 'application/json',
+            text: content,
+          },
+        ],
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Failed to read launch.json from ${folder.name}: ${message}`);
     }
-
-    const content = fs.readFileSync(launchPath, 'utf-8');
-
-    return {
-      contents: [
-        {
-          uri,
-          mimeType: 'application/json',
-          text: content,
-        },
-      ],
-    };
   }
 }
