@@ -576,11 +576,13 @@ export class CompletionProvider {
   /**
    * Gets variable names from VS Code's symbol providers (static analysis).
    * Searches for variables, properties, fields, and constants in the active editor and workspace.
+   * Prioritizes variables from the currently open document over workspace symbols.
    */
   private async getVariablesFromSymbols(
     partial: string
   ): Promise<{ values: string[]; total: number; hasMore: boolean }> {
-    const variableNames = new Set<string>();
+    const activeDocVariables = new Set<string>();
+    const workspaceVariables = new Set<string>();
 
     // Try to get symbols from the active editor first
     const activeEditor = vscode.window.activeTextEditor;
@@ -591,19 +593,27 @@ export class CompletionProvider {
       );
 
       if (symbols) {
-        this.extractVariableNames(symbols, variableNames);
+        this.extractVariableNames(symbols, activeDocVariables);
       }
     }
 
-    // If we don't have many results, search workspace symbols
-    if (variableNames.size < 10) {
+    // If we don't have many results, search workspace symbols (with reasonable limit for performance)
+    if (activeDocVariables.size < 10) {
       const workspaceSymbols = await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
         'vscode.executeWorkspaceSymbolProvider',
         partial || ''
       );
 
       if (workspaceSymbols) {
+        // Limit workspace symbols to avoid performance issues in large projects
+        const maxWorkspaceSymbols = 100;
+        let count = 0;
+
         for (const symbol of workspaceSymbols) {
+          if (count >= maxWorkspaceSymbols) {
+            break;
+          }
+
           if (
             symbol.kind === vscode.SymbolKind.Variable ||
             symbol.kind === vscode.SymbolKind.Property ||
@@ -611,22 +621,32 @@ export class CompletionProvider {
             symbol.kind === vscode.SymbolKind.Constant ||
             symbol.kind === vscode.SymbolKind.EnumMember
           ) {
-            variableNames.add(symbol.name);
+            // Only add if not already in active doc variables
+            if (!activeDocVariables.has(symbol.name)) {
+              workspaceVariables.add(symbol.name);
+              count++;
+            }
           }
         }
       }
     }
 
-    let vars = Array.from(variableNames);
-
-    // Filter by partial match
+    // Filter active doc variables by partial match
+    let activeDocVars = Array.from(activeDocVariables);
     if (partial) {
       const lowerPartial = partial.toLowerCase();
-      vars = vars.filter((name) => name.toLowerCase().includes(lowerPartial));
+      activeDocVars = activeDocVars.filter((name) => name.toLowerCase().includes(lowerPartial));
     }
 
-    // Sort by relevance
-    vars.sort((a, b) => {
+    // Filter workspace variables by partial match
+    let workspaceVars = Array.from(workspaceVariables);
+    if (partial) {
+      const lowerPartial = partial.toLowerCase();
+      workspaceVars = workspaceVars.filter((name) => name.toLowerCase().includes(lowerPartial));
+    }
+
+    // Sort active doc variables by relevance
+    activeDocVars.sort((a, b) => {
       if (partial) {
         const lowerPartial = partial.toLowerCase();
         const aStarts = a.toLowerCase().startsWith(lowerPartial);
@@ -641,8 +661,26 @@ export class CompletionProvider {
       return a.localeCompare(b);
     });
 
-    const total = vars.length;
-    const values = vars.slice(0, MAX_COMPLETIONS);
+    // Sort workspace variables by relevance
+    workspaceVars.sort((a, b) => {
+      if (partial) {
+        const lowerPartial = partial.toLowerCase();
+        const aStarts = a.toLowerCase().startsWith(lowerPartial);
+        const bStarts = b.toLowerCase().startsWith(lowerPartial);
+        if (aStarts && !bStarts) {
+          return -1;
+        }
+        if (!aStarts && bStarts) {
+          return 1;
+        }
+      }
+      return a.localeCompare(b);
+    });
+
+    // Combine: active doc variables first, then workspace variables
+    const allVars = [...activeDocVars, ...workspaceVars];
+    const total = allVars.length;
+    const values = allVars.slice(0, MAX_COMPLETIONS);
 
     return {
       values,
