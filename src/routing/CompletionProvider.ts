@@ -395,10 +395,27 @@ export class CompletionProvider {
   }
 
   /**
-   * Gets variable name completions from the current debug session.
-   * Only works if there's an active debug session and execution is paused.
+   * Gets variable name completions from the debug session or static code analysis.
+   * Prioritizes runtime values from an active debug session, then falls back to
+   * VS Code's symbol providers to find variable declarations in source code.
    */
   private async getVariableNameCompletions(
+    partial: string
+  ): Promise<{ values: string[]; total: number; hasMore: boolean }> {
+    // Try to get variables from active debug session first (runtime values)
+    const debugVars = await this.getVariablesFromDebugSession(partial);
+    if (debugVars.total > 0) {
+      return debugVars;
+    }
+
+    // Fall back to static analysis from source code
+    return await this.getVariablesFromSymbols(partial);
+  }
+
+  /**
+   * Gets variable names from the active debug session (runtime values).
+   */
+  private async getVariablesFromDebugSession(
     partial: string
   ): Promise<{ values: string[]; total: number; hasMore: boolean }> {
     const session = vscode.debug.activeDebugSession;
@@ -553,6 +570,106 @@ export class CompletionProvider {
       // Debug session might not support these requests or not be paused
       this.logger.debug('Could not get variable completions:', error);
       return { values: [], total: 0, hasMore: false };
+    }
+  }
+
+  /**
+   * Gets variable names from VS Code's symbol providers (static analysis).
+   * Searches for variables, properties, fields, and constants in the active editor and workspace.
+   */
+  private async getVariablesFromSymbols(
+    partial: string
+  ): Promise<{ values: string[]; total: number; hasMore: boolean }> {
+    const variableNames = new Set<string>();
+
+    // Try to get symbols from the active editor first
+    const activeEditor = vscode.window.activeTextEditor;
+    if (activeEditor) {
+      const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+        'vscode.executeDocumentSymbolProvider',
+        activeEditor.document.uri
+      );
+
+      if (symbols) {
+        this.extractVariableNames(symbols, variableNames);
+      }
+    }
+
+    // If we don't have many results, search workspace symbols
+    if (variableNames.size < 10) {
+      const workspaceSymbols = await vscode.commands.executeCommand<vscode.SymbolInformation[]>(
+        'vscode.executeWorkspaceSymbolProvider',
+        partial || ''
+      );
+
+      if (workspaceSymbols) {
+        for (const symbol of workspaceSymbols) {
+          if (
+            symbol.kind === vscode.SymbolKind.Variable ||
+            symbol.kind === vscode.SymbolKind.Property ||
+            symbol.kind === vscode.SymbolKind.Field ||
+            symbol.kind === vscode.SymbolKind.Constant ||
+            symbol.kind === vscode.SymbolKind.EnumMember
+          ) {
+            variableNames.add(symbol.name);
+          }
+        }
+      }
+    }
+
+    let vars = Array.from(variableNames);
+
+    // Filter by partial match
+    if (partial) {
+      const lowerPartial = partial.toLowerCase();
+      vars = vars.filter((name) => name.toLowerCase().includes(lowerPartial));
+    }
+
+    // Sort by relevance
+    vars.sort((a, b) => {
+      if (partial) {
+        const lowerPartial = partial.toLowerCase();
+        const aStarts = a.toLowerCase().startsWith(lowerPartial);
+        const bStarts = b.toLowerCase().startsWith(lowerPartial);
+        if (aStarts && !bStarts) {
+          return -1;
+        }
+        if (!aStarts && bStarts) {
+          return 1;
+        }
+      }
+      return a.localeCompare(b);
+    });
+
+    const total = vars.length;
+    const values = vars.slice(0, MAX_COMPLETIONS);
+
+    return {
+      values,
+      total,
+      hasMore: total > MAX_COMPLETIONS,
+    };
+  }
+
+  /**
+   * Recursively extracts variable, property, field, and constant names from document symbols.
+   */
+  private extractVariableNames(symbols: vscode.DocumentSymbol[], variableNames: Set<string>): void {
+    for (const symbol of symbols) {
+      if (
+        symbol.kind === vscode.SymbolKind.Variable ||
+        symbol.kind === vscode.SymbolKind.Property ||
+        symbol.kind === vscode.SymbolKind.Field ||
+        symbol.kind === vscode.SymbolKind.Constant ||
+        symbol.kind === vscode.SymbolKind.EnumMember
+      ) {
+        variableNames.add(symbol.name);
+      }
+
+      // Recursively check children (properties inside classes, local variables inside functions, etc.)
+      if (symbol.children && symbol.children.length > 0) {
+        this.extractVariableNames(symbol.children, variableNames);
+      }
     }
   }
 }
