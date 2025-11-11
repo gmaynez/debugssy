@@ -2,6 +2,13 @@
 
 All notable changes to the "Debugssy" extension will be documented in this file.
 
+## [1.4.2] - 2025-11-03
+
+### Changed
+
+- Updated support information with GitHub Sponsors link in package metadata
+- Streamlined documentation for better privacy
+
 ## [1.4.1] - 2025-11-03
 
 ### Added
