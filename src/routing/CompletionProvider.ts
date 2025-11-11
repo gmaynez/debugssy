@@ -407,16 +407,95 @@ export class CompletionProvider {
     }
 
     try {
-      // Get the current stack frame
-      const stackTrace = await session.customRequest('stackTrace', {
-        threadId: 1,
-      });
+      const debugApi = vscode.debug as typeof vscode.debug & {
+        activeStackFrame?: vscode.DebugStackFrame;
+      };
+      const activeStackFrame = debugApi.activeStackFrame;
+      const activeStackFrameInfo =
+        (activeStackFrame as unknown as {
+          thread?: { id?: number };
+          threadId?: number;
+          id?: number;
+          frameId?: number;
+        }) ?? undefined;
+      const activeThreadId =
+        activeStackFrameInfo?.thread?.id ?? activeStackFrameInfo?.threadId ?? undefined;
+      const preferredFrameId =
+        activeStackFrameInfo?.id ?? activeStackFrameInfo?.frameId ?? undefined;
+      const candidateThreadIds: number[] = [];
+      const seenThreadIds = new Set<number>();
 
-      if (!stackTrace || !stackTrace.stackFrames || stackTrace.stackFrames.length === 0) {
+      if (
+        activeStackFrame &&
+        activeStackFrame.session.id === session.id &&
+        typeof activeThreadId === 'number'
+      ) {
+        candidateThreadIds.push(activeThreadId);
+        seenThreadIds.add(activeThreadId);
+      }
+
+      let threadsResponse: { threads?: Array<{ id: number }> } | undefined;
+      try {
+        threadsResponse = await session.customRequest('threads');
+      } catch (threadsError) {
+        this.logger.debug('Could not retrieve threads for variable completions:', threadsError);
+      }
+
+      if (threadsResponse?.threads) {
+        for (const thread of threadsResponse.threads) {
+          if (thread && typeof thread.id === 'number' && !seenThreadIds.has(thread.id)) {
+            candidateThreadIds.push(thread.id);
+            seenThreadIds.add(thread.id);
+          }
+        }
+      }
+
+      if (candidateThreadIds.length === 0) {
         return { values: [], total: 0, hasMore: false };
       }
 
-      const frameId = stackTrace.stackFrames[0].id;
+      let frameId: number | undefined;
+
+      for (const candidateThreadId of candidateThreadIds) {
+        let stackTrace;
+        try {
+          stackTrace = await session.customRequest('stackTrace', { threadId: candidateThreadId });
+        } catch (stackTraceError) {
+          this.logger.debug(
+            `Failed to retrieve stack trace for thread ${candidateThreadId}:`,
+            stackTraceError
+          );
+          continue;
+        }
+
+        const frames = stackTrace?.stackFrames;
+        if (!Array.isArray(frames) || frames.length === 0) {
+          continue;
+        }
+
+        if (
+          activeStackFrame &&
+          activeStackFrame.session.id === session.id &&
+          typeof activeThreadId === 'number' &&
+          activeThreadId === candidateThreadId
+        ) {
+          const matchingFrame =
+            typeof preferredFrameId === 'number'
+              ? frames.find((frame: { id: number }) => frame.id === preferredFrameId)
+              : undefined;
+          if (matchingFrame) {
+            frameId = matchingFrame.id;
+            break;
+          }
+        }
+
+        frameId = frames[0].id;
+        break;
+      }
+
+      if (frameId === undefined) {
+        return { values: [], total: 0, hasMore: false };
+      }
 
       // Get scopes for the frame
       const scopes = await session.customRequest('scopes', { frameId });
