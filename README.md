@@ -991,18 +991,6 @@ See [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for community guidelines.
 
 ---
 
-## 💝 Support This Project
-
-If Debugssy saves you time, consider supporting its development!
-
-[![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/donate/?hosted_button_id=FH3S38FT3NYGE)
-
-**[→ Donate via PayPal](https://www.paypal.com/donate/?hosted_button_id=FH3S38FT3NYGE)**
-
-Every contribution helps maintain and improve Debugssy. Thank you! 🙏
-
----
-
 ## 📚 Additional Resources
 
 ### Documentation

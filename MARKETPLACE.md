@@ -284,15 +284,6 @@ Follows
 
 ---
 
-## 💝 Support This Project
-
-If Debugssy saves you time,
-[consider buying me a coffee](https://www.paypal.com/donate/?hosted_button_id=FH3S38FT3NYGE)!
-Every contribution helps maintain and improve the extension.
-[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/donate/?hosted_button_id=FH3S38FT3NYGE)
-
----
-
 ## 📚 Learn More
 
 - **[GitHub Repository](https://github.com/gmaynez/debugssy)** - Full docs,

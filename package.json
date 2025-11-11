@@ -16,6 +16,9 @@
     "url": "https://github.com/gmaynez/debugssy/issues"
   },
   "homepage": "https://github.com/gmaynez/debugssy#readme",
+  "sponsor": {
+    "url": "https://github.com/sponsors/gmaynez"
+  },
   "keywords": [
     "debugging",
     "ai",
