@@ -60,11 +60,12 @@ export class DAPClient {
   private stateChangeEmitter = new vscode.EventEmitter<ExecutionState>();
   public readonly onStateChange = this.stateChangeEmitter.event;
   private logger: Logger;
+  private trackerDisposable: vscode.Disposable;
 
   constructor() {
     this.logger = Logger.getInstance();
     // Register debug adapter tracker to intercept DAP messages
-    vscode.debug.registerDebugAdapterTrackerFactory('*', {
+    this.trackerDisposable = vscode.debug.registerDebugAdapterTrackerFactory('*', {
       createDebugAdapterTracker: (_session: vscode.DebugSession) => {
         return {
           onWillReceiveMessage: (_message: any) => {
@@ -211,6 +212,7 @@ export class DAPClient {
   }
 
   dispose(): void {
+    this.trackerDisposable.dispose();
     this.stateChangeEmitter.dispose();
   }
 
