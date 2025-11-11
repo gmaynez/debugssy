@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 export const JS_SAFE_METHODS = new Set<string>([
   // Array read-only methods
   'filter',

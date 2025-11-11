@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 export type RiskLevel = 'critical' | 'high' | 'medium' | 'low';
 
 export type ValidationLevel = 'strict' | 'moderate' | 'permissive' | 'disabled';
