@@ -146,7 +146,7 @@
     "@typescript-eslint/eslint-plugin": "^8.46.4",
     "@typescript-eslint/parser": "^8.46.4",
     "@vitest/coverage-v8": "^4.0.8",
-    "@vitest/ui": "^4.0.8",
+    "@vitest/ui": "^4.0.10",
     "@vscode/vsce": "^3.7.0",
     "esbuild": "^0.27.0",
     "eslint": "^9.39.0",
