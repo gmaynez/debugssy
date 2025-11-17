@@ -130,6 +130,7 @@ export class InspectionTools {
       // CRITICAL: Avoid race condition by setting up listener BEFORE checking state
       // This ensures we don't miss events that occur between check and setup
       let disposable: vscode.Disposable | undefined;
+      let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
       let stateCheckPromise: Promise<InspectionResult>;
 
       try {
@@ -155,10 +156,11 @@ export class InspectionTools {
         }
 
         // Race between state check/event and timeout
+        // Store timeout handle to clear it if breakpoint arrives first
         const result = await Promise.race([
           stateCheckPromise,
           new Promise<InspectionResult>((_, reject) => {
-            setTimeout(
+            timeoutHandle = setTimeout(
               () => reject(new Error(`Timeout waiting for breakpoint after ${timeout}ms`)),
               timeout
             );
@@ -167,9 +169,12 @@ export class InspectionTools {
 
         return result;
       } finally {
-        // Always clean up the disposable, whether we succeeded or timed out
+        // Always clean up the disposable and timeout, whether we succeeded or timed out
         if (disposable) {
           disposable.dispose();
+        }
+        if (timeoutHandle) {
+          clearTimeout(timeoutHandle);
         }
       }
     } catch (error: unknown) {
