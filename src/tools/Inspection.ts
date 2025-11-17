@@ -57,8 +57,8 @@ export class InspectionTools {
 
       // If paused, include location and reason information
       if (executionState === 'paused' && stoppedInfo) {
-        // Try to get current stack frame for location
-        const stackFrames = await this.dapClient.getStackTrace(session);
+        // Try to get current stack frame for location - only need top frame
+        const { stackFrames } = await this.dapClient.getStackTrace(session, { levels: 1 });
         const currentFrame = stackFrames.length > 0 ? stackFrames[0] : undefined;
 
         result.stoppedInfo = {
@@ -204,8 +204,8 @@ export class InspectionTools {
         };
       }
 
-      // Get stack trace first
-      const stackFrames = await this.dapClient.getStackTrace(session);
+      // Get stack trace first - only need top frame if frameId not specified
+      const { stackFrames } = await this.dapClient.getStackTrace(session, { levels: 1 });
       if (stackFrames.length === 0 || !stackFrames[0]) {
         return {
           success: false,
@@ -271,24 +271,29 @@ export class InspectionTools {
         };
       }
 
-      const stackFrames = await this.dapClient.getStackTrace(session);
-
       // Default to DEFAULT_MAX_STACK_DEPTH frames to reduce verbosity
       const maxDepth = args?.maxDepth ?? DEFAULT_MAX_STACK_DEPTH;
-      const limitedFrames = stackFrames.slice(0, maxDepth);
+
+      // Fetch only the requested depth from the debug adapter
+      const { stackFrames, totalFrames } = await this.dapClient.getStackTrace(session, {
+        levels: maxDepth,
+      });
+
+      // Use actual totalFrames from DAP if available, otherwise fall back to returned count
+      const actualTotal = totalFrames ?? stackFrames.length;
 
       return {
         success: true,
         data: {
-          frames: limitedFrames.map((frame) => ({
+          frames: stackFrames.map((frame) => ({
             id: frame.id,
             name: frame.name,
             source: frame.source?.path || frame.source?.name || 'unknown',
             line: frame.line,
             column: frame.column,
           })),
-          totalFrames: stackFrames.length,
-          truncated: stackFrames.length > maxDepth,
+          totalFrames: actualTotal,
+          truncated: actualTotal > stackFrames.length,
         },
       };
     } catch (error: unknown) {

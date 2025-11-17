@@ -60,15 +60,18 @@ describe('InspectionTools', () => {
         allThreadsStopped: true,
         hitBreakpointIds: [1, 2],
       });
-      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue([
-        {
-          id: 1,
-          name: 'main',
-          source: { path: '/test/file.js', name: 'file.js' },
-          line: 10,
-          column: 5,
-        },
-      ]);
+      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue({
+        stackFrames: [
+          {
+            id: 1,
+            name: 'main',
+            source: { path: '/test/file.js', name: 'file.js' },
+            line: 10,
+            column: 5,
+          },
+        ],
+        totalFrames: 1,
+      });
 
       const result = await tools.getDebugState();
 
@@ -100,7 +103,10 @@ describe('InspectionTools', () => {
         threadId: 1,
         reason: 'pause',
       });
-      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue([]);
+      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue({
+        stackFrames: [],
+        totalFrames: 0,
+      });
 
       const result = await tools.getDebugState();
 
@@ -160,7 +166,10 @@ describe('InspectionTools', () => {
         threadId: 1,
         reason: 'breakpoint',
       });
-      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue([]);
+      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue({
+        stackFrames: [],
+        totalFrames: 0,
+      });
 
       const result = await tools.waitForBreakpoint({
         automationLevel: 'full',
@@ -173,7 +182,10 @@ describe('InspectionTools', () => {
     it('should wait for paused event', async () => {
       vscode.debug.activeDebugSession = mockSession;
       vi.spyOn(dapClient, 'getExecutionState').mockReturnValue('running');
-      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue([]);
+      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue({
+        stackFrames: [],
+        totalFrames: 0,
+      });
 
       // Mock onStateChange to fire after a delay
       let stateChangeCallback: ((state: any) => void) | null = null;
@@ -260,7 +272,10 @@ describe('InspectionTools', () => {
 
     it('should fail when no stack frames available', async () => {
       vscode.debug.activeDebugSession = mockSession;
-      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue([]);
+      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue({
+        stackFrames: [],
+        totalFrames: 0,
+      });
 
       const result = await tools.getVariables({});
 
@@ -270,15 +285,18 @@ describe('InspectionTools', () => {
 
     it('should get variables from current frame', async () => {
       vscode.debug.activeDebugSession = mockSession;
-      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue([
-        {
-          id: 1,
-          name: 'main',
-          source: { path: '/test/file.js' },
-          line: 10,
-          column: 0,
-        },
-      ]);
+      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue({
+        stackFrames: [
+          {
+            id: 1,
+            name: 'main',
+            source: { path: '/test/file.js' },
+            line: 10,
+            column: 0,
+          },
+        ],
+        totalFrames: 1,
+      });
       vi.spyOn(dapClient, 'getScopes').mockResolvedValue([
         { name: 'Local', variablesReference: 100, expensive: false },
       ]);
@@ -303,10 +321,13 @@ describe('InspectionTools', () => {
 
     it('should get variables from specific frame', async () => {
       vscode.debug.activeDebugSession = mockSession;
-      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue([
-        { id: 1, name: 'main', line: 10, column: 0 },
-        { id: 2, name: 'helper', line: 5, column: 0 },
-      ]);
+      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue({
+        stackFrames: [
+          { id: 1, name: 'main', line: 10, column: 0 },
+          { id: 2, name: 'helper', line: 5, column: 0 },
+        ],
+        totalFrames: 2,
+      });
       vi.spyOn(dapClient, 'getScopes').mockResolvedValue([
         { name: 'Local', variablesReference: 100, expensive: false },
       ]);
@@ -321,9 +342,10 @@ describe('InspectionTools', () => {
 
     it('should filter variables by scope', async () => {
       vscode.debug.activeDebugSession = mockSession;
-      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue([
-        { id: 1, name: 'main', line: 10, column: 0 },
-      ]);
+      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue({
+        stackFrames: [{ id: 1, name: 'main', line: 10, column: 0 }],
+        totalFrames: 1,
+      });
       vi.spyOn(dapClient, 'getScopes').mockResolvedValue([
         { name: 'Local: main', variablesReference: 100, expensive: false },
         { name: 'Global', variablesReference: 200, expensive: true },
@@ -365,40 +387,54 @@ describe('InspectionTools', () => {
 
     it('should get call stack with default depth', async () => {
       vscode.debug.activeDebugSession = mockSession;
-      const frames = Array.from({ length: 30 }, (_, i) => ({
+      const allFrames = Array.from({ length: 30 }, (_, i) => ({
         id: i + 1,
         name: `function${i}`,
         source: { path: `/test/file${i}.js` },
         line: i + 1,
         column: 0,
       }));
-      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue(frames);
+      // Mock should respect the levels parameter and return only requested frames
+      vi.spyOn(dapClient, 'getStackTrace').mockImplementation(async (_session, options) => {
+        const levels = options?.levels ?? allFrames.length;
+        return {
+          stackFrames: allFrames.slice(0, levels),
+          totalFrames: allFrames.length,
+        };
+      });
 
       const result = await tools.getCallStack();
 
       expect(result.success).toBe(true);
       expect(result.data?.frames).toHaveLength(20); // Default max depth
-      expect(result.data?.totalFrames).toBe(30);
-      expect(result.data?.truncated).toBe(true);
+      expect(result.data?.totalFrames).toBe(30); // Real total from DAP
+      expect(result.data?.truncated).toBe(true); // 30 > 20 returned
     });
 
     it('should get call stack with custom depth', async () => {
       vscode.debug.activeDebugSession = mockSession;
-      const frames = Array.from({ length: 10 }, (_, i) => ({
+      const allFrames = Array.from({ length: 10 }, (_, i) => ({
         id: i + 1,
         name: `function${i}`,
         source: { path: `/test/file${i}.js` },
         line: i + 1,
         column: 0,
       }));
-      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue(frames);
+      // Mock should respect the levels parameter and return only requested frames
+      vi.spyOn(dapClient, 'getStackTrace').mockImplementation(async (_session, options) => {
+        const levels = options?.levels ?? allFrames.length;
+        return {
+          stackFrames: allFrames.slice(0, levels),
+          totalFrames: allFrames.length,
+        };
+      });
 
       const result = await tools.getCallStack({ maxDepth: 5 });
 
       expect(result.success).toBe(true);
       expect(result.data?.frames).toHaveLength(5);
-      expect(result.data?.totalFrames).toBe(10);
-      expect(result.data?.truncated).toBe(true);
+      expect(result.data?.totalFrames).toBe(10); // Real total from DAP
+      expect(result.data?.truncated).toBe(true); // 10 > 5 returned
     });
 
     it('should not truncate when all frames fit', async () => {
@@ -412,7 +448,10 @@ describe('InspectionTools', () => {
           column: 0,
         },
       ];
-      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue(frames);
+      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue({
+        stackFrames: frames,
+        totalFrames: 1,
+      });
 
       const result = await tools.getCallStack();
 
@@ -423,15 +462,18 @@ describe('InspectionTools', () => {
 
     it('should format frames correctly', async () => {
       vscode.debug.activeDebugSession = mockSession;
-      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue([
-        {
-          id: 1,
-          name: 'main',
-          source: { path: '/test/file.js', name: 'file.js' },
-          line: 10,
-          column: 5,
-        },
-      ]);
+      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue({
+        stackFrames: [
+          {
+            id: 1,
+            name: 'main',
+            source: { path: '/test/file.js', name: 'file.js' },
+            line: 10,
+            column: 5,
+          },
+        ],
+        totalFrames: 1,
+      });
 
       const result = await tools.getCallStack();
 

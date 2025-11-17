@@ -85,19 +85,36 @@ export class DAPClient {
     });
   }
 
-  async getStackTrace(session: vscode.DebugSession): Promise<StackFrame[]> {
+  async getStackTrace(
+    session: vscode.DebugSession,
+    options?: { startFrame?: number; levels?: number }
+  ): Promise<{ stackFrames: StackFrame[]; totalFrames?: number }> {
     try {
-      const response = await session.customRequest('stackTrace', {
+      const request: any = {
         threadId: DEFAULT_THREAD_ID,
-      });
+      };
+
+      // Pass depth limits to the debug adapter to avoid unnecessary materialization
+      if (options?.startFrame !== undefined) {
+        request.startFrame = options.startFrame;
+      }
+      if (options?.levels !== undefined) {
+        request.levels = options.levels;
+      }
+
+      const response = await session.customRequest('stackTrace', request);
       if (response?.stackFrames) {
         this.stackFrames = response.stackFrames;
-        return this.stackFrames;
+        // Return both frames and totalFrames metadata from DAP protocol
+        return {
+          stackFrames: this.stackFrames,
+          totalFrames: response.totalFrames,
+        };
       }
     } catch (error: unknown) {
       this.logger.error('Error getting stack trace:', error);
     }
-    return this.stackFrames;
+    return { stackFrames: this.stackFrames };
   }
 
   async getScopes(session: vscode.DebugSession, frameId: number): Promise<Scope[]> {

@@ -167,18 +167,20 @@ describe('DAPClient', () => {
             column: 10,
           },
         ],
+        totalFrames: 5,
       });
 
-      const stackFrames = await client.getStackTrace(mockSession);
+      const result = await client.getStackTrace(mockSession);
 
-      expect(stackFrames).toHaveLength(2);
-      expect(stackFrames[0]).toEqual({
+      expect(result.stackFrames).toHaveLength(2);
+      expect(result.stackFrames[0]).toEqual({
         id: 1,
         name: 'main',
         source: { path: '/test/file.js', name: 'file.js' },
         line: 10,
         column: 5,
       });
+      expect(result.totalFrames).toBe(5);
       expect(mockSession.customRequest).toHaveBeenCalledWith('stackTrace', {
         threadId: 1,
       });
@@ -187,9 +189,32 @@ describe('DAPClient', () => {
     it('should return empty array when stack trace fails', async () => {
       mockSession.customRequest.mockRejectedValue(new Error('Stack trace failed'));
 
-      const stackFrames = await client.getStackTrace(mockSession);
+      const result = await client.getStackTrace(mockSession);
 
-      expect(stackFrames).toEqual([]);
+      expect(result.stackFrames).toEqual([]);
+      expect(result.totalFrames).toBeUndefined();
+    });
+
+    it('should pass depth limit parameters to DAP request', async () => {
+      mockSession.customRequest.mockResolvedValue({
+        stackFrames: [
+          {
+            id: 1,
+            name: 'main',
+            source: { path: '/test/file.js', name: 'file.js' },
+            line: 10,
+            column: 5,
+          },
+        ],
+      });
+
+      await client.getStackTrace(mockSession, { levels: 5, startFrame: 2 });
+
+      expect(mockSession.customRequest).toHaveBeenCalledWith('stackTrace', {
+        threadId: 1,
+        levels: 5,
+        startFrame: 2,
+      });
     });
 
     it('should cache stack frames from DAP messages', () => {
