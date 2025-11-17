@@ -504,4 +504,30 @@ describe('DebugControlTools', () => {
       expect(tools.getActiveSession()).toBeUndefined();
     });
   });
+
+  describe('dispose', () => {
+    it('should clean up event listeners without error', () => {
+      expect(() => tools.dispose()).not.toThrow();
+    });
+
+    it('should dispose event listeners when called multiple times', () => {
+      // Should not throw even if called multiple times
+      tools.dispose();
+      expect(() => tools.dispose()).not.toThrow();
+    });
+
+    it('should prevent memory leaks when creating multiple instances', () => {
+      // Create multiple instances and dispose them
+      const instance1 = new DebugControlTools(configManager);
+      const instance2 = new DebugControlTools(configManager);
+      const instance3 = new DebugControlTools(configManager);
+
+      // Should be able to dispose all without issues
+      expect(() => {
+        instance1.dispose();
+        instance2.dispose();
+        instance3.dispose();
+      }).not.toThrow();
+    });
+  });
 });

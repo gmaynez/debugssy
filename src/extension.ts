@@ -77,6 +77,7 @@ class ExtensionContext {
       await this.mcpServer.stop();
       this.mcpServer.dispose(); // Clean up event listeners
     }
+    this.toolRegistry.dispose(); // Clean up tool registry event listeners
     this.dapClient.dispose();
     this.configManager.dispose();
   }

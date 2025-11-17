@@ -10,16 +10,25 @@ export interface ToolRegistry {
   debugControl: DebugControlTools;
   breakpoints: BreakpointTools;
   inspection: InspectionTools;
+  dispose(): void;
 }
 
 export function createToolRegistry(
   dapClient: DAPClient,
   configManager: ConfigManager
 ): ToolRegistry {
+  const debugControl = new DebugControlTools(configManager);
+  const breakpoints = new BreakpointTools();
+  const inspection = new InspectionTools(dapClient, configManager);
+
   return {
-    debugControl: new DebugControlTools(configManager),
-    breakpoints: new BreakpointTools(),
-    inspection: new InspectionTools(dapClient, configManager),
+    debugControl,
+    breakpoints,
+    inspection,
+    dispose() {
+      debugControl.dispose();
+      // breakpoints and inspection don't have disposables currently
+    },
   };
 }
 

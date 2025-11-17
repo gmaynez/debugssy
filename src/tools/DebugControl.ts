@@ -9,22 +9,31 @@ export interface DebugControlResult {
   error?: string;
 }
 
-export class DebugControlTools {
+export class DebugControlTools implements vscode.Disposable {
   private activeSession: vscode.DebugSession | undefined;
+  private readonly disposables: vscode.Disposable[] = [];
 
   constructor(private configManager: ConfigManager) {
     // Initialize with current active session (if any) to avoid race condition
     // where extension loads after debug session has already started
     this.activeSession = vscode.debug.activeDebugSession;
 
-    // Then subscribe to future changes
-    vscode.debug.onDidStartDebugSession((session) => {
-      this.activeSession = session;
-    });
+    // Then subscribe to future changes and store disposables for cleanup
+    this.disposables.push(
+      vscode.debug.onDidStartDebugSession((session) => {
+        this.activeSession = session;
+      })
+    );
 
-    vscode.debug.onDidTerminateDebugSession(() => {
-      this.activeSession = undefined;
-    });
+    this.disposables.push(
+      vscode.debug.onDidTerminateDebugSession(() => {
+        this.activeSession = undefined;
+      })
+    );
+  }
+
+  dispose(): void {
+    this.disposables.forEach((disposable) => disposable.dispose());
   }
 
   async startDebugging(args: {
