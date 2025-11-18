@@ -2,14 +2,28 @@
 
 All notable changes to the "Debugssy" extension will be documented in this file.
 
-## [1.4.2] - 2025-11-03
+## [1.4.3] - 2025-11-17
+
+### Changed
+
+- Stack trace retrieval now limited to essential frames for faster performance
+- Variable completions optimized to query only necessary scopes
+- Improved marketplace documentation for clarity
+
+### Fixed
+
+- Better timeout handling during breakpoint waits
+- Memory leaks from event listeners now properly cleaned up
+- More reliable resource cleanup during extension shutdown
+
+## [1.4.2] - 2025-11-11
 
 ### Changed
 
 - Updated support information with GitHub Sponsors link in package metadata
 - Streamlined documentation for better privacy
 
-## [1.4.1] - 2025-11-03
+## [1.4.1] - 2025-11-10
 
 ### Added
 
@@ -86,7 +100,7 @@ All notable changes to the "Debugssy" extension will be documented in this file.
 
 - Race conditions when debugging sessions start rapidly
 
-## [1.2.0] - 2025-10-30
+## [1.2.0] - 2025-10-29
 
 ### Added
 
@@ -113,13 +127,13 @@ All notable changes to the "Debugssy" extension will be documented in this file.
 
 - Minor maintenance updates
 
-## [1.1.2] - 2025
+## [1.1.2] - 2025-10-24
 
 ### Changed
 
 - Bug fixes and improvements
 
-## [1.1.0] - 2025
+## [1.1.0] - 2025-10-23
 
 ### Added
 
@@ -132,13 +146,13 @@ All notable changes to the "Debugssy" extension will be documented in this file.
 
 - Variable scope filtering now works correctly
 
-## [1.0.1] - 2024
+## [1.0.1] - 2025-10-23
 
 ### Fixed
 
 - Extension packaging issue that prevented the MCP server from starting
 
-## [1.0.0] - 2024
+## [1.0.0] - 2025-10-21
 
 ### Added
 
