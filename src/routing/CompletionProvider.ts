@@ -476,7 +476,11 @@ export class CompletionProvider {
       for (const candidateThreadId of candidateThreadIds) {
         let stackTrace;
         try {
-          stackTrace = await session.customRequest('stackTrace', { threadId: candidateThreadId });
+          // Only fetch top 10 frames for completion - we just need the current frame ID
+          stackTrace = await session.customRequest('stackTrace', {
+            threadId: candidateThreadId,
+            levels: 10,
+          });
         } catch (stackTraceError) {
           this.logger.debug(
             `Failed to retrieve stack trace for thread ${candidateThreadId}:`,
