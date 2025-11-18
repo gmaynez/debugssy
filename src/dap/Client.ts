@@ -61,6 +61,7 @@ export class DAPClient {
   public readonly onStateChange = this.stateChangeEmitter.event;
   private logger: Logger;
   private trackerDisposable: vscode.Disposable;
+  private lastKnownThreadId: number | undefined;
 
   constructor() {
     this.logger = Logger.getInstance();
@@ -87,11 +88,17 @@ export class DAPClient {
 
   async getStackTrace(
     session: vscode.DebugSession,
-    options?: { startFrame?: number; levels?: number }
+    options?: { startFrame?: number; levels?: number; threadId?: number }
   ): Promise<{ stackFrames: StackFrame[]; totalFrames?: number }> {
     try {
+      const preferredThreadId =
+        options?.threadId ??
+        this.stoppedInfo?.threadId ??
+        this.lastKnownThreadId ??
+        DEFAULT_THREAD_ID;
+
       const request: any = {
-        threadId: DEFAULT_THREAD_ID,
+        threadId: preferredThreadId,
       };
 
       // Pass depth limits to the debug adapter to avoid unnecessary materialization
@@ -105,6 +112,7 @@ export class DAPClient {
       const response = await session.customRequest('stackTrace', request);
       if (response?.stackFrames) {
         this.stackFrames = response.stackFrames;
+        this.lastKnownThreadId = preferredThreadId;
         // Return both frames and totalFrames metadata from DAP protocol
         return {
           stackFrames: this.stackFrames,
@@ -226,6 +234,7 @@ export class DAPClient {
     this.executionState = 'not_started';
     this.stoppedInfo = undefined;
     this.consoleOutputBuffer = [];
+    this.lastKnownThreadId = undefined;
   }
 
   dispose(): void {
@@ -260,6 +269,9 @@ export class DAPClient {
             allThreadsStopped: message.body?.allThreadsStopped,
             hitBreakpointIds: message.body?.hitBreakpointIds,
           };
+          if (typeof message.body?.threadId === 'number') {
+            this.lastKnownThreadId = message.body.threadId;
+          }
           this.stateChangeEmitter.fire('paused');
           break;
         case 'continued':

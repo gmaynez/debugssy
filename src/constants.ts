@@ -145,3 +145,9 @@ export const MAX_FILE_SEARCH_RESULTS = 100;
  * per-keystroke performance.
  */
 export const MAX_FILE_CACHE_SIZE = 100000;
+
+/**
+ * Maximum number of scopes to query per variable-completion request.
+ * Keeps DAP round-trips bounded so completions stay responsive while typing.
+ */
+export const MAX_VARIABLE_COMPLETION_SCOPES = 4;

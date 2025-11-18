@@ -3,7 +3,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { Logger } from '../utils/Logger';
-import { MAX_COMPLETIONS, MAX_FILE_CACHE_SIZE } from '../constants';
+import { MAX_COMPLETIONS, MAX_FILE_CACHE_SIZE, MAX_VARIABLE_COMPLETION_SCOPES } from '../constants';
 
 /**
  * Provides completion suggestions for MCP prompt arguments.
@@ -515,20 +515,49 @@ export class CompletionProvider {
       }
 
       // Get scopes for the frame
-      const scopes = await session.customRequest('scopes', { frameId });
-      if (!scopes || !scopes.scopes) {
+      const scopesResponse = await session.customRequest('scopes', { frameId });
+      if (!scopesResponse || !Array.isArray(scopesResponse.scopes)) {
         return { values: [], total: 0, hasMore: false };
       }
 
-      // Collect all variable names from all scopes
-      const variableNames = new Set<string>();
-      for (const scope of scopes.scopes) {
-        const variables = await session.customRequest('variables', {
-          variablesReference: scope.variablesReference,
+      // Prefer inexpensive scopes (locals/closures) and keep query count bounded
+      const normalizedScopes = scopesResponse.scopes
+        .filter((scope: any) => scope && typeof scope.variablesReference === 'number')
+        .sort((a: any, b: any) => {
+          const aExpensive = Boolean(a?.expensive);
+          const bExpensive = Boolean(b?.expensive);
+          if (aExpensive === bExpensive) {
+            return 0;
+          }
+          return aExpensive ? 1 : -1;
         });
 
-        if (variables && variables.variables) {
-          for (const variable of variables.variables) {
+      const scopesToQuery = normalizedScopes.slice(0, MAX_VARIABLE_COMPLETION_SCOPES);
+      if (scopesToQuery.length === 0) {
+        return { values: [], total: 0, hasMore: false };
+      }
+
+      const scopeVariables = await Promise.all(
+        scopesToQuery.map(async (scope: any) => {
+          try {
+            const response = await session.customRequest('variables', {
+              variablesReference: scope.variablesReference,
+            });
+            return Array.isArray(response?.variables) ? response.variables : [];
+          } catch (error) {
+            this.logger.debug(
+              `Failed to retrieve variables for scope ${scope?.name ?? scope?.variablesReference}:`,
+              error
+            );
+            return [];
+          }
+        })
+      );
+
+      const variableNames = new Set<string>();
+      for (const variables of scopeVariables) {
+        for (const variable of variables) {
+          if (variable?.name) {
             variableNames.add(variable.name);
           }
         }

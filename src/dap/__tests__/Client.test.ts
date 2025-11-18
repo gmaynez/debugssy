@@ -217,6 +217,33 @@ describe('DAPClient', () => {
       });
     });
 
+    it('should allow overriding the thread ID via options', async () => {
+      mockSession.customRequest.mockResolvedValue({ stackFrames: [] });
+
+      await client.getStackTrace(mockSession, { threadId: 7 });
+
+      expect(mockSession.customRequest).toHaveBeenCalledWith('stackTrace', {
+        threadId: 7,
+      });
+    });
+
+    it('should reuse the last stopped thread ID for stack trace requests', async () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
+      tracker.onDidSendMessage({
+        type: 'event',
+        event: 'stopped',
+        body: { threadId: 42, reason: 'breakpoint' },
+      });
+
+      mockSession.customRequest.mockResolvedValue({ stackFrames: [] });
+
+      await client.getStackTrace(mockSession);
+
+      expect(mockSession.customRequest).toHaveBeenCalledWith('stackTrace', {
+        threadId: 42,
+      });
+    });
+
     it('should cache stack frames from DAP messages', () => {
       const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
 
