@@ -10,61 +10,71 @@ Claude Desktop, etc.) using the Model Context Protocol.
 
 ---
 
-## 💡 The Problem
+## 💡 The Problem (Why This Exists)
 
-Debugging is tedious:
+Debugging itself is useful; the **way** we usually do it is not:
 
-- ❌ **Manual breakpoint hunting** - "Maybe line 42? No, line 58? Try 63..."
-- ❌ **Repetitive stepping** - Click step, check variable, step again, check
-  again...
-- ❌ **Context switching** - Jump between code, debugger UI, and documentation
-- ❌ **Time wasted** - 30+ minutes to find a simple null reference
+- **Manual breakpoint hunting** – guessing lines until something hits
+- **Repetitive stepping** – step, inspect, step, inspect… for the tenth time
+- **Context switching** – juggling code, debugger UI, logs, docs, and chat
+- **Time sink** – 20–30 minutes to track down a trivial null reference
 
-## ✨ The Solution
+I built Debugssy after a few too many sessions of "click step until my wrist
+hurts" while explaining bugs to an AI anyway.
 
-**Just describe the bug. Your AI does the rest.**
+## ✨ The Idea
+
+Instead of fiddling with the debugger UI, you describe the bug and let your AI
+drive VS Code's debugger through MCP.
+
+Typical flow:
 
 ```
 You: "The login function returns null for admin users"
 
-AI: Sets breakpoint → Inspects user object → Finds role check fails →
-     Traces to database query → Identifies missing WHERE clause → Done! ✅
+AI: Sets a breakpoint → inspects the user object → notices the role check fails
+    → traces back to the database query → spots the missing WHERE clause
 ```
 
-**3 minutes instead of 30.** That's Debugssy.
+The goal is to get from "something is off" to "I see the exact line and reason"
+without you micromanaging every step.
 
 ---
 
 ## 🚀 What You Get
 
-- 🎯 **AI sets breakpoints** where bugs actually are (not where you guess)
-- 🔍 **AI inspects variables** and explains what's wrong in plain English
-- 📊 **AI analyzes call stacks** to trace execution flow
-- ⚡ **AI uses conditional breakpoints** to catch edge cases instantly
-- 🤖 **Full or assisted modes** - You choose the automation level
+- **Smarter breakpoints** – AI sets breakpoints where the bug is likely to be,
+  not just "somewhere in this file"
+- **Variable inspection on demand** – ask about `user`, `cartTotal`, or any
+  expression in plain language
+- **Call stack analysis** – have the AI walk the stack and explain how you got
+  here
+- **Conditional breakpoints without the syntax tax** – describe the condition,
+  let the tool set it up
+- **Two modes** – assisted (you drive, AI inspects) or full (AI drives, you
+  review)
 
-**No more:** Manually setting 20 breakpoints to find one bug  
-**Instead:** "Find why users can't checkout" → AI debugs it in minutes
+In practice this looks like: instead of setting 10 breakpoints and poking
+around, you say _"debug why users can't checkout"_ and let the AI do the
+mechanical work while you make the decisions.
 
 ---
 
-## 🏁 Quick Start (2 Minutes)
+## 🏁 Quick Start (About 2 Minutes)
 
 ### Step 1: Install Extension
 
-**In VS Code:** Press `Ctrl+Shift+X` (or `Cmd+Shift+X` on Mac) → Search
-"Debugssy" → Click Install
+**In VS Code:** Press `Ctrl+Shift+X` (or `Cmd+Shift+X` on Mac) → search
+`Debugssy` → install
 
 **Or install from:**
 [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy)
 · [Open VSX](https://open-vsx.org/extension/gamag/debugssy)
 
-### Step 2: Connect Your AI (One Click!)
-
-**Choose your AI assistant:**
+### Step 2: Connect Your AI
 
 <details>
-<summary><b>🤖 GitHub Copilot (VS Code)</b> - Click to expand</summary>
+<summary><b>GitHub Copilot (VS Code)</b> - Click to expand</summary>
 
 **One-click setup:**
 [Install in VS Code](vscode:mcp/install?%7B%22name%22%3A%22debugssy%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22http%3A%2F%2Flocalhost%3A3000%2Fmcp%22%7D)
@@ -91,7 +101,7 @@ or [Open from browser](https://gmaynez.github.io/debugssy/oneclick-vscode.html)
 </details>
 
 <details>
-<summary><b>⚡ Cursor</b> - Click to expand</summary>
+<summary><b>Cursor</b> - Click to expand</summary>
 
 **One-click setup:**
 [Install in Cursor](https://cursor.com/en-US/install-mcp?name=debugssy&config=eyJ0eXBlIjoiaHR0cCIsInVybCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMC9tY3AifQ%3D%3D)
@@ -114,7 +124,7 @@ or [Open from browser](https://gmaynez.github.io/debugssy/oneclick-vscode.html)
 </details>
 
 <details>
-<summary><b>💬 Claude Desktop</b> - Click to expand</summary>
+<summary><b>Claude Desktop</b> - Click to expand</summary>
 
 Add to config file:
 
@@ -135,16 +145,16 @@ Add to config file:
 
 **Other MCP clients?** Connect to `http://localhost:3000/mcp`
 
-### Step 3: Start Debugging!
+### Step 3: Start Debugging
 
-**That's it!** Now just tell your AI about any bug:
+Start your usual debug session in VS Code, then talk to your AI:
 
-> 💬 "Debug why users get null when logging in"  
-> 💬 "Find where cartTotal becomes 0"  
-> 💬 "Trace why this loop runs 1000x instead of 10x"
+> "Debug why users get null when logging in"  
+> "Find where cartTotal becomes 0"  
+> "Trace why this loop runs 1000x instead of 10x"
 
-**Pro tip:** Type `/` in your AI chat to see guided debugging workflows
-(`/debug-crash`, `/trace-variable`, etc.)
+If your AI supports slash commands, type `/` in your AI chat to see guided
+debugging workflows (`/debug-crash`, `/trace-variable`, etc.)
 
 ---
 
@@ -173,34 +183,36 @@ Context Protocol (MCP). Your AI gets access to:
 
 ## 🎬 Real-World Examples
 
-### 🐛 **Crash/Exception**
+These are the kinds of things I actually use it for.
+
+### Crash/Exception
 
 ```
-💬 You: "Getting 'Cannot read property id of undefined' in UserService.ts line 45"
+You: "Getting 'Cannot read property id of undefined' in UserService.ts line 45"
 
-🤖 AI: Sets breakpoint → Inspects user object (null) → Traces back through call stack
-      → Finds database query missing WHERE clause → Fix identified! ⚡
+AI: Sets a breakpoint → inspects the `user` object (null) → walks back through
+    the call stack → finds the database query missing a WHERE clause
 ```
 
-### 🔍 **Wrong Value**
+### Wrong Value
 
 ```
-💬 You: "cartTotal shows $0 but should be $150"
+You: "cartTotal shows $0 but should be $150"
 
-🤖 AI: Sets breakpoints on all cartTotal assignments → Continues execution
-      → Finds discount calculation multiplying by 0 instead of subtracting → Fixed! ⚡
+AI: Sets breakpoints on all `cartTotal` assignments → continues execution →
+    finds the discount calculation multiplying by 0 instead of subtracting
 ```
 
-### ⚡ **Infinite Loop**
+### Infinite Loop
 
 ```
-💬 You: "Loop running 1000x instead of 10x"
+You: "Loop running 1000x instead of 10x"
 
-🤖 AI: Sets conditional breakpoint "i > 10" → Pauses at i=11 → Inspects condition
-      → Finds <= instead of < (off-by-one error) → Done! ⚡
+AI: Sets a conditional breakpoint `i > 10` → pauses at `i = 11` → inspects the
+    condition → finds `<=` instead of `<` (off-by-one error)
 ```
 
-**Want guided workflows?** Type `/` in your AI chat:
+If you prefer more structure, type `/` in your AI chat:
 
 - `/debug-crash` - Systematic crash debugging
 - `/trace-variable` - Track variable changes
@@ -208,15 +220,15 @@ Context Protocol (MCP). Your AI gets access to:
 - `/debug-loop` - Loop debugging
 - `/auto-debug-session` - Full automation (full mode)
 
-> 💡 **Recommended models:** Claude 4.5 Haiku or Grok 4 Fast (fast, accurate,
-> cost-effective)
+**Recommended models:** Claude 4.5 Haiku or Grok 4 Fast (fast, accurate,
+cost-effective)
 
 ---
 
 ## ⚙️ Settings
 
 **Key settings** (access via `File → Preferences → Settings`, search
-"debugssy"):
+`debugssy`):
 
 | Setting                     | Default    | Description                                      |
 | --------------------------- | ---------- | ------------------------------------------------ |
@@ -249,7 +261,7 @@ Context Protocol (MCP). Your AI gets access to:
 
 ---
 
-## ❓ Troubleshooting
+## ❓ Troubleshooting (Short Version)
 
 | Issue                          | Quick Fix                                                    |
 | ------------------------------ | ------------------------------------------------------------ |
@@ -259,7 +271,7 @@ Context Protocol (MCP). Your AI gets access to:
 | **Variables not available**    | Ensure execution is paused at a breakpoint                   |
 | **Copilot not seeing changes** | Restart VS Code after changing `automationLevel`             |
 
-**Still stuck?** Check full docs at
+If you're still stuck, check the full docs at
 [github.com/gmaynez/debugssy](https://github.com/gmaynez/debugssy)
 
 ---
