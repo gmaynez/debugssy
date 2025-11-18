@@ -113,16 +113,16 @@ export class DAPClient {
       if (response?.stackFrames) {
         this.stackFrames = response.stackFrames;
         this.lastKnownThreadId = preferredThreadId;
-        // Return both frames and totalFrames metadata from DAP protocol
+        const limitedFrames = this.constrainStackFrames(response.stackFrames, options);
         return {
-          stackFrames: this.stackFrames,
+          stackFrames: limitedFrames,
           totalFrames: response.totalFrames,
         };
       }
     } catch (error: unknown) {
       this.logger.error('Error getting stack trace:', error);
     }
-    return { stackFrames: this.stackFrames };
+    return { stackFrames: this.getCachedStackFrames(options) };
   }
 
   async getScopes(session: vscode.DebugSession, frameId: number): Promise<Scope[]> {
@@ -240,6 +240,29 @@ export class DAPClient {
   dispose(): void {
     this.trackerDisposable.dispose();
     this.stateChangeEmitter.dispose();
+  }
+
+  private constrainStackFrames(
+    frames: StackFrame[],
+    options?: { startFrame?: number; levels?: number }
+  ): StackFrame[] {
+    if (!frames.length) {
+      return [];
+    }
+    let constrained = frames;
+    if (options?.levels !== undefined) {
+      constrained = constrained.slice(0, options.levels);
+    }
+    return constrained;
+  }
+
+  private getCachedStackFrames(options?: { startFrame?: number; levels?: number }): StackFrame[] {
+    if (!this.stackFrames.length) {
+      return [];
+    }
+    const startFrame = options?.startFrame ?? 0;
+    const windowed = this.stackFrames.slice(startFrame);
+    return this.constrainStackFrames(windowed, options);
   }
 
   private handleDAPMessage(message: any): void {

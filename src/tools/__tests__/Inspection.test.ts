@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { InspectionTools } from '../Inspection';
 import { DAPClient } from '../../dap/Client';
 import { ConfigManager } from '../../Config';
+import { DEFAULT_MAX_STACK_DEPTH } from '../../constants';
 import { vscode } from '../../__tests__/setup';
 import { createMockDebugSession } from '../../__tests__/helpers/vscode-mock';
 
@@ -409,6 +410,7 @@ describe('InspectionTools', () => {
       expect(result.data?.frames).toHaveLength(20); // Default max depth
       expect(result.data?.totalFrames).toBe(30); // Real total from DAP
       expect(result.data?.truncated).toBe(true); // 30 > 20 returned
+      expect(dapClient.getStackTrace).toHaveBeenCalledWith(mockSession, { levels: 21 });
     });
 
     it('should get call stack with custom depth', async () => {
@@ -435,6 +437,7 @@ describe('InspectionTools', () => {
       expect(result.data?.frames).toHaveLength(5);
       expect(result.data?.totalFrames).toBe(10); // Real total from DAP
       expect(result.data?.truncated).toBe(true); // 10 > 5 returned
+      expect(dapClient.getStackTrace).toHaveBeenCalledWith(mockSession, { levels: 6 });
     });
 
     it('should not truncate when all frames fit', async () => {
@@ -458,6 +461,48 @@ describe('InspectionTools', () => {
       expect(result.success).toBe(true);
       expect(result.data?.frames).toHaveLength(1);
       expect(result.data?.truncated).toBe(false);
+    });
+
+    it('should infer truncation when adapters omit totalFrames', async () => {
+      vscode.debug.activeDebugSession = mockSession;
+      const frames = Array.from({ length: DEFAULT_MAX_STACK_DEPTH + 1 }, (_, i) => ({
+        id: i + 1,
+        name: `fn${i}`,
+        source: { path: `/tmp/file${i}.js` },
+        line: i + 1,
+        column: 0,
+      }));
+      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue({
+        stackFrames: frames,
+      });
+
+      const result = await tools.getCallStack();
+
+      expect(result.success).toBe(true);
+      expect(result.data?.frames).toHaveLength(DEFAULT_MAX_STACK_DEPTH);
+      expect(result.data?.truncated).toBe(true);
+      expect(result.data?.totalFrames).toBe(DEFAULT_MAX_STACK_DEPTH + 1);
+    });
+
+    it('should not mark truncation when fewer frames are returned without totals', async () => {
+      vscode.debug.activeDebugSession = mockSession;
+      const frames = Array.from({ length: 3 }, (_, i) => ({
+        id: i + 1,
+        name: `fn${i}`,
+        source: { path: `/tmp/file${i}.js` },
+        line: i + 1,
+        column: 0,
+      }));
+      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue({
+        stackFrames: frames,
+      });
+
+      const result = await tools.getCallStack({ maxDepth: 5 });
+
+      expect(result.success).toBe(true);
+      expect(result.data?.frames).toHaveLength(3);
+      expect(result.data?.truncated).toBe(false);
+      expect(result.data?.totalFrames).toBe(3);
     });
 
     it('should format frames correctly', async () => {

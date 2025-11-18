@@ -244,6 +244,38 @@ describe('DAPClient', () => {
       });
     });
 
+    it('should limit returned frames to the requested depth', async () => {
+      mockSession.customRequest.mockResolvedValue({
+        stackFrames: [
+          { id: 1, name: 'main', line: 1, column: 0 },
+          { id: 2, name: 'helper', line: 2, column: 0 },
+          { id: 3, name: 'leaf', line: 3, column: 0 },
+        ],
+      });
+
+      const result = await client.getStackTrace(mockSession, { levels: 2 });
+
+      expect(result.stackFrames).toHaveLength(2);
+      expect(result.stackFrames[0]?.id).toBe(1);
+      expect(result.stackFrames[1]?.id).toBe(2);
+    });
+
+    it('should respect cache when adapter request fails', async () => {
+      const cachedFrames = [
+        { id: 1, name: 'main', line: 1, column: 0 },
+        { id: 2, name: 'helper', line: 2, column: 0 },
+        { id: 3, name: 'leaf', line: 3, column: 0 },
+      ];
+      mockSession.customRequest
+        .mockResolvedValueOnce({ stackFrames: cachedFrames })
+        .mockRejectedValueOnce(new Error('stack trace failed'));
+
+      await client.getStackTrace(mockSession);
+      const result = await client.getStackTrace(mockSession, { startFrame: 1, levels: 1 });
+
+      expect(result.stackFrames).toEqual([{ id: 2, name: 'helper', line: 2, column: 0 }]);
+    });
+
     it('should cache stack frames from DAP messages', () => {
       const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
 

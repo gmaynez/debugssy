@@ -273,27 +273,33 @@ export class InspectionTools {
 
       // Default to DEFAULT_MAX_STACK_DEPTH frames to reduce verbosity
       const maxDepth = args?.maxDepth ?? DEFAULT_MAX_STACK_DEPTH;
+      const requestedLevels = maxDepth + 1; // Fetch one extra frame to detect truncation reliably
 
       // Fetch only the requested depth from the debug adapter
       const { stackFrames, totalFrames } = await this.dapClient.getStackTrace(session, {
-        levels: maxDepth,
+        levels: requestedLevels,
       });
 
-      // Use actual totalFrames from DAP if available, otherwise fall back to returned count
-      const actualTotal = totalFrames ?? stackFrames.length;
+      const limitedFrames = stackFrames.slice(0, maxDepth);
+      const truncated =
+        totalFrames !== undefined
+          ? totalFrames > limitedFrames.length
+          : stackFrames.length > limitedFrames.length;
+      const reportedTotal =
+        totalFrames ?? (truncated ? limitedFrames.length + 1 : limitedFrames.length);
 
       return {
         success: true,
         data: {
-          frames: stackFrames.map((frame) => ({
+          frames: limitedFrames.map((frame) => ({
             id: frame.id,
             name: frame.name,
             source: frame.source?.path || frame.source?.name || 'unknown',
             line: frame.line,
             column: frame.column,
           })),
-          totalFrames: actualTotal,
-          truncated: actualTotal > stackFrames.length,
+          totalFrames: reportedTotal,
+          truncated,
         },
       };
     } catch (error: unknown) {
