@@ -26,12 +26,12 @@ import {
   ValidatorKey,
 } from './types/toolArguments';
 import type { ToolSchema, EvaluationResult } from './types/toolResults';
+import { UnknownToolError, InvalidArgumentsError, ExpressionUserDeclinedError } from '../errors';
 
 /**
  * Type for tool handler functions.
  * Uses any for args and result to maintain compatibility with existing tool implementations.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ToolHandler = (args: any) => Promise<any>;
 
 /**
@@ -90,12 +90,11 @@ export class ToolRouter {
    * For evaluate_expression, applies security validation and uses elicitation
    * to request user approval if the expression may have side effects.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async routeToolCall(toolName: string, args: unknown, server?: Server): Promise<any> {
     const handler = this.toolHandlers.get(toolName);
 
     if (!handler) {
-      throw new Error(`Unknown tool: ${toolName}`);
+      throw new UnknownToolError(toolName, Array.from(this.toolHandlers.keys()));
     }
 
     // Validate input against Zod schema if available (type-safe lookup)
@@ -113,7 +112,7 @@ export class ToolRouter {
           })
           .join('; ');
 
-        throw new Error(`Invalid arguments for tool '${toolName}': ${issues}`);
+        throw new InvalidArgumentsError(toolName, issues);
       }
 
       validatedArgs = parsed.data;
@@ -270,11 +269,8 @@ export class ToolRouter {
           _warning: 'Expression executed with user approval despite validation failure',
         };
       } else if (elicitResponse.action === 'decline') {
-        // User declined - return error
-        return {
-          success: false,
-          error: `Expression validation failed: ${validationResult.reason}. User declined to proceed.`,
-        };
+        // User declined
+        throw new ExpressionUserDeclinedError(args.expression, validationResult.reason);
       } else {
         // User cancelled or other action
         return {
@@ -283,10 +279,19 @@ export class ToolRouter {
         };
       }
     } catch (error: unknown) {
+      // Re-throw our custom errors
+      if (error instanceof ExpressionUserDeclinedError) {
+        return {
+          success: false,
+          error: `Expression validation failed: ${validationResult.reason}. User declined to proceed.`,
+        };
+      }
+
       // Elicitation not supported by client or other error
       // Fall back to blocking the expression with detailed info
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.warn('Elicitation failed, blocking expression:', errorMessage);
+
       const elicitationMessage = this.expressionValidator.formatElicitationMessage(
         args.expression,
         validationResult

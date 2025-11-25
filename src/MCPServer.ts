@@ -28,6 +28,7 @@ import { PromptHandler } from './routing/PromptHandler';
 import { CompletionProvider } from './routing/CompletionProvider';
 import { ResourceProvider } from './routing/ResourceProvider';
 import { Logger } from './utils/Logger';
+import { isDebugssyError, formatErrorMessage, getErrorCode } from './errors';
 
 /**
  * Main MCP server class that orchestrates the debugging tools and prompts.
@@ -444,7 +445,30 @@ export class MCPServer {
           ],
         };
       } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        // Handle custom Debugssy errors with additional context
+        if (isDebugssyError(error)) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(
+                  {
+                    success: false,
+                    error: error.message,
+                    code: getErrorCode(error),
+                    details: error.details,
+                  },
+                  null,
+                  2
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        // Handle generic errors
+        const errorMessage = formatErrorMessage(error);
         return {
           content: [
             {
@@ -740,7 +764,6 @@ export class MCPServer {
         transport: 'streamable-http',
         protocolVersion: CURRENT_MCP_PROTOCOL_VERSION,
         supportedProtocolVersions: ['2025-03-26', '2025-06-18'],
-        metrics: this.metrics,
       });
     });
   }

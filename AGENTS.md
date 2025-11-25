@@ -35,6 +35,7 @@ extension.ts → MCPServer.ts → [ToolRouter, PromptHandler, CompletionProvider
 | `tools/Inspection.ts`                 | Variable/stack inspection          | Inspection features     |
 | `tools/DebugControl.ts`               | Start/stop/step                    | Execution control       |
 | `dap/Client.ts`                       | DAP interception, state            | DAP event handling      |
+| `errors/index.ts`                     | Custom error types with codes      | Adding new error types  |
 
 ## File Dependencies
 
@@ -80,10 +81,21 @@ private disposables: vscode.Disposable[] = [];
 dispose(): void { this.disposables.forEach(d => d.dispose()); }
 ```
 
-**Error handling:**
+**Error handling with custom errors:**
 
 ```typescript
+import { DebugNotActiveError, isDebugssyError, getErrorCode } from '../errors';
+
+// Throwing custom errors
+if (!session) {
+  throw new DebugNotActiveError('get_variables');
+}
+
+// Catching and handling
 catch (error: unknown) {
+  if (isDebugssyError(error)) {
+    return { success: false, error: error.message, code: getErrorCode(error) };
+  }
   const msg = error instanceof Error ? error.message : 'Unknown error';
   return { success: false, error: msg };
 }
@@ -191,3 +203,13 @@ npm run package      # Create .vsix
 - `POST /mcp` - MCP protocol
 - `GET /mcp` - SSE fallback
 - `GET /health` - Server status
+
+## Error Codes
+
+Custom error codes in `errors/index.ts` for programmatic handling:
+
+- `DEBUG_NOT_ACTIVE` - No active debug session
+- `BREAKPOINT_NOT_FOUND` - Breakpoint doesn't exist at location
+- `EXPRESSION_VALIDATION_FAILED` - Expression security check failed
+- `UNKNOWN_TOOL` - Tool name not recognized
+- `INVALID_ARGUMENTS` - Zod validation failed
