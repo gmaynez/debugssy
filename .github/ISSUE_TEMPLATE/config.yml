@@ -1,0 +1,9 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Questions & Discussions
+    url: https://github.com/gmaynez/debugssy/discussions
+    about: Ask questions or start a discussion instead of opening an issue
+  - name: 📖 Documentation
+    url: https://github.com/gmaynez/debugssy#readme
+    about: Check the README for setup and usage guides
+
