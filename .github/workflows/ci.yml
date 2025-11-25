@@ -7,10 +7,7 @@ on:
       - develop # Development branch
       - "feature/**" # Feature branches
       - "fix/**" # Bug fix branches
-  pull_request:
-    branches:
-      - main # PRs to main (for releases)
-      - develop # PRs to develop (for development)
+  # Note: PRs are handled by pr-validation.yml to avoid duplicate runs
 
 jobs:
   build-and-test:

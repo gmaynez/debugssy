@@ -63,10 +63,8 @@ jobs:
       - name: Generate coverage report
         run: npm run test:coverage
 
-      - name: Display test results
+      - name: Display coverage summary
         run: |
-          echo "✅ All 210 tests passed!"
-          echo ""
           echo "📊 Coverage Summary:"
           if [ -f coverage/coverage-summary.json ]; then
             node -e "
@@ -105,7 +103,7 @@ jobs:
     if: always()
 
     steps:
-      - name: Comment build result
+      - name: Update PR comment with build result
         uses: actions/github-script@v8
         with:
           script: |
@@ -114,10 +112,33 @@ jobs:
             const message = status === 'success' 
               ? 'All validation checks passed! Ready for review.'
               : 'Some validation checks failed. Please review the logs.';
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
+            
+            const marker = '<!-- debugssy-pr-validation -->';
+            const body = `${marker}\n${emoji} **PR Validation Results**\n\n${message}\n\nWorkflow: [${context.runId}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`;
+            
+            // Find existing comment from this workflow
+            const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `${emoji} **PR Validation Results**\n\n${message}\n\nWorkflow: [${context.runId}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`
+              issue_number: context.issue.number,
             });
+            
+            const existingComment = comments.find(c => c.body.includes(marker));
+            
+            if (existingComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: body
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }
