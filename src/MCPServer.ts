@@ -408,9 +408,9 @@ export class MCPServer {
           tools: {},
           prompts: {},
           resources: {},
-          completion: {},
-          // Enable elicitation for user confirmation of potentially unsafe operations
-          elicitation: {},
+          completions: {},
+          // Note: elicitation is a CLIENT capability, not a server capability.
+          // The server uses server.elicitInput() which works if the client supports elicitation.
         },
       }
     );
