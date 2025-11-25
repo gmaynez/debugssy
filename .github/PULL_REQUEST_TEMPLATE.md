@@ -1,65 +1,47 @@
-# Pull Request
-
 ## Summary
-<!-- What is the change? Why is it needed? Keep it short. -->
-
-## Type of change
-<!-- Mark the relevant option with an "x" -->
-
-- [ ] Bug fix (non-breaking)
-- [ ] New feature (non-breaking)
-- [ ] Breaking change
-- [ ] Documentation update
-- [ ] Configuration/build change
-- [ ] Refactor
-- [ ] Performance improvement
-- [ ] Security fix
-
-## Related issues
-<!-- Link to issues, e.g., Fixes #123 or Relates to #456 -->
+<!-- Brief: What changed and why? -->
 
 Fixes #
 
-## Changes
-<!-- List the key changes made in this PR -->
+## What changed
+<!-- Key changes - keep it scannable -->
 
 - 
-- 
-- 
 
-## Screenshots (optional)
-<!-- Add screenshots if they help explain the change -->
+## Type
+<!-- Pick one -->
+- [ ] 🐛 Bug fix
+- [ ] ✨ Feature
+- [ ] 💥 Breaking change
+- [ ] 🔧 Maintenance (refactor, deps, docs, config)
 
-## Testing
-<!-- Describe verification and check relevant boxes -->
+## Verification
+<!-- Check what applies -->
 
-- [ ] Built and packaged locally (npm run package)
-- [ ] Lint and type-check pass (npm run lint, npm run check-types)
-- [ ] Runs in VS Code Extension Development Host
-- [ ] Tested with an MCP client (Cursor / Claude Desktop / other)
-- [ ] Core flows verified (breakpoints, variable inspection, evaluate_expression, console output)
-- [ ] Full automation flows if affected (start/stop/continue/step)
+- [ ] `npm run package` builds without errors
+- [ ] Tested in VS Code Extension Development Host
+- [ ] Tested with MCP client (if functionality changed)
 
-## Security considerations
-<!-- Note any security-relevant changes or implications -->
+<details>
+<summary>📋 Additional checks (expand if needed)</summary>
 
-- [ ] No secrets or tokens added/printed
-- [ ] Input validation (Zod) updated as needed
-- [ ] Config limits/ranges enforced (e.g., settings in package.json and src/config.ts)
-- [ ] Backward compatibility considered
+### For tool/schema changes
+- [ ] Schema exported from `routing/schemas/index.ts`
+- [ ] Zod validator added to `Validators` object
+- [ ] Handler registered in `ToolRouter`
 
-## Documentation
-<!-- Update when user-facing behavior or settings change -->
+### For config changes
+- [ ] `package.json` contributes.configuration updated
+- [ ] `constants.ts` limits match `Config.ts` validation
 
-- [ ] CHANGELOG.md updated (user-facing change)
-- [ ] README/docs updated (if behavior/settings changed)
-- [ ] Extension settings documented (if new/changed)
-- [ ] Version bumped in `package.json` (release PRs to main only)
+### For code with event listeners
+- [ ] Added to `disposables` array for cleanup
 
-## Checklist
-<!-- Final pass before review/merge -->
+### For user-facing changes
+- [ ] CHANGELOG.md updated
+- [ ] README updated (if settings/behavior changed)
 
-- [ ] Self-review complete
-- [ ] Clear naming; comments added where non-obvious
-- [ ] No new warnings/errors in build
-- [ ] Tests/verification steps above are complete
+</details>
+
+## Notes for reviewers
+<!-- Optional: anything reviewers should know -->
