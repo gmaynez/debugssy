@@ -29,6 +29,33 @@ export function detectCppCritical(expression: string): ValidationResult | null {
     };
   }
 
+  // Dynamic library loading
+  if (/\b(dlopen|dlsym|LoadLibrary|GetProcAddress)\s*\(/i.test(expression)) {
+    return {
+      allowed: false,
+      reason: 'Dynamic Loading: can load external libraries (C/C++)',
+      riskLevel: 'critical',
+    };
+  }
+
+  // Network operations
+  if (/\b(socket|connect|bind|listen|accept|send|recv|sendto|recvfrom)\s*\(/i.test(expression)) {
+    return {
+      allowed: false,
+      reason: 'Network Operation: can make network connections (C/C++)',
+      riskLevel: 'critical',
+    };
+  }
+
+  // Inline assembly
+  if (/\b(__asm__|asm)\s*[({]/i.test(expression)) {
+    return {
+      allowed: false,
+      reason: 'Inline Assembly: can execute arbitrary machine code (C/C++)',
+      riskLevel: 'critical',
+    };
+  }
+
   return null;
 }
 

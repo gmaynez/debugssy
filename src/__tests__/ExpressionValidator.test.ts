@@ -858,6 +858,51 @@ describe('ExpressionValidator', () => {
         'critical'
       );
     });
+
+    it('should detect C# process termination', () => {
+      expect(validator.validateExpression('Environment.Exit(0)', csharpSession).riskLevel).toBe(
+        'critical'
+      );
+      expect(
+        validator.validateExpression('Environment.FailFast("error")', csharpSession).riskLevel
+      ).toBe('critical');
+    });
+
+    it('should detect C# reflection patterns', () => {
+      const reflectionPatterns = [
+        'Type.GetMethod("Execute")',
+        'type.GetField("secret")',
+        'obj.GetType().GetProperty("Password")',
+        'Activator.CreateInstance(type)',
+        'Assembly.LoadFrom("evil.dll")',
+      ];
+
+      for (const pattern of reflectionPatterns) {
+        const result = validator.validateExpression(pattern, csharpSession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      }
+    });
+
+    it('should detect C# string obfuscation', () => {
+      expect(
+        validator.validateExpression('Convert.FromBase64String("ZXZhbA==")', csharpSession)
+          .riskLevel
+      ).toBe('high');
+      expect(
+        validator.validateExpression('Encoding.UTF8.GetString(bytes)', csharpSession).riskLevel
+      ).toBe('high');
+    });
+
+    it('should detect C# code generation', () => {
+      expect(
+        validator.validateExpression('new DynamicMethod("test", typeof(void), null)', csharpSession)
+          .riskLevel
+      ).toBe('high');
+      expect(validator.validateExpression('Expression.Compile()', csharpSession).riskLevel).toBe(
+        'high'
+      );
+    });
   });
 
   describe('Java Specific Validation', () => {
@@ -886,6 +931,109 @@ describe('ExpressionValidator', () => {
         validator.validateExpression('Runtime.getRuntime().exec("cmd")', javaSession).riskLevel
       ).toBe('critical');
       expect(validator.validateExpression('Files.delete(path)', javaSession).riskLevel).toBe(
+        'critical'
+      );
+    });
+
+    it('should detect Java process/JVM termination', () => {
+      expect(validator.validateExpression('System.exit(0)', javaSession).riskLevel).toBe(
+        'critical'
+      );
+      expect(
+        validator.validateExpression('Runtime.getRuntime().halt(1)', javaSession).riskLevel
+      ).toBe('critical');
+    });
+
+    it('should detect Java script engine execution', () => {
+      const scriptPatterns = [
+        'new ScriptEngineManager()',
+        'engine.eval("code")',
+        'scriptEngine.eval(script)',
+      ];
+
+      for (const pattern of scriptPatterns) {
+        const result = validator.validateExpression(pattern, javaSession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      }
+    });
+
+    it('should detect Java Base64 obfuscation', () => {
+      expect(
+        validator.validateExpression('Base64.getDecoder().decode("ZXZhbA==")', javaSession)
+          .riskLevel
+      ).toBe('high');
+    });
+
+    it('should detect Java reflection', () => {
+      const reflectionPatterns = [
+        'Class.forName("java.lang.Runtime")',
+        'method.invoke(obj, args)',
+        'Constructor.newInstance()',
+      ];
+
+      for (const pattern of reflectionPatterns) {
+        const result = validator.validateExpression(pattern, javaSession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      }
+    });
+  });
+
+  describe('C++ Specific Validation', () => {
+    let cppSession: any;
+
+    beforeEach(() => {
+      cppSession = createMockDebugSession('cpp', 'cppdbg');
+    });
+
+    it('should detect C++ system commands', () => {
+      expect(validator.validateExpression('system("rm -rf /")', cppSession).riskLevel).toBe(
+        'critical'
+      );
+      expect(validator.validateExpression('popen("ls", "r")', cppSession).riskLevel).toBe(
+        'critical'
+      );
+    });
+
+    it('should detect C++ dynamic library loading', () => {
+      expect(
+        validator.validateExpression('dlopen("evil.so", RTLD_NOW)', cppSession).riskLevel
+      ).toBe('critical');
+      expect(validator.validateExpression('dlsym(handle, "func")', cppSession).riskLevel).toBe(
+        'critical'
+      );
+      expect(validator.validateExpression('LoadLibrary("evil.dll")', cppSession).riskLevel).toBe(
+        'critical'
+      );
+    });
+
+    it('should detect C++ network operations', () => {
+      const networkOps = [
+        'socket(AF_INET, SOCK_STREAM, 0)',
+        'connect(fd, addr, len)',
+        'send(fd, buf, len, 0)',
+      ];
+
+      for (const op of networkOps) {
+        const result = validator.validateExpression(op, cppSession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('critical');
+      }
+    });
+
+    it('should detect C++ inline assembly', () => {
+      expect(validator.validateExpression('__asm__("mov eax, 0")', cppSession).riskLevel).toBe(
+        'critical'
+      );
+      expect(validator.validateExpression('asm { nop }', cppSession).riskLevel).toBe('critical');
+    });
+
+    it('should detect C++ file operations', () => {
+      expect(validator.validateExpression('remove("file.txt")', cppSession).riskLevel).toBe(
+        'critical'
+      );
+      expect(validator.validateExpression('fopen("file.txt", "w")', cppSession).riskLevel).toBe(
         'critical'
       );
     });

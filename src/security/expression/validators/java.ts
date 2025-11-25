@@ -45,6 +45,18 @@ export function detectJavaCritical(expression: string): ValidationResult | null 
     };
   }
 
+  // Process/JVM termination
+  if (
+    /\bSystem\s*\.\s*exit\s*\(/i.test(expression) ||
+    /\bRuntime\s*\.\s*getRuntime\s*\(\s*\)\s*\.\s*halt\s*\(/i.test(expression)
+  ) {
+    return {
+      allowed: false,
+      reason: 'Process Control: can terminate JVM (Java)',
+      riskLevel: 'critical',
+    };
+  }
+
   return null;
 }
 
@@ -83,13 +95,38 @@ export function validateJava(
 
   // Block reflection and dynamic class loading
   if (
-    /\b(Class\.forName|Method\.invoke|Field\.set|Constructor\.newInstance|ClassLoader\.loadClass)/i.test(
+    /\b(Class\s*\.\s*forName|\.invoke\s*\(|Field\s*\.\s*set|Constructor\s*\.\s*newInstance|ClassLoader\s*\.\s*loadClass)/i.test(
       expression
     )
   ) {
     return {
       allowed: false,
       reason: 'Code Execution: reflection/dynamic class loading not allowed',
+      riskLevel: 'high',
+    };
+  }
+
+  // Block script engine execution (JavaScript, Groovy, etc.)
+  if (
+    /\b(ScriptEngine|ScriptEngineManager|Compilable|Invocable)\s*[.(]/i.test(expression) ||
+    /\.eval\s*\(/i.test(expression)
+  ) {
+    return {
+      allowed: false,
+      reason: 'Code Execution: script engine execution not allowed',
+      riskLevel: 'high',
+    };
+  }
+
+  // Block string obfuscation patterns
+  if (
+    /\bBase64\s*\.\s*(getDecoder|getUrlDecoder|getMimeDecoder)\s*\(\s*\)\s*\.\s*decode\s*\(/i.test(
+      expression
+    )
+  ) {
+    return {
+      allowed: false,
+      reason: 'String Obfuscation: Base64 decoding can hide malicious code',
       riskLevel: 'high',
     };
   }

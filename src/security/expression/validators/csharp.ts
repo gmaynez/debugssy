@@ -56,6 +56,15 @@ export function detectCSharpCritical(expression: string): ValidationResult | nul
     };
   }
 
+  // Process/Application termination
+  if (/\bEnvironment\s*\.\s*(Exit|FailFast)\s*\(/i.test(expression)) {
+    return {
+      allowed: false,
+      reason: 'Process Control: can terminate application (C#)',
+      riskLevel: 'critical',
+    };
+  }
+
   return null;
 }
 
@@ -97,13 +106,48 @@ export function validateCSharp(
 
   // Block reflection and dynamic code execution
   if (
-    /\b(Activator\.CreateInstance|Assembly\.Load|Invoke|GetType\(\)|typeof\(|nameof\()/i.test(
+    /\b(Activator\s*\.\s*CreateInstance|Assembly\s*\.\s*(Load|LoadFrom|LoadFile)|\.Invoke\s*\(|\.GetType\s*\(\s*\)|typeof\s*\(|nameof\s*\()/i.test(
       expression
     )
   ) {
     return {
       allowed: false,
       reason: 'Code Execution: reflection/dynamic invocation not allowed',
+      riskLevel: 'high',
+    };
+  }
+
+  // Block additional reflection patterns (Type.GetMethod, etc.)
+  if (
+    /\bType\s*\.\s*(GetMethod|GetField|GetProperty|GetConstructor|GetMember)\s*\(/i.test(
+      expression
+    ) ||
+    /\.(GetMethod|GetField|GetProperty|GetConstructor)\s*\(/i.test(expression)
+  ) {
+    return {
+      allowed: false,
+      reason: 'Code Execution: reflection member access not allowed',
+      riskLevel: 'high',
+    };
+  }
+
+  // Block dynamic code generation
+  if (/\b(DynamicMethod|Expression\s*\.\s*Compile|ILGenerator)\s*[.(]/i.test(expression)) {
+    return {
+      allowed: false,
+      reason: 'Code Execution: dynamic code generation not allowed',
+      riskLevel: 'high',
+    };
+  }
+
+  // Block string obfuscation patterns
+  if (
+    /\bConvert\s*\.\s*FromBase64String\s*\(/i.test(expression) ||
+    /\bEncoding\s*\.\s*\w+\s*\.\s*GetString\s*\(/i.test(expression)
+  ) {
+    return {
+      allowed: false,
+      reason: 'String Obfuscation: base64/encoding can hide malicious code',
       riskLevel: 'high',
     };
   }
