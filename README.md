@@ -537,7 +537,22 @@ Four validation levels:
 **Validation uses elicitation** for user approval of potentially unsafe
 operations.
 
-> **📋 Complete security details:** See [MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md)
+### 🛡️ Security Best Practices
+
+For maximum security when using AI-assisted debugging:
+
+1. **Use a fresh agent window** — Start a new AI conversation for debugging
+   sessions to prevent prompt injection from previous context
+2. **Avoid web searches in debug sessions** — Don't perform web searches within
+   the same conversation where you're debugging (external content is the primary
+   vector for prompt injection attacks)
+3. **Keep validation enabled** — Use `moderate` or `strict` expression
+   validation level
+4. **Review before approving** — When elicitation prompts appear, review the
+   expression before allowing execution
+
+> **📋 Complete security details:** See [SECURITY.md](./SECURITY.md) and
+> [MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md)
 
 ---
 
@@ -995,6 +1010,8 @@ See [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for community guidelines.
 
 ### Documentation
 
+- **[SECURITY.md](./SECURITY.md)** - Security policy, threat model, and best
+  practices
 - **[ALLOWLIST_GUIDE.md](./ALLOWLIST_GUIDE.md)** - MCP client allowlist
   configuration
 - **[MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md)** - Security implementation details

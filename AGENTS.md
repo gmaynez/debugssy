@@ -64,6 +64,17 @@ based on `automationLevel`.
 - Risk levels: critical (system ops) > high (mutations) > medium (unknown
   funcs) > low (getters)
 
+**Expression validation checks (in order):**
+
+1. Comment injection (block `/* */`, line `//`, `#`)
+2. Critical operations (fs, process, network - language-specific)
+3. Prototype chain (`__proto__`, `.constructor`, `setPrototypeOf`)
+4. Global access (`globalThis`, `window`, `global`, `self`)
+5. String obfuscation (`fromCharCode`, `atob`, `Buffer.from`)
+6. Meta-programming (`Proxy`, `Reflect`, `defineProperty`)
+7. Language-specific validation (mutations, eval, etc.)
+8. Generic pattern validation (assignments, increments, etc.)
+
 **DAP states:** `not_started` | `running` | `paused` | `terminated`
 
 ## Patterns

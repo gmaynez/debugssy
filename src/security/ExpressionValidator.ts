@@ -368,7 +368,7 @@ export class ExpressionValidator {
     }
 
     // window object (browser global)
-    if (/\bwindow\s*[.[\[]/.test(expression)) {
+    if (/\bwindow\s*[[.]/.test(expression)) {
       return {
         allowed: false,
         reason: 'Global Access: window provides access to dangerous APIs',
@@ -378,7 +378,7 @@ export class ExpressionValidator {
 
     // global object (Node.js global)
     // Be careful not to match "global" as part of other words
-    if (/\bglobal\s*[.[\[]/.test(expression) && !/globalThis/.test(expression)) {
+    if (/\bglobal\s*[[.]/.test(expression) && !/globalThis/.test(expression)) {
       return {
         allowed: false,
         reason: 'Global Access: global provides access to dangerous APIs',
@@ -387,7 +387,7 @@ export class ExpressionValidator {
     }
 
     // self object (Web Workers global)
-    if (/\bself\s*[.[\[]/.test(expression)) {
+    if (/\bself\s*[[.]/.test(expression)) {
       return {
         allowed: false,
         reason: 'Global Access: self provides access to dangerous APIs',
@@ -601,7 +601,7 @@ export class ExpressionValidator {
 
     // Python # comments - but not in strings or as part of other constructs
     // Use negative lookbehind to exclude # after quotes or colons
-    if (/(?<!['":\w])#(?![\[{])/.test(expression)) {
+    if (/(?<!['":\w])#(?![{[])/.test(expression)) {
       return {
         allowed: false,
         reason: 'Comment Injection: line comments can hide malicious code',
