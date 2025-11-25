@@ -2,6 +2,17 @@
 
 All notable changes to the "Debugssy" extension will be documented in this file.
 
+## [1.4.5] - 2025-11-25
+
+### Security
+
+- Enhanced protection against prompt injection attacks
+- Improved detection of dangerous operations in C#, Java, and C++
+- Added checks for prototype chain manipulation, global object access, and
+  string obfuscation
+- Removed potentially dangerous string functions from safe lists
+- Added SECURITY.md with vulnerability reporting guidelines and best practices
+
 ## [1.4.4] - 2025-11-25
 
 ### Changed
