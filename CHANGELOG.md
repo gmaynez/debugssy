@@ -2,6 +2,18 @@
 
 All notable changes to the "Debugssy" extension will be documented in this file.
 
+## [1.4.4] - 2025-11-25
+
+### Changed
+
+- Minimum VS Code version updated to 1.101.0 (from 1.90.0)
+- Better error messages with specific error codes for easier troubleshooting
+- Updated MCP SDK to 1.22.0 and other dependencies
+
+### Fixed
+
+- Improved error handling throughout the extension
+
 ## [1.4.3] - 2025-11-17
 
 ### Changed

@@ -2,7 +2,7 @@
   "name": "debugssy",
   "displayName": "Debugssy",
   "description": "MCP server for VS Code debugging with tools for breakpoints, debug control, and variable inspection",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "publisher": "gamag",
   "author": {
     "name": "Guillermo Garcia Maynez Rocha"
