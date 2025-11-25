@@ -25,10 +25,13 @@ import {
   Validators,
   ValidatorKey,
 } from './types/toolArguments';
+import type { ToolSchema, EvaluationResult } from './types/toolResults';
 
 /**
- * Type for tool handler functions
+ * Type for tool handler functions.
+ * Uses any for args and result to maintain compatibility with existing tool implementations.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ToolHandler = (args: any) => Promise<any>;
 
 /**
@@ -60,7 +63,7 @@ export class ToolRouter {
    * Returns the list of available tools based on automation level.
    * Schemas are now organized in separate modules for better maintainability.
    */
-  getToolSchemas(): any[] {
+  getToolSchemas(): ToolSchema[] {
     const automationLevel = this.configManager.getConfig().automationLevel;
     const allowStepOperations = this.configManager.getConfig().allowStepOperations;
 
@@ -87,7 +90,8 @@ export class ToolRouter {
    * For evaluate_expression, applies security validation and uses elicitation
    * to request user approval if the expression may have side effects.
    */
-  async routeToolCall(toolName: string, args: any, server?: Server): Promise<any> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async routeToolCall(toolName: string, args: unknown, server?: Server): Promise<any> {
     const handler = this.toolHandlers.get(toolName);
 
     if (!handler) {
@@ -95,6 +99,7 @@ export class ToolRouter {
     }
 
     // Validate input against Zod schema if available (type-safe lookup)
+    let validatedArgs = args;
     if (toolName in Validators) {
       const validator = Validators[toolName as ValidatorKey];
       const parsed = validator.safeParse(args || {});
@@ -111,18 +116,18 @@ export class ToolRouter {
         throw new Error(`Invalid arguments for tool '${toolName}': ${issues}`);
       }
 
-      args = parsed.data;
+      validatedArgs = parsed.data;
     }
 
     // Special handling for evaluate_expression with security validation
     if (toolName === 'evaluate_expression' && server) {
       return await this.handleEvaluateExpressionWithValidation(
-        args as EvaluateExpressionArgs,
+        validatedArgs as EvaluateExpressionArgs,
         server
       );
     }
 
-    return await handler(args);
+    return await handler(validatedArgs);
   }
 
   /**
@@ -202,7 +207,7 @@ export class ToolRouter {
   private async handleEvaluateExpressionWithValidation(
     args: EvaluateExpressionArgs,
     server: Server
-  ): Promise<any> {
+  ): Promise<EvaluationResult> {
     const session = vscode.debug.activeDebugSession;
     const validationLevel = this.configManager.getConfig().expressionValidationLevel;
 

@@ -3,6 +3,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { Logger } from '../utils/Logger';
+import { filterAndSortByRelevance } from '../utils/sortByRelevance';
 import { MAX_COMPLETIONS, MAX_FILE_CACHE_SIZE, MAX_VARIABLE_COMPLETION_SCOPES } from '../constants';
 
 /**
@@ -104,28 +105,8 @@ export class CompletionProvider {
       }
     }
 
-    // Filter by partial match (case-insensitive)
-    if (partial) {
-      const lowerPartial = partial.toLowerCase();
-      filePaths = filePaths.filter((p) => p.toLowerCase().includes(lowerPartial));
-    }
-
-    // Sort by relevance: exact prefix matches first, then contains matches
-    filePaths.sort((a, b) => {
-      if (partial) {
-        const lowerPartial = partial.toLowerCase();
-        const aStarts = a.toLowerCase().startsWith(lowerPartial);
-        const bStarts = b.toLowerCase().startsWith(lowerPartial);
-        if (aStarts && !bStarts) {
-          return -1;
-        }
-        if (!aStarts && bStarts) {
-          return 1;
-        }
-      }
-      // Then alphabetically
-      return a.localeCompare(b);
-    });
+    // Filter and sort by relevance
+    filePaths = filterAndSortByRelevance(filePaths, partial);
 
     const total = filePaths.length;
     const values = filePaths.slice(0, MAX_COMPLETIONS);
@@ -344,29 +325,8 @@ export class CompletionProvider {
       }
     }
 
-    let functions = Array.from(functionNames);
-
-    // Filter by partial match
-    if (partial) {
-      const lowerPartial = partial.toLowerCase();
-      functions = functions.filter((name) => name.toLowerCase().includes(lowerPartial));
-    }
-
-    // Sort by relevance
-    functions.sort((a, b) => {
-      if (partial) {
-        const lowerPartial = partial.toLowerCase();
-        const aStarts = a.toLowerCase().startsWith(lowerPartial);
-        const bStarts = b.toLowerCase().startsWith(lowerPartial);
-        if (aStarts && !bStarts) {
-          return -1;
-        }
-        if (!aStarts && bStarts) {
-          return 1;
-        }
-      }
-      return a.localeCompare(b);
-    });
+    // Filter and sort by relevance
+    const functions = filterAndSortByRelevance(Array.from(functionNames), partial);
 
     const total = functions.length;
     const values = functions.slice(0, MAX_COMPLETIONS);
@@ -567,29 +527,8 @@ export class CompletionProvider {
         }
       }
 
-      let vars = Array.from(variableNames);
-
-      // Filter by partial match
-      if (partial) {
-        const lowerPartial = partial.toLowerCase();
-        vars = vars.filter((name) => name.toLowerCase().includes(lowerPartial));
-      }
-
-      // Sort by relevance
-      vars.sort((a, b) => {
-        if (partial) {
-          const lowerPartial = partial.toLowerCase();
-          const aStarts = a.toLowerCase().startsWith(lowerPartial);
-          const bStarts = b.toLowerCase().startsWith(lowerPartial);
-          if (aStarts && !bStarts) {
-            return -1;
-          }
-          if (!aStarts && bStarts) {
-            return 1;
-          }
-        }
-        return a.localeCompare(b);
-      });
+      // Filter and sort by relevance
+      const vars = filterAndSortByRelevance(Array.from(variableNames), partial);
 
       const total = vars.length;
       const values = vars.slice(0, MAX_COMPLETIONS);
@@ -664,51 +603,9 @@ export class CompletionProvider {
       }
     }
 
-    // Filter active doc variables by partial match
-    let activeDocVars = Array.from(activeDocVariables);
-    if (partial) {
-      const lowerPartial = partial.toLowerCase();
-      activeDocVars = activeDocVars.filter((name) => name.toLowerCase().includes(lowerPartial));
-    }
-
-    // Filter workspace variables by partial match
-    let workspaceVars = Array.from(workspaceVariables);
-    if (partial) {
-      const lowerPartial = partial.toLowerCase();
-      workspaceVars = workspaceVars.filter((name) => name.toLowerCase().includes(lowerPartial));
-    }
-
-    // Sort active doc variables by relevance
-    activeDocVars.sort((a, b) => {
-      if (partial) {
-        const lowerPartial = partial.toLowerCase();
-        const aStarts = a.toLowerCase().startsWith(lowerPartial);
-        const bStarts = b.toLowerCase().startsWith(lowerPartial);
-        if (aStarts && !bStarts) {
-          return -1;
-        }
-        if (!aStarts && bStarts) {
-          return 1;
-        }
-      }
-      return a.localeCompare(b);
-    });
-
-    // Sort workspace variables by relevance
-    workspaceVars.sort((a, b) => {
-      if (partial) {
-        const lowerPartial = partial.toLowerCase();
-        const aStarts = a.toLowerCase().startsWith(lowerPartial);
-        const bStarts = b.toLowerCase().startsWith(lowerPartial);
-        if (aStarts && !bStarts) {
-          return -1;
-        }
-        if (!aStarts && bStarts) {
-          return 1;
-        }
-      }
-      return a.localeCompare(b);
-    });
+    // Filter and sort both sets by relevance
+    const activeDocVars = filterAndSortByRelevance(Array.from(activeDocVariables), partial);
+    const workspaceVars = filterAndSortByRelevance(Array.from(workspaceVariables), partial);
 
     // Combine: active doc variables first, then workspace variables
     const allVars = [...activeDocVars, ...workspaceVars];
