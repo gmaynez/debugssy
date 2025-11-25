@@ -891,6 +891,298 @@ describe('ExpressionValidator', () => {
     });
   });
 
+  describe('Prompt Injection Protection', () => {
+    let jsSession: any;
+
+    beforeEach(() => {
+      jsSession = createMockDebugSession('test', 'node');
+    });
+
+    describe('Prototype Chain Attacks', () => {
+      it('should block __proto__ access', () => {
+        const result = validator.validateExpression('obj.__proto__', jsSession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+        expect(result.reason).toContain('__proto__');
+      });
+
+      it('should block prototype property access', () => {
+        const result = validator.validateExpression('Object.prototype', jsSession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+
+      it('should block constructor chain access', () => {
+        const expressions = [
+          'obj.constructor.constructor("return process")()',
+          "obj['constructor']['constructor']",
+          'obj.constructor("code")',
+        ];
+
+        for (const expr of expressions) {
+          const result = validator.validateExpression(expr, jsSession);
+          expect(result.allowed).toBe(false);
+          expect(result.riskLevel).toBe('high');
+        }
+      });
+
+      it('should block setPrototypeOf', () => {
+        expect(
+          validator.validateExpression('Object.setPrototypeOf(obj, proto)', jsSession).allowed
+        ).toBe(false);
+        expect(
+          validator.validateExpression('Reflect.setPrototypeOf(obj, proto)', jsSession).allowed
+        ).toBe(false);
+      });
+
+      it('should block nested getPrototypeOf', () => {
+        const result = validator.validateExpression(
+          'Object.getPrototypeOf(Object.getPrototypeOf(obj))',
+          jsSession
+        );
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+    });
+
+    describe('Global Object Access', () => {
+      it('should block globalThis access', () => {
+        const result = validator.validateExpression('globalThis.process', jsSession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+        expect(result.reason).toContain('globalThis');
+      });
+
+      it('should block window access', () => {
+        const result = validator.validateExpression('window.eval("code")', jsSession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+
+      it('should block global access (Node.js)', () => {
+        const result = validator.validateExpression('global.process', jsSession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+
+      it('should block self access (Web Workers)', () => {
+        const result = validator.validateExpression('self.postMessage(data)', jsSession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+
+      it('should block this.constructor at start', () => {
+        const result = validator.validateExpression(
+          'this.constructor.constructor("return process")()',
+          jsSession
+        );
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+    });
+
+    describe('String Obfuscation Attacks', () => {
+      it('should block String.fromCharCode', () => {
+        const result = validator.validateExpression(
+          'String.fromCharCode(101, 118, 97, 108)',
+          jsSession
+        );
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+        expect(result.reason).toContain('fromCharCode');
+      });
+
+      it('should block String.fromCodePoint', () => {
+        const result = validator.validateExpression('String.fromCodePoint(0x65)', jsSession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+
+      it('should block atob', () => {
+        const result = validator.validateExpression('atob("ZXZhbA==")', jsSession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+        expect(result.reason).toContain('atob');
+      });
+
+      it('should block Buffer.from with base64/hex encoding', () => {
+        const result = validator.validateExpression('Buffer.from("ZXZhbA==", "base64")', jsSession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+
+      it('should block Python bytes.fromhex', () => {
+        const pySession = createMockDebugSession('test', 'python');
+        const result = validator.validateExpression('bytes.fromhex("6576616c")', pySession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+
+      it('should block Python chr() concatenation', () => {
+        const pySession = createMockDebugSession('test', 'python');
+        const result = validator.validateExpression('chr(101) + chr(118) + chr(97)', pySession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+
+      it('should block computed index access with call', () => {
+        const result = validator.validateExpression('obj[1+2]()', jsSession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+    });
+
+    describe('Meta-programming Attacks', () => {
+      it('should block Object.defineProperty', () => {
+        const result = validator.validateExpression(
+          'Object.defineProperty(obj, "prop", desc)',
+          jsSession
+        );
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+
+      it('should block Object.defineProperties', () => {
+        const result = validator.validateExpression(
+          'Object.defineProperties(obj, props)',
+          jsSession
+        );
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+
+      it('should block Reflect.defineProperty', () => {
+        const result = validator.validateExpression(
+          'Reflect.defineProperty(obj, "prop", desc)',
+          jsSession
+        );
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+
+      it('should block Proxy constructor', () => {
+        const result = validator.validateExpression('new Proxy(target, handler)', jsSession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+
+      it('should block Reflect.apply and Reflect.construct', () => {
+        expect(
+          validator.validateExpression('Reflect.apply(fn, null, args)', jsSession).allowed
+        ).toBe(false);
+        expect(validator.validateExpression('Reflect.construct(Fn, args)', jsSession).allowed).toBe(
+          false
+        );
+      });
+
+      it('should block apply/call/bind with global context', () => {
+        const expressions = [
+          'fn.apply(this, args)',
+          'fn.call(null, arg)',
+          'fn.bind(globalThis)',
+          'fn.apply(window, args)',
+        ];
+
+        for (const expr of expressions) {
+          const result = validator.validateExpression(expr, jsSession);
+          expect(result.allowed).toBe(false);
+          expect(result.riskLevel).toBe('high');
+        }
+      });
+
+      it('should block with statement', () => {
+        const result = validator.validateExpression('with(obj) { prop }', jsSession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+
+      it('should block Python dynamic attribute access', () => {
+        const pySession = createMockDebugSession('test', 'python');
+        const result = validator.validateExpression('getattr(obj, varname)', pySession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+
+      it('should allow Python getattr with literal attribute', () => {
+        const pySession = createMockDebugSession('test', 'python');
+        // getattr with literal is still flagged as unknown function but not as meta-programming
+        const result = validator.validateExpression('getattr(obj, "attr")', pySession);
+        // This should be flagged as unknown function (medium) not meta-programming (high)
+        expect(result.riskLevel).not.toBe('critical');
+      });
+
+      it('should block Python scope access functions', () => {
+        const pySession = createMockDebugSession('test', 'python');
+        expect(validator.validateExpression('vars()', pySession).allowed).toBe(false);
+        expect(validator.validateExpression('locals()', pySession).allowed).toBe(false);
+        expect(validator.validateExpression('globals()', pySession).allowed).toBe(false);
+      });
+    });
+
+    describe('Comment Injection Attacks', () => {
+      it('should block block comments', () => {
+        const result = validator.validateExpression('fs/*hidden*/.unlink("file")', jsSession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+        expect(result.reason).toContain('comment');
+      });
+
+      it('should block line comments (JS style)', () => {
+        const result = validator.validateExpression('fs//comment\n.unlink("file")', jsSession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+
+      it('should block line comments (Python style)', () => {
+        const pySession = createMockDebugSession('test', 'python');
+        const result = validator.validateExpression('os #comment\n.system("cmd")', pySession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+
+      it('should block HTML comments', () => {
+        const result = validator.validateExpression('<!--hidden-->eval("code")', jsSession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+
+      it('should not false positive on URL protocols', () => {
+        // This is a URL with protocol, not a comment - should be allowed
+        const result = validator.validateExpression('"https://example.com"');
+        expect(result.allowed).toBe(true);
+      });
+    });
+
+    describe('Combined Attack Vectors', () => {
+      it('should block prototype pollution via constructor', () => {
+        const result = validator.validateExpression(
+          '({}).__proto__.constructor.constructor("return process.env")()',
+          jsSession
+        );
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+
+      it('should block indirect eval via Function', () => {
+        const result = validator.validateExpression(
+          '[].constructor.constructor("return this")()',
+          jsSession
+        );
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+
+      it('should block obfuscated require', () => {
+        const result = validator.validateExpression(
+          'global[atob("cmVxdWlyZQ==")]("fs")',
+          jsSession
+        );
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      });
+    });
+  });
+
   describe('Edge Cases', () => {
     let jsSession: any;
 

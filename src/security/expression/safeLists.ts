@@ -174,8 +174,7 @@ export const JS_SAFE_STATIC_FUNCTIONS = new Set<string>([
   'Number.parseFloat',
   'Number.parseInt',
   // String static methods
-  'String.fromCharCode',
-  'String.fromCodePoint',
+  // NOTE: String.fromCharCode and fromCodePoint removed - can be used for obfuscation
   // Math (entire namespace is safe)
   'Math.abs',
   'Math.acos',

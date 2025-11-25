@@ -95,7 +95,7 @@ export class ExpressionValidator {
    *
    * Validation order (by risk level):
    * 1. CRITICAL - System operations (fs, process, network)
-   * 2. HIGH - State mutations (push, splice, assignments, eval)
+   * 2. HIGH - Prototype chain, global access, obfuscation, mutations
    * 3. MEDIUM - Unknown functions (user-defined)
    * 4. LOW - Getter patterns (likely safe)
    */
@@ -110,11 +110,41 @@ export class ExpressionValidator {
     // Detect language once if session is provided to optimize subsequent checks
     const language = session ? this.detectLanguage(session) : undefined;
 
+    // 0. Check for comment injection (could hide malicious code)
+    const commentCheck = this.detectCommentInjection(trimmed);
+    if (commentCheck) {
+      return commentCheck;
+    }
+
     // 1. Check CRITICAL first (system-level dangers)
     // Pass language to enable language-specific critical operation detection
     const criticalCheck = this.detectCriticalOperations(trimmed, language);
     if (criticalCheck) {
       return criticalCheck;
+    }
+
+    // 1.5 Check for prototype chain manipulation (HIGH risk - can bypass all protections)
+    const prototypeCheck = this.detectPrototypeAccess(trimmed);
+    if (prototypeCheck) {
+      return prototypeCheck;
+    }
+
+    // 1.6 Check for global object access (HIGH risk - access to dangerous APIs)
+    const globalCheck = this.detectGlobalAccess(trimmed);
+    if (globalCheck) {
+      return globalCheck;
+    }
+
+    // 1.7 Check for string construction obfuscation (HIGH risk - can construct any function name)
+    const obfuscationCheck = this.detectStringObfuscation(trimmed);
+    if (obfuscationCheck) {
+      return obfuscationCheck;
+    }
+
+    // 1.8 Check for dangerous reflection/meta-programming operations
+    const metaCheck = this.detectDangerousMetaOperations(trimmed);
+    if (metaCheck) {
+      return metaCheck;
     }
 
     // 2. Try language-specific validation (HIGH risk: mutations, eval)
@@ -240,6 +270,355 @@ export class ExpressionValidator {
       detectRubyCritical(expression) ||
       detectPHPCritical(expression)
     );
+  }
+
+  /**
+   * Detects prototype chain access which can be used to bypass security checks.
+   * Patterns like obj.__proto__, obj.constructor.constructor, Object.prototype
+   * can be used to access Function constructor and execute arbitrary code.
+   */
+  private detectPrototypeAccess(expression: string): ValidationResult | null {
+    // Direct __proto__ access
+    if (/\b__proto__\b/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'Prototype Access: __proto__ can modify object behavior',
+        riskLevel: 'high',
+      };
+    }
+
+    // Direct prototype property access (but allow "prototype" in strings)
+    // Match .prototype or ['prototype'] or ["prototype"] but not inside string literals
+    if (/(?<!['""])\bprototype\b(?!['"])/.test(expression)) {
+      // More precise check: look for property access patterns
+      if (/\.\s*prototype\b|\[\s*['"]prototype['"]\s*\]/.test(expression)) {
+        return {
+          allowed: false,
+          reason: 'Prototype Access: prototype manipulation can bypass security',
+          riskLevel: 'high',
+        };
+      }
+    }
+
+    // Constructor chain access - commonly used for Function constructor bypass
+    // Matches: .constructor.constructor, ['constructor']['constructor'], mixed
+    if (
+      /\.constructor\s*\.constructor|\['constructor'\]\s*\['constructor'\]|\["constructor"\]\s*\["constructor"\]/.test(
+        expression
+      )
+    ) {
+      return {
+        allowed: false,
+        reason: 'Prototype Chain: constructor chain can execute arbitrary code',
+        riskLevel: 'high',
+      };
+    }
+
+    // Single constructor access followed by call (e.g., obj.constructor("code"))
+    if (/\.constructor\s*\(|\['constructor'\]\s*\(|\["constructor"\]\s*\(/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'Constructor Access: can be used to execute arbitrary code',
+        riskLevel: 'high',
+      };
+    }
+
+    // Object.getPrototypeOf chain (can traverse prototype chain)
+    if (/Object\s*\.\s*getPrototypeOf\s*\(\s*Object\s*\.\s*getPrototypeOf/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'Prototype Chain: nested getPrototypeOf can access Function',
+        riskLevel: 'high',
+      };
+    }
+
+    // Object.setPrototypeOf (can modify prototype chain)
+    if (/Object\s*\.\s*setPrototypeOf\s*\(/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'Prototype Modification: setPrototypeOf can alter object behavior',
+        riskLevel: 'high',
+      };
+    }
+
+    // Reflect.setPrototypeOf
+    if (/Reflect\s*\.\s*setPrototypeOf\s*\(/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'Prototype Modification: Reflect.setPrototypeOf can alter object behavior',
+        riskLevel: 'high',
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Detects access to global objects which provide access to dangerous APIs.
+   * globalThis, window, global, self can access process, require, eval, etc.
+   */
+  private detectGlobalAccess(expression: string): ValidationResult | null {
+    // globalThis access (universal global in modern JS)
+    if (/\bglobalThis\b/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'Global Access: globalThis provides access to dangerous APIs',
+        riskLevel: 'high',
+      };
+    }
+
+    // window object (browser global)
+    if (/\bwindow\s*[.[\[]/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'Global Access: window provides access to dangerous APIs',
+        riskLevel: 'high',
+      };
+    }
+
+    // global object (Node.js global)
+    // Be careful not to match "global" as part of other words
+    if (/\bglobal\s*[.[\[]/.test(expression) && !/globalThis/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'Global Access: global provides access to dangerous APIs',
+        riskLevel: 'high',
+      };
+    }
+
+    // self object (Web Workers global)
+    if (/\bself\s*[.[\[]/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'Global Access: self provides access to dangerous APIs',
+        riskLevel: 'high',
+      };
+    }
+
+    // this.constructor pattern at start (common bypass)
+    if (/^\s*this\s*\.\s*constructor/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'Constructor Access: this.constructor can access Function',
+        riskLevel: 'high',
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Detects string construction patterns used to obfuscate function names.
+   * String.fromCharCode, atob, Buffer.from can construct "eval", "exec", etc.
+   */
+  private detectStringObfuscation(expression: string): ValidationResult | null {
+    // String.fromCharCode - can construct any string from char codes
+    if (/String\s*\.\s*fromCharCode\s*\(/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'String Obfuscation: fromCharCode can construct dangerous function names',
+        riskLevel: 'high',
+      };
+    }
+
+    // String.fromCodePoint - similar to fromCharCode
+    if (/String\s*\.\s*fromCodePoint\s*\(/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'String Obfuscation: fromCodePoint can construct dangerous function names',
+        riskLevel: 'high',
+      };
+    }
+
+    // atob - base64 decode can hide function names
+    if (/\batob\s*\(/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'String Obfuscation: atob can decode hidden function names',
+        riskLevel: 'high',
+      };
+    }
+
+    // Buffer.from with encoding - can decode obfuscated strings
+    if (/Buffer\s*\.\s*from\s*\([^)]*,\s*['"](?:base64|hex)['"]/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'String Obfuscation: Buffer.from can decode hidden function names',
+        riskLevel: 'high',
+      };
+    }
+
+    // Python: bytes.fromhex, codecs.decode
+    if (/bytes\s*\.\s*fromhex\s*\(/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'String Obfuscation: bytes.fromhex can decode hidden function names',
+        riskLevel: 'high',
+      };
+    }
+
+    if (/codecs\s*\.\s*decode\s*\(/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'String Obfuscation: codecs.decode can decode hidden function names',
+        riskLevel: 'high',
+      };
+    }
+
+    // chr() combined with ord() or int() for char-by-char construction (Python)
+    // Pattern: chr(number) repeated or in comprehension
+    if (/chr\s*\([^)]+\)\s*\+\s*chr\s*\(/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'String Obfuscation: chr() concatenation can construct dangerous strings',
+        riskLevel: 'high',
+      };
+    }
+
+    // Detect expressions that index into strings/arrays using constructed indices
+    // Pattern: someString[expression]() where expression involves math/function calls
+    if (/\[\s*(?:\d+\s*[+\-*/]\s*\d+|\w+\s*\([^)]*\))\s*\]\s*\(/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'Index Obfuscation: computed index access with call',
+        riskLevel: 'high',
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Detects dangerous meta-programming and reflection operations.
+   * These can modify object behavior or invoke arbitrary methods.
+   */
+  private detectDangerousMetaOperations(expression: string): ValidationResult | null {
+    // Object.defineProperty - can add getters/setters with side effects
+    if (/Object\s*\.\s*definePropert(?:y|ies)\s*\(/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'Meta-programming: defineProperty can modify object behavior',
+        riskLevel: 'high',
+      };
+    }
+
+    // Reflect.defineProperty
+    if (/Reflect\s*\.\s*defineProperty\s*\(/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'Meta-programming: Reflect.defineProperty can modify object behavior',
+        riskLevel: 'high',
+      };
+    }
+
+    // Proxy constructor - can intercept any operation
+    if (/new\s+Proxy\s*\(/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'Meta-programming: Proxy can intercept and modify any operation',
+        riskLevel: 'high',
+      };
+    }
+
+    // Reflect.apply, Reflect.construct - can invoke arbitrary functions
+    if (/Reflect\s*\.\s*(?:apply|construct)\s*\(/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'Meta-programming: Reflect.apply/construct can invoke arbitrary functions',
+        riskLevel: 'high',
+      };
+    }
+
+    // Function.prototype.apply/call/bind with non-literal first argument
+    // These are commonly used to change 'this' context for exploits
+    if (
+      /\.(?:apply|call|bind)\s*\(\s*(?:this|null|undefined|window|global|globalThis)/.test(
+        expression
+      )
+    ) {
+      return {
+        allowed: false,
+        reason: 'Meta-programming: apply/call/bind with global context',
+        riskLevel: 'high',
+      };
+    }
+
+    // with statement (changes scope chain) - rare but dangerous
+    if (/\bwith\s*\(/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'Scope Manipulation: with statement can change variable resolution',
+        riskLevel: 'high',
+      };
+    }
+
+    // Python's getattr/setattr/delattr with variable attribute names
+    if (/(?:getattr|setattr|delattr)\s*\([^,]+,\s*[^'")\s]/.test(expression)) {
+      // Matches getattr(obj, variable) but not getattr(obj, "literal")
+      return {
+        allowed: false,
+        reason: 'Meta-programming: dynamic attribute access can bypass validation',
+        riskLevel: 'high',
+      };
+    }
+
+    // Python's vars(), locals(), globals() - access to scope dictionaries
+    if (/\b(?:vars|locals|globals)\s*\(\s*\)/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'Scope Access: vars/locals/globals expose internal scope',
+        riskLevel: 'high',
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Detects comment injection which could hide malicious code.
+   * Examples: fs/star-star/.unlink(), process//newline.exit()
+   */
+  private detectCommentInjection(expression: string): ValidationResult | null {
+    // JavaScript/C-style block comments: /* */
+    if (/\/\*[\s\S]*?\*\//.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'Comment Injection: block comments can hide malicious code',
+        riskLevel: 'high',
+      };
+    }
+
+    // JavaScript/Python single-line comments: // or #
+    // Note: # in Python, // in JS/C++/Java/etc.
+    // Exclude :// (URLs like https://), # in strings, and Ruby symbols
+    if (/(?<!:)\/\//.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'Comment Injection: line comments can hide malicious code',
+        riskLevel: 'high',
+      };
+    }
+
+    // Python # comments - but not in strings or as part of other constructs
+    // Use negative lookbehind to exclude # after quotes or colons
+    if (/(?<!['":\w])#(?![\[{])/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'Comment Injection: line comments can hide malicious code',
+        riskLevel: 'high',
+      };
+    }
+
+    // HTML comments (could be used in some contexts)
+    if (/<!--[\s\S]*?-->/.test(expression)) {
+      return {
+        allowed: false,
+        reason: 'Comment Injection: HTML comments detected',
+        riskLevel: 'high',
+      };
+    }
+
+    return null;
   }
 
   /**
