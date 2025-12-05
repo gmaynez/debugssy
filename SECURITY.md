@@ -149,7 +149,7 @@ Restrict which tools the AI can use:
 }
 ```
 
-See [ALLOWLIST_GUIDE.md](./ALLOWLIST_GUIDE.md) for complete examples.
+See [ALLOWLIST_GUIDE.md](./docs/ALLOWLIST_GUIDE.md) for complete examples.
 
 ---
 
@@ -204,7 +204,7 @@ Debugssy follows:
 - OWASP secure coding guidelines
 - Principle of least privilege
 
-See [MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md) for detailed compliance
+See [MCP_COMPLIANCE.md](./docs/MCP_COMPLIANCE.md) for detailed compliance
 information.
 
 ---

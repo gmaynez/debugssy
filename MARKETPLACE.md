@@ -300,9 +300,9 @@ Follows
 
 - **[GitHub Repository](https://github.com/gmaynez/debugssy)** - Full docs,
   source code, contribute
-- **[Allowlist Guide](https://github.com/gmaynez/debugssy/blob/main/ALLOWLIST_GUIDE.md)** -
+- **[Allowlist Guide](https://github.com/gmaynez/debugssy/blob/main/docs/ALLOWLIST_GUIDE.md)** -
   Security configuration examples
-- **[MCP Compliance](https://github.com/gmaynez/debugssy/blob/main/MCP_COMPLIANCE.md)** -
+- **[MCP Compliance](https://github.com/gmaynez/debugssy/blob/main/docs/MCP_COMPLIANCE.md)** -
   Security implementation details
 - **[Model Context Protocol](https://modelcontextprotocol.io)** - Learn about
   MCP

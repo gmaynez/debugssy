@@ -280,7 +280,7 @@ Access via `File → Preferences → Settings` (search "debugssy"):
 ```
 
 > **📋 Complete allowlist examples:** See
-> [ALLOWLIST_GUIDE.md](./ALLOWLIST_GUIDE.md)
+> [ALLOWLIST_GUIDE.md](./docs/ALLOWLIST_GUIDE.md)
 
 ---
 
@@ -552,7 +552,7 @@ For maximum security when using AI-assisted debugging:
    expression before allowing execution
 
 > **📋 Complete security details:** See [SECURITY.md](./SECURITY.md) and
-> [MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md)
+> [MCP_COMPLIANCE.md](./docs/MCP_COMPLIANCE.md)
 
 ---
 
@@ -1012,9 +1012,10 @@ See [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) for community guidelines.
 
 - **[SECURITY.md](./SECURITY.md)** - Security policy, threat model, and best
   practices
-- **[ALLOWLIST_GUIDE.md](./ALLOWLIST_GUIDE.md)** - MCP client allowlist
+- **[ALLOWLIST_GUIDE.md](./docs/ALLOWLIST_GUIDE.md)** - MCP client allowlist
   configuration
-- **[MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md)** - Security implementation details
+- **[MCP_COMPLIANCE.md](./docs/MCP_COMPLIANCE.md)** - Security implementation
+  details
 - **[DEBUGSSY_PROMPT.md](./DEBUGSSY_PROMPT.md)** - Comprehensive guide for AI
   assistants
 - **[COMPACT_PROMPT.txt](./COMPACT_PROMPT.txt)** - Quick AI assistant reference

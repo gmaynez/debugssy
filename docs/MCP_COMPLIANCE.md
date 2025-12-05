@@ -275,7 +275,7 @@ curl -H "Origin: http://evil-domain.com" http://localhost:3000/mcp
 
 ### Additional Documentation
 
-- **[README.md](./README.md)** - Complete Debugssy documentation
+- **[README.md](../README.md)** - Complete Debugssy documentation
 - **[ALLOWLIST_GUIDE.md](./ALLOWLIST_GUIDE.md)** - Security configuration guide
 
 ---

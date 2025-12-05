@@ -431,4 +431,4 @@ Start a debug session and ask your AI to evaluate expressions:
 - [ALLOWLIST_GUIDE.md](./ALLOWLIST_GUIDE.md) - MCP client allowlist
   configuration
 - [MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md) - Security implementation details
-- [README.md](./README.md) - Complete tool documentation
+- [README.md](../README.md) - Complete tool documentation

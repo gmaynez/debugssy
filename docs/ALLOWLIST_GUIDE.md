@@ -556,7 +556,7 @@ for details on risk levels.
 
 ## 📚 Additional Resources
 
-- **[README.md](./README.md)** - Complete tool documentation and API reference
+- **[README.md](../README.md)** - Complete tool documentation and API reference
 - **[MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md)** - Security implementation details
 - **[EXPRESSION_VALIDATION_GUIDE.md](./EXPRESSION_VALIDATION_GUIDE.md)** -
   Expression safety guide
