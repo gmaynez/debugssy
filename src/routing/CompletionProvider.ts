@@ -9,6 +9,10 @@ import { MAX_COMPLETIONS, MAX_FILE_CACHE_SIZE, MAX_VARIABLE_COMPLETION_SCOPES } 
 /**
  * Provides completion suggestions for MCP prompt arguments.
  * Helps users autocomplete file paths, function names, variable names, etc.
+ *
+ * Uses lazy initialization to avoid setting up file watchers and caches
+ * until a client actually requests completions. This ensures we don't
+ * allocate resources for MCP clients that don't support or use completions.
  */
 export class CompletionProvider {
   private logger: Logger;
@@ -18,12 +22,14 @@ export class CompletionProvider {
   private cacheInitializing: Promise<void> | null = null;
   private disposables: vscode.Disposable[] = [];
   private fileWatchers: vscode.FileSystemWatcher[] = [];
+  private watchersInitialized = false;
   private static readonly FILE_SEARCH_EXCLUDE =
     '{**/node_modules/**,**/out/**,**/dist/**,**/.git/**,**/build/**}';
 
   constructor() {
     this.logger = Logger.getInstance();
-    this.setupFileSystemWatchers();
+    // Note: File system watchers are set up lazily on first completion request
+    // to avoid resource allocation for clients that don't use completions
   }
 
   /**
@@ -37,16 +43,23 @@ export class CompletionProvider {
     this.fileWatchers = [];
 
     this.fileCache.clear();
+    this.cacheInitialized = false;
+    this.watchersInitialized = false;
   }
 
   /**
    * Provides completions for a specific prompt argument.
+   * Lazily initializes file system watchers on first call.
    */
   async getCompletions(
     _promptName: string,
     argumentName: string,
     partialValue: string
   ): Promise<{ values: string[]; total: number; hasMore: boolean }> {
+    // Lazy initialization: set up file watchers only when completions are first requested
+    // This avoids resource allocation for MCP clients that don't support/use completions
+    this.ensureWatchersInitialized();
+
     try {
       switch (argumentName) {
         case 'filePath':
@@ -165,6 +178,20 @@ export class CompletionProvider {
   }
 
   /**
+   * Ensures file system watchers are initialized.
+   * Called lazily on first completion request to avoid resource allocation
+   * for MCP clients that don't support or use completions.
+   */
+  private ensureWatchersInitialized(): void {
+    if (this.watchersInitialized) {
+      return;
+    }
+    this.watchersInitialized = true;
+    this.logger.debug('Initializing completion file watchers (lazy initialization)');
+    this.setupFileSystemWatchers();
+  }
+
+  /**
    * Sets up FileSystemWatchers for all workspace folders to track external file changes.
    * These watchers catch changes from git, build tools, and external editors that
    * onDidCreateFiles/onDidDeleteFiles events would miss.
@@ -249,7 +276,7 @@ export class CompletionProvider {
       this.fileCache.delete(removed.uri.toString());
     }
 
-    // Rebuild cache to include new folders
+    // Rebuild cache and watchers to include new folders
     if (event.added.length > 0) {
       this.cacheInitialized = false;
       this.cacheInitializing = null;
@@ -257,7 +284,13 @@ export class CompletionProvider {
       // Dispose old watchers and setup new ones
       this.fileWatchers.forEach((w) => w.dispose());
       this.fileWatchers = [];
-      this.setupFileSystemWatchers();
+
+      // Only recreate watchers if they were previously initialized
+      // (i.e., a client has actually requested completions)
+      if (this.watchersInitialized) {
+        this.watchersInitialized = false; // Reset to trigger re-initialization
+        this.ensureWatchersInitialized();
+      }
     }
   }
 
