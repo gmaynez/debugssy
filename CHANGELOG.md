@@ -2,6 +2,15 @@
 
 All notable changes to the "Debugssy" extension will be documented in this file.
 
+## [1.4.6] - 2025-12-05
+
+### Changed
+
+- Lazy initialization for file system watchers for better performance
+- Updated MCP protocol version support and enhanced request validation
+- Updated MCP SDK to 1.24.3 and Express to 5.2.1
+- Improved documentation with reorganized guides
+
 ## [1.4.5] - 2025-11-25
 
 ### Security
