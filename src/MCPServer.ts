@@ -21,6 +21,7 @@ import {
   CURRENT_MCP_PROTOCOL_VERSION,
   EXTENSION_VERSION,
   MCP_SERVER_READY_DELAY_MS,
+  SUPPORTED_MCP_PROTOCOL_VERSIONS,
 } from './constants';
 import { McpRequestValidator } from './security/McpRequestValidator';
 import { ToolRouter } from './routing/ToolRouter';
@@ -149,7 +150,7 @@ export class MCPServer {
     // Initialize transport before starting HTTP server
     this.transport = new StreamableHTTPServerTransport({
       // Generate cryptographically secure session IDs using crypto.randomUUID()
-      // Per MCP Security Best Practices 2025-06-18: "Generated session IDs (e.g., UUIDs) SHOULD use secure random number generators"
+      // Per MCP Security Best Practices 2025-11-25: "Generated session IDs (e.g., UUIDs) SHOULD use secure random number generators"
       // Session IDs must contain only visible ASCII characters (0x21 to 0x7E)
       sessionIdGenerator: () => {
         return `mcp-session-${randomUUID()}`;
@@ -763,7 +764,7 @@ export class MCPServer {
         transportReady: this.isTransportReady,
         transport: 'streamable-http',
         protocolVersion: CURRENT_MCP_PROTOCOL_VERSION,
-        supportedProtocolVersions: ['2025-03-26', '2025-06-18'],
+        supportedProtocolVersions: SUPPORTED_MCP_PROTOCOL_VERSIONS,
       });
     });
   }

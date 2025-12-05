@@ -15,6 +15,78 @@ describe('McpRequestValidator', () => {
     validator = new McpRequestValidator();
   });
 
+  describe('Host Validation', () => {
+    it('should allow localhost host', () => {
+      const req = createMockRequest({
+        headers: { host: 'localhost:3000' },
+      });
+      const res = createMockResponse();
+
+      const result = validator.validateHost(req, res);
+      expect(result).toBe(true);
+      expect(res.statusCode).toBe(200);
+    });
+
+    it('should allow 127.0.0.1 host', () => {
+      const req = createMockRequest({
+        headers: { host: '127.0.0.1:3000' },
+      });
+      const res = createMockResponse();
+
+      const result = validator.validateHost(req, res);
+      expect(result).toBe(true);
+      expect(res.statusCode).toBe(200);
+    });
+
+    it('should allow IPv6 localhost host', () => {
+      const req = createMockRequest({
+        headers: { host: '[::1]:3000' },
+      });
+      const res = createMockResponse();
+
+      const result = validator.validateHost(req, res);
+      expect(result).toBe(true);
+      expect(res.statusCode).toBe(200);
+    });
+
+    it('should reject missing host header', () => {
+      const req = createMockRequest({ method: 'POST' });
+      const res = createMockResponse();
+
+      const result = validator.validateHost(req, res);
+      expect(result).toBe(false);
+      expect(res.statusCode).toBe(400);
+      expect(res.jsonData).toMatchObject({
+        error: expect.stringContaining('Missing Host header'),
+      });
+    });
+
+    it('should reject non-localhost host', () => {
+      const req = createMockRequest({
+        headers: { host: 'example.com:3000' },
+      });
+      const res = createMockResponse();
+
+      const result = validator.validateHost(req, res);
+      expect(result).toBe(false);
+      expect(res.statusCode).toBe(403);
+      expect(res.jsonData).toMatchObject({
+        error: expect.stringContaining('Invalid host'),
+      });
+    });
+
+    it('should reject remote IP addresses in host', () => {
+      const req = createMockRequest({
+        headers: { host: '192.168.1.1:3000' },
+      });
+      const res = createMockResponse();
+
+      const result = validator.validateHost(req, res);
+      expect(result).toBe(false);
+      expect(res.statusCode).toBe(403);
+    });
+  });
+
   describe('Origin Validation', () => {
     it('should allow requests without origin header', () => {
       const req = createMockRequest({ method: 'POST' });
@@ -121,6 +193,17 @@ describe('McpRequestValidator', () => {
       expect(res.statusCode).toBe(200);
     });
 
+    it('should accept supported protocol version 2025-11-25', () => {
+      const req = createMockRequest({
+        headers: { 'mcp-protocol-version': '2025-11-25' },
+      });
+      const res = createMockResponse();
+
+      const result = validator.validateProtocolVersion(req, res);
+      expect(result).toBe(true);
+      expect(res.statusCode).toBe(200);
+    });
+
     it('should accept requests without protocol version header (default to 2025-03-26)', () => {
       const req = createMockRequest({ method: 'POST' });
       const res = createMockResponse();
@@ -153,6 +236,25 @@ describe('McpRequestValidator', () => {
       validator.validateProtocolVersion(req, res);
       expect(res.jsonData.error).toContain('2025-03-26');
       expect(res.jsonData.error).toContain('2025-06-18');
+      expect(res.jsonData.error).toContain('2025-11-25');
+    });
+
+    it('should echo back protocol version in response header', () => {
+      const req = createMockRequest({
+        headers: { 'mcp-protocol-version': '2025-06-18' },
+      });
+      const res = createMockResponse();
+
+      validator.validateProtocolVersion(req, res);
+      expect(res.headers['MCP-Protocol-Version']).toBe('2025-06-18');
+    });
+
+    it('should echo fallback version when header is missing', () => {
+      const req = createMockRequest({ method: 'POST' });
+      const res = createMockResponse();
+
+      validator.validateProtocolVersion(req, res);
+      expect(res.headers['MCP-Protocol-Version']).toBe('2025-03-26');
     });
   });
 
@@ -167,6 +269,7 @@ describe('McpRequestValidator', () => {
       const middleware = validator.createMiddleware();
       const req = createMockRequest({
         headers: {
+          host: 'localhost:3000',
           origin: 'http://localhost:3000',
           'mcp-protocol-version': '2025-06-18',
         },
@@ -179,10 +282,26 @@ describe('McpRequestValidator', () => {
       // In a real scenario, next would be called
     });
 
+    it('should not call next() when host validation fails', () => {
+      const middleware = validator.createMiddleware();
+      const req = createMockRequest({
+        headers: { host: 'evil.com:3000' },
+      });
+      const res = createMockResponse();
+      const next = createMockNext();
+
+      middleware(req, res, next);
+      expect(res.statusCode).toBe(403);
+      // next should not be called
+    });
+
     it('should not call next() when origin validation fails', () => {
       const middleware = validator.createMiddleware();
       const req = createMockRequest({
-        headers: { origin: 'http://evil.com' },
+        headers: {
+          host: 'localhost:3000',
+          origin: 'http://evil.com',
+        },
       });
       const res = createMockResponse();
       const next = createMockNext();
@@ -195,7 +314,10 @@ describe('McpRequestValidator', () => {
     it('should not call next() when protocol validation fails', () => {
       const middleware = validator.createMiddleware();
       const req = createMockRequest({
-        headers: { 'mcp-protocol-version': 'invalid-version' },
+        headers: {
+          host: 'localhost:3000',
+          'mcp-protocol-version': 'invalid-version',
+        },
       });
       const res = createMockResponse();
       const next = createMockNext();

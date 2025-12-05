@@ -129,10 +129,15 @@ export function createMockResponse() {
       res.sendData = data;
       return res;
     },
+    setHeader: function (name: string, value: string) {
+      res.headers[name] = value;
+      return res;
+    },
     headersSent: false,
     statusCode: 200,
     jsonData: null,
     sendData: null,
+    headers: {} as Record<string, string>,
   };
   return res;
 }
