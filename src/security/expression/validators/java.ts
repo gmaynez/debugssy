@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2025 Guillermo Garcia Maynez
 
 import type { ValidationResult } from '../types';
 import { JAVA_SAFE_METHODS, JAVA_SAFE_STATIC_FUNCTIONS } from '../safeLists';

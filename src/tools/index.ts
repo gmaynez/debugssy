@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2025 Guillermo Garcia Maynez
 
 import { DebugControlTools } from './DebugControl';
 import { BreakpointTools } from './Breakpoints';

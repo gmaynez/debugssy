@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2025 Guillermo Garcia Maynez
 
 import { Request, Response, NextFunction } from 'express';
 import { FALLBACK_MCP_PROTOCOL_VERSION, SUPPORTED_MCP_PROTOCOL_VERSIONS } from '../constants';

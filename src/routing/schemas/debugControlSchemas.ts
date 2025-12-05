@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2025 Guillermo Garcia Maynez
 
 /**
  * Tool schemas for debug session control and execution flow.

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2025 Guillermo Garcia Maynez
 
 import { vi, beforeEach } from 'vitest';
 import { createVSCodeMock, resetVSCodeMocks } from './helpers/vscode-mock';

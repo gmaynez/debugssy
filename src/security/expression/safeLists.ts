@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2025 Guillermo Garcia Maynez
 
 export const JS_SAFE_METHODS = new Set<string>([
   // Array read-only methods
