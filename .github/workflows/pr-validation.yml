@@ -4,6 +4,9 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+permissions:
+  contents: read
+
 jobs:
   validate-pr:
     runs-on: ubuntu-latest
@@ -46,7 +49,7 @@ jobs:
 
       - name: Check for breaking changes in description
         run: |
-          if grep -i "breaking" <<< "${{ github.event.pull_request.body }}"; then
+          if echo "${{ github.event.pull_request.body }}" | grep -qi "breaking"; then
             echo "⚠️  Breaking changes detected in PR description"
             echo "Make sure to update version appropriately (major version bump)"
           fi
@@ -57,29 +60,10 @@ jobs:
       - name: Check code formatting
         run: npm run format:check
 
-      - name: Run unit tests
+      - name: Run tests
         run: npm test
 
-      - name: Generate coverage report
-        run: npm run test:coverage
-
-      - name: Display coverage summary
-        run: |
-          echo "📊 Coverage Summary:"
-          if [ -f coverage/coverage-summary.json ]; then
-            node -e "
-              const summary = require('./coverage/coverage-summary.json');
-              const total = summary.total;
-              console.log('Lines:      ' + total.lines.pct + '%');
-              console.log('Statements: ' + total.statements.pct + '%');
-              console.log('Functions:  ' + total.functions.pct + '%');
-              console.log('Branches:   ' + total.branches.pct + '%');
-            "
-          else
-            echo "⚠️ Coverage summary not available"
-          fi
-
-      - name: Build and package extension (esbuild)
+      - name: Build and package extension
         run: npm run package
 
       - name: Check file sizes
@@ -87,7 +71,7 @@ jobs:
           echo "📦 Package size information:"
           ls -lh *.vsix
 
-          VSIX_SIZE=$(stat -f%z *.vsix 2>/dev/null || stat -c%s *.vsix)
+          VSIX_SIZE=$(stat -c%s *.vsix)
           MAX_SIZE=$((50 * 1024 * 1024))  # 50MB
 
           if [ $VSIX_SIZE -gt $MAX_SIZE ]; then
@@ -100,7 +84,9 @@ jobs:
   comment-on-pr:
     runs-on: ubuntu-latest
     needs: validate-pr
-    if: always()
+    if: always() && github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      pull-requests: write
 
     steps:
       - name: Update PR comment with build result
@@ -116,7 +102,6 @@ jobs:
             const marker = '<!-- debugssy-pr-validation -->';
             const body = `${marker}\n${emoji} **PR Validation Results**\n\n${message}\n\nWorkflow: [${context.runId}](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`;
             
-            // Find existing comment from this workflow
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -126,7 +111,6 @@ jobs:
             const existingComment = comments.find(c => c.body.includes(marker));
             
             if (existingComment) {
-              // Update existing comment
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -134,7 +118,6 @@ jobs:
                 body: body
               });
             } else {
-              // Create new comment
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,

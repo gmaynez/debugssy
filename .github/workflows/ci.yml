@@ -9,6 +9,9 @@ on:
       - "fix/**" # Bug fix branches
   # Note: PRs are handled by pr-validation.yml to avoid duplicate runs
 
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     runs-on: ${{ matrix.os }}
@@ -32,16 +35,14 @@ jobs:
         run: npm ci
 
       - name: Lint code
+        if: matrix.os == 'ubuntu-latest'
         run: npm run lint
-
-      - name: Type check
-        run: npm run check-types
-
-      - name: Run unit tests
-        run: npm test
 
       - name: Build (esbuild)
         run: npm run compile
+
+      - name: Run tests
+        run: npm test
 
       - name: Package extension
         run: npm run package
@@ -75,9 +76,9 @@ jobs:
       - name: Check for outdated dependencies
         run: npm outdated || true
 
-  test-coverage:
+  code-quality:
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -90,6 +91,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Check code formatting
+        run: npm run format:check
 
       - name: Run tests with coverage
         run: npm run test:coverage
@@ -118,25 +122,6 @@ jobs:
             echo "❌ Coverage summary file not found"
             exit 1
           fi
-
-  code-quality:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Check code formatting
-        run: npm run format:check
 
       - name: Count lines of code
         run: |

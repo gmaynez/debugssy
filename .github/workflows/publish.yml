@@ -63,13 +63,8 @@ jobs:
       - name: Check code formatting
         run: npm run format:check
 
-      - name: Run unit tests
-        run: npm test
-
-      - name: Verify test coverage
-        run: |
-          npm run test:coverage
-          echo "✅ All tests passed with adequate coverage"
+      - name: Run tests with coverage
+        run: npm run test:coverage
 
       - name: Prepare marketplace README
         run: npm run prepare-publish
