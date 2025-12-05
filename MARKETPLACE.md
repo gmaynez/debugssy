@@ -1,33 +1,21 @@
-# Debugssy - AI-Powered Debugging for VS Code
+# Debugssy
 
-[![VS Code Marketplace Version](https://vsmarketplacebadges.dev/version-short/gamag.debugssy.svg)](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy)
-[![Open VSX Version](https://img.shields.io/open-vsx/v/gamag/debugssy?label=Open%20VSX)](https://open-vsx.org/extension/gamag/debugssy)
+[![VS Code Marketplace](https://vsmarketplacebadges.dev/version-short/gamag.debugssy.svg)](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy)
+[![Open VSX](https://img.shields.io/open-vsx/v/gamag/debugssy?label=Open%20VSX)](https://open-vsx.org/extension/gamag/debugssy)
 
-> **Stop clicking through the debugger. Just tell your AI what's broken.**
+**Let your AI assistant drive the debugger.**
 
-Debug with natural language through any AI assistant (Cursor, GitHub Copilot,
-Claude Desktop, etc.) using the Model Context Protocol.
+Connect Cursor, GitHub Copilot, or Claude Desktop to VS Code's debugging engine
+via [MCP](https://modelcontextprotocol.io). Describe what's broken, let the AI
+poke around.
 
 ---
 
-## 💡 The Problem (Why This Exists)
+## Why This Exists
 
-Debugging itself is useful; the **way** we usually do it is not:
-
-- **Manual breakpoint hunting** – guessing lines until something hits
-- **Repetitive stepping** – step, inspect, step, inspect… for the tenth time
-- **Context switching** – juggling code, debugger UI, logs, docs, and chat
-- **Time sink** – 20–30 minutes to track down a trivial null reference
-
-I built Debugssy after a few too many sessions of "click step until my wrist
-hurts" while explaining bugs to an AI anyway.
-
-## ✨ The Idea
-
-Instead of fiddling with the debugger UI, you describe the bug and let your AI
-drive VS Code's debugger through MCP.
-
-Typical flow:
+I got tired of the usual debugging loop: guess where the bug might be, set a
+breakpoint, step through, inspect, repeat. Meanwhile I'm already explaining the
+problem to an AI in chat. Why not let it do the clicking?
 
 ```
 You: "The login function returns null for admin users"
@@ -36,289 +24,174 @@ AI: Sets a breakpoint → inspects the user object → notices the role check fa
     → traces back to the database query → spots the missing WHERE clause
 ```
 
-The goal is to get from "something is off" to "I see the exact line and reason"
-without you micromanaging every step.
+The goal: get from "something is off" to "here's the exact line" without you
+micromanaging every step.
 
 ---
 
-## 🚀 What You Get
+## Setup (2 minutes)
 
-- **Smarter breakpoints** – AI sets breakpoints where the bug is likely to be,
-  not just "somewhere in this file"
-- **Variable inspection on demand** – ask about `user`, `cartTotal`, or any
-  expression in plain language
-- **Call stack analysis** – have the AI walk the stack and explain how you got
-  here
-- **Conditional breakpoints without the syntax tax** – describe the condition,
-  let the tool set it up
-- **Two modes** – assisted (you drive, AI inspects) or full (AI drives, you
-  review)
+### 1. Install
 
-In practice this looks like: instead of setting 10 breakpoints and poking
-around, you say _"debug why users can't checkout"_ and let the AI do the
-mechanical work while you make the decisions.
+Search **Debugssy** in VS Code extensions (`Ctrl+Shift+X`) and install.
 
----
-
-## 🏁 Quick Start (About 2 Minutes)
-
-### Step 1: Install Extension
-
-**In VS Code:** Press `Ctrl+Shift+X` (or `Cmd+Shift+X` on Mac) → search
-`Debugssy` → install
-
-**Or install from:**
+Or:
 [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy)
 · [Open VSX](https://open-vsx.org/extension/gamag/debugssy)
 
-### Step 2: Connect Your AI
+### 2. Connect Your AI
 
-<details>
-<summary><b>GitHub Copilot (VS Code)</b> - Click to expand</summary>
+All clients connect to the same URL: `http://localhost:3000/mcp`
 
-**One-click setup:**
-[Install in VS Code](vscode:mcp/install?%7B%22name%22%3A%22debugssy%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22http%3A%2F%2Flocalhost%3A3000%2Fmcp%22%7D)
-or [Open from browser](https://gmaynez.github.io/debugssy/oneclick-vscode.html)
-
-<details>
-<summary>Or add manually to settings.json</summary>
+**GitHub Copilot** —
+[One-click install](https://gmaynez.github.io/debugssy/oneclick-vscode.html), or
+add to `settings.json`:
 
 ```json
 {
   "github.copilot.chat.mcp.servers": {
-    "debugssy": {
-      "url": "http://localhost:3000/mcp"
-    }
+    "debugssy": { "url": "http://localhost:3000/mcp" }
   }
 }
 ```
 
-</details>
-
-> ⚠️ **Note:** Restart VS Code after changing automation modes for Copilot to
-> see updated tools.
-
-</details>
-
-<details>
-<summary><b>Cursor</b> - Click to expand</summary>
-
-**One-click setup:**
-[Install in Cursor](https://cursor.com/en-US/install-mcp?name=debugssy&config=eyJ0eXBlIjoiaHR0cCIsInVybCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMC9tY3AifQ%3D%3D)
-
-<details>
-<summary>Or add manually to ~/.cursor/mcp.json</summary>
+**Cursor** —
+[One-click install](https://cursor.com/en-US/install-mcp?name=debugssy&config=eyJ0eXBlIjoiaHR0cCIsInVybCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMC9tY3AifQ%3D%3D),
+or add to `~/.cursor/mcp.json`:
 
 ```json
-{
-  "mcpServers": {
-    "debugssy": {
-      "url": "http://localhost:3000/mcp"
-    }
-  }
-}
+{ "mcpServers": { "debugssy": { "url": "http://localhost:3000/mcp" } } }
 ```
 
-</details>
-
-</details>
-
-<details>
-<summary><b>Claude Desktop</b> - Click to expand</summary>
-
-Add to config file:
-
-- **Mac:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+**Claude Desktop** — Add to
+`~/Library/Application Support/Claude/claude_desktop_config.json` (Mac) or
+`%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
 ```json
-{
-  "mcpServers": {
-    "debugssy": {
-      "url": "http://localhost:3000/mcp"
-    }
-  }
-}
+{ "mcpServers": { "debugssy": { "url": "http://localhost:3000/mcp" } } }
 ```
 
-</details>
+**Other MCP clients** — Point them at `http://localhost:3000/mcp`.
 
-**Other MCP clients?** Connect to `http://localhost:3000/mcp`
+### 3. Debug
 
-### Step 3: Start Debugging
+Start a debug session (`F5`), then ask your AI something like:
 
-Start your usual debug session in VS Code, then talk to your AI:
-
-> "Debug why users get null when logging in"  
-> "Find where cartTotal becomes 0"  
+> "Debug why users get null when logging in" "Find where cartTotal becomes 0"
 > "Trace why this loop runs 1000x instead of 10x"
 
-If your AI supports slash commands, type `/` in your AI chat to see guided
-debugging workflows (`/debug-crash`, `/trace-variable`, etc.)
+Type `/` in chat for guided workflows (`/debug-crash`, `/trace-variable`, etc.)
 
 ---
 
-## ⚙️ How It Works
+## What the AI Gets
 
-Debugssy connects your AI assistant to VS Code's debugging tools via the Model
-Context Protocol (MCP). Your AI gets access to:
+**Breakpoints:** Set, remove, toggle, list. Supports conditions
+(`user.role === 'admin'`), hit counts (`> 10`), and logpoints.
 
-| Tool Category      | What It Does                                                           |
-| ------------------ | ---------------------------------------------------------------------- |
-| **🔴 Breakpoints** | Set, remove, list, toggle breakpoints (with conditions & hit counts)   |
-| **🔍 Inspection**  | Read variables, evaluate expressions, check call stack, console output |
-| **▶️ Control**     | Start, stop, continue, step (optional - you choose automation level)   |
+**Inspection:** Read variables, evaluate expressions, walk the call stack, read
+console output.
 
-**Two modes:**
+**Execution control:** Start/stop sessions, continue, step (if you enable it).
+By default, you control execution via VS Code and the AI just inspects.
 
-- **Assisted** (default): You control execution via VS Code UI, AI inspects &
-  sets breakpoints
-- **Full automation**: AI controls everything (start debugging, continue, step
-  through)
+Two modes:
 
-**Secure:** Localhost-only, origin validation, follows
-[MCP security standards](https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices)
+- **Assisted** (default): You press F5, step, continue. AI sets breakpoints and
+  reads state.
+- **Full automation**: AI controls everything. Set `debugssy.automationLevel` to
+  `full`.
+
+Copilot users: restart VS Code after switching modes.
 
 ---
 
-## 🎬 Real-World Examples
+## Examples
 
-These are the kinds of things I actually use it for.
-
-### Crash/Exception
+**Crash debugging:**
 
 ```
-You: "Getting 'Cannot read property id of undefined' in UserService.ts line 45"
+You: "Getting 'Cannot read property id of undefined' in UserService.ts"
 
-AI: Sets a breakpoint → inspects the `user` object (null) → walks back through
-    the call stack → finds the database query missing a WHERE clause
+AI: Sets breakpoint → finds `user` is null → walks call stack → spots
+    database query missing a WHERE clause
 ```
 
-### Wrong Value
+**Wrong value:**
 
 ```
 You: "cartTotal shows $0 but should be $150"
 
-AI: Sets breakpoints on all `cartTotal` assignments → continues execution →
-    finds the discount calculation multiplying by 0 instead of subtracting
+AI: Sets breakpoints on cartTotal assignments → continues → finds the
+    discount calculation multiplying by 0 instead of subtracting
 ```
 
-### Infinite Loop
+**Infinite loop:**
 
 ```
 You: "Loop running 1000x instead of 10x"
 
-AI: Sets a conditional breakpoint `i > 10` → pauses at `i = 11` → inspects the
-    condition → finds `<=` instead of `<` (off-by-one error)
+AI: Sets conditional breakpoint `i > 10` → pauses at i=11 → finds
+    `<=` instead of `<`
 ```
 
-If you prefer more structure, type `/` in your AI chat:
-
-- `/debug-crash` - Systematic crash debugging
-- `/trace-variable` - Track variable changes
-- `/inspect-function` - Function behavior analysis
-- `/debug-loop` - Loop debugging
-- `/auto-debug-session` - Full automation (full mode)
-
-**Recommended models:** Claude 4.5 Haiku or Grok 4 Fast (fast, accurate,
-cost-effective)
+**Recommended models:** Claude 4.5 Haiku or Grok 4.1 Fast for speed.
 
 ---
 
-## ⚙️ Settings
+## Settings
 
-**Key settings** (access via `File → Preferences → Settings`, search
-`debugssy`):
+Search "debugssy" in VS Code settings. The important ones:
 
-| Setting                     | Default    | Description                                      |
-| --------------------------- | ---------- | ------------------------------------------------ |
-| `automationLevel`           | `assisted` | `assisted` (you control) or `full` (AI controls) |
-| `mcp.port`                  | `3000`     | Server port (change if 3000 is in use)           |
-| `expressionValidationLevel` | `moderate` | Security level for code execution                |
+- `debugssy.automationLevel` — `assisted` (default) or `full`
+- `debugssy.mcp.port` — Change if 3000 is taken
+- `debugssy.expressionValidationLevel` — How paranoid to be about evaluated
+  expressions (`strict`, `moderate`, `permissive`, `disabled`)
 
-**All settings:**
-
-<details>
-<summary>Click to see all configuration options</summary>
-
-```json
-{
-  "debugssy.mcp.enabled": true,
-  "debugssy.mcp.port": 3000,
-  "debugssy.automationLevel": "assisted", // or "full"
-  "debugssy.waitForBreakpointTimeout": 5000, // ms
-  "debugssy.allowStepOperations": false, // Enable step ops in full mode
-  "debugssy.maxExpressionLength": 100, // Security: max expression chars
-  "debugssy.expressionValidationLevel": "moderate" // Security level
-}
-```
-
-</details>
-
-**Commands** (via `Ctrl+Shift+P` / `Cmd+Shift+P`):
-
-- `Debugssy: Start Server`, `Stop Server`, `Restart Server`
+Commands via `Ctrl+Shift+P`: Start Server, Stop Server, Restart Server.
 
 ---
 
-## ❓ Troubleshooting (Short Version)
+## Troubleshooting
 
-| Issue                          | Quick Fix                                                    |
-| ------------------------------ | ------------------------------------------------------------ |
-| **"No active debug session"**  | Press `F5` to start debugging before asking AI to inspect    |
-| **Port already in use**        | Change port: `"debugssy.mcp.port": 3001`                     |
-| **AI can't connect**           | Check `View → Output → Debugssy` for errors, restart VS Code |
-| **Variables not available**    | Ensure execution is paused at a breakpoint                   |
-| **Copilot not seeing changes** | Restart VS Code after changing `automationLevel`             |
+**"No active debug session"** — Press F5 first. The debugger needs to be
+running.
 
-If you're still stuck, check the full docs at
-[github.com/gmaynez/debugssy](https://github.com/gmaynez/debugssy)
+**Port in use** — Set `debugssy.mcp.port` to 3001 or whatever's free.
 
----
+**AI can't connect** — Check `View → Output → Debugssy`. Make sure the URL is
+`http://localhost:3000/mcp`.
 
-## 🔒 Security & Privacy
+**Variables empty** — Execution must be paused at a breakpoint.
 
-- ✅ **Localhost only** - No network access, binds to 127.0.0.1
-- ✅ **Origin validation** - Prevents DNS rebinding attacks
-- ✅ **Expression validation** - Optional safeguards against unsafe code
-  execution
-- ✅ **No telemetry** - Your code stays on your machine
+**Copilot doesn't see tools** — Restart VS Code after changing settings.
 
-Follows
-[MCP Security Best Practices 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices)
+Full docs: [github.com/gmaynez/debugssy](https://github.com/gmaynez/debugssy)
 
 ---
 
-## 📋 Requirements
+## Security
 
-- VS Code 1.85.0+
-- Any MCP-compatible AI assistant (Cursor, Copilot, Claude Desktop, etc.)
-
----
-
-## 📚 Learn More
-
-- **[GitHub Repository](https://github.com/gmaynez/debugssy)** - Full docs,
-  source code, contribute
-- **[Allowlist Guide](https://github.com/gmaynez/debugssy/blob/main/docs/ALLOWLIST_GUIDE.md)** -
-  Security configuration examples
-- **[MCP Compliance](https://github.com/gmaynez/debugssy/blob/main/docs/MCP_COMPLIANCE.md)** -
-  Security implementation details
-- **[Model Context Protocol](https://modelcontextprotocol.io)** - Learn about
-  MCP
+Runs on localhost only. Your code never leaves your machine. Expression
+validation blocks obvious injection attempts. Origin validation prevents DNS
+rebinding. Follows
+[MCP security best practices](https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices).
 
 ---
 
-## 📄 License
+## Requirements
 
-Apache License 2.0 · Copyright © 2025 Guillermo Garcia Maynez
+VS Code 1.101.0+ and an MCP-compatible AI (Cursor, Copilot, Claude Desktop,
+etc.)
 
 ---
 
-<div align="center">
+## More
 
-**Stop debugging manually. Let AI find your bugs.**
+[GitHub](https://github.com/gmaynez/debugssy) ·
+[Security docs](https://github.com/gmaynez/debugssy/blob/main/SECURITY.md) ·
+[MCP spec](https://modelcontextprotocol.io)
 
-Made with ❤️ for developers who want their time back
+---
 
-</div>
+Apache 2.0 · © 2025 Guillermo Garcia Maynez
