@@ -26,13 +26,17 @@ type InspectFunctionArgs = z.infer<typeof InspectFunctionArgsSchema>;
 
 const DebugLoopArgsSchema = z.object({
   loopLocation: z.string().min(1, { error: 'loopLocation is required and must not be empty' }),
-  expectedIterations: z
-    .number()
-    .int()
-    .positive({
-      error: 'expectedIterations must be a positive integer',
-    })
-    .optional(),
+  expectedIterations: z.preprocess(
+    // Coerce string to number since MCP clients often send form values as strings
+    (val) => (typeof val === 'string' ? Number(val) : val),
+    z
+      .number()
+      .int()
+      .positive({
+        error: 'expectedIterations must be a positive integer',
+      })
+      .optional()
+  ),
 });
 type DebugLoopArgs = z.infer<typeof DebugLoopArgsSchema>;
 
