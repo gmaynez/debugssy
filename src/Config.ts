@@ -55,9 +55,10 @@ export class ConfigManager {
   private static readonly CONFIG_SECTION = 'debugssy';
   private configChangeEmitter = new vscode.EventEmitter<DebugConfiguration>();
   public readonly onConfigChange = this.configChangeEmitter.event;
+  private configChangeSubscription: vscode.Disposable;
 
   constructor() {
-    vscode.workspace.onDidChangeConfiguration((e) => {
+    this.configChangeSubscription = vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration(ConfigManager.CONFIG_SECTION)) {
         this.configChangeEmitter.fire(this.getConfig());
       }
@@ -112,6 +113,7 @@ export class ConfigManager {
   }
 
   dispose(): void {
+    this.configChangeSubscription.dispose();
     this.configChangeEmitter.dispose();
   }
 }
