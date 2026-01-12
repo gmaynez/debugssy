@@ -31,7 +31,14 @@ import { UnknownToolError, InvalidArgumentsError, ExpressionUserDeclinedError } 
 
 /**
  * Type for tool handler functions.
- * Uses any for args and result to maintain compatibility with existing tool implementations.
+ *
+ * Note: Uses 'any' for args and result for compatibility with diverse handler signatures.
+ * Type safety is enforced at two levels:
+ * 1. Input validation: All args are validated by Zod schemas before reaching handlers
+ * 2. Output structure: All handlers return { success, message?, error?, ...data } pattern
+ *
+ * See routing/types/toolArguments.ts for Zod schemas and specific arg types.
+ * See individual tool files (Breakpoints.ts, etc.) for result types.
  */
 type ToolHandler = (args: any) => Promise<any>;
 
@@ -299,7 +306,7 @@ export class ToolRouter {
       );
       return {
         success: false,
-        error: `${elicitationMessage}\n\nClient does not support user confirmation (elicitation). To allow this expression, set debugssy.enableExpressionValidation to false in settings.`,
+        error: `${elicitationMessage}\n\nClient does not support user confirmation (elicitation). To allow this expression, set debugssy.expressionValidationLevel to "disabled" in settings.`,
         validationFailure: {
           reason: validationResult.reason,
           riskLevel: validationResult.riskLevel,

@@ -39,7 +39,8 @@ export class DebugControlTools implements vscode.Disposable {
 
   async startDebugging(args: {
     workspaceFolder?: string;
-    configuration?: any;
+    /** Debug configuration object. Must include type, name, and request properties. */
+    configuration?: Record<string, unknown>;
     name?: string;
   }): Promise<DebugControlResult> {
     try {
@@ -79,12 +80,13 @@ export class DebugControlTools implements vscode.Disposable {
         }
       }
 
-      // Use provided configuration or try to find one
-      let config = args.configuration;
+      // Use provided configuration or try to find one by name
+      let config: Record<string, unknown> | vscode.DebugConfiguration | undefined =
+        args.configuration;
       if (!config && args.name) {
         const configs = vscode.workspace
           .getConfiguration('launch', folder.uri)
-          .get<any[]>('configurations', []);
+          .get<vscode.DebugConfiguration[]>('configurations', []);
         config = configs.find((c) => c.name === args.name);
       }
 
@@ -95,7 +97,26 @@ export class DebugControlTools implements vscode.Disposable {
         };
       }
 
-      const success = await vscode.debug.startDebugging(folder, config);
+      // Validate required configuration fields before calling VS Code
+      const configType = config.type as string | undefined;
+      const configName = config.name as string | undefined;
+      const configRequest = config.request as string | undefined;
+      if (!configType || !configName || !configRequest) {
+        const missing = [
+          !configType && 'type',
+          !configName && 'name',
+          !configRequest && 'request',
+        ].filter(Boolean);
+        return {
+          success: false,
+          error: `Invalid debug configuration: missing required field(s): ${missing.join(', ')}`,
+        };
+      }
+
+      const success = await vscode.debug.startDebugging(
+        folder,
+        config as vscode.DebugConfiguration
+      );
       return {
         success,
         message: success ? 'Debug session started' : 'Failed to start debug session',

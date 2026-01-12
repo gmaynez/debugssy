@@ -52,6 +52,53 @@ export interface ConsoleOutput {
   line?: number;
 }
 
+/**
+ * DAP protocol message body types for different events/responses.
+ */
+interface DAPStoppedEventBody {
+  threadId?: number;
+  reason?: string;
+  description?: string;
+  text?: string;
+  allThreadsStopped?: boolean;
+  hitBreakpointIds?: number[];
+}
+
+interface DAPOutputEventBody {
+  category?: string;
+  output?: string;
+  variablesReference?: number;
+  source?: { path?: string; name?: string };
+  line?: number;
+}
+
+interface DAPStackTraceResponseBody {
+  stackFrames?: StackFrame[];
+  totalFrames?: number;
+}
+
+/**
+ * DAP protocol message structure for type-safe message handling.
+ * Covers response, event, and request message types.
+ */
+export interface DAPMessage {
+  type: 'response' | 'event' | 'request';
+  command?: string;
+  event?: string;
+  body?: DAPStoppedEventBody | DAPOutputEventBody | DAPStackTraceResponseBody | Record<string, unknown>;
+  success?: boolean;
+  requestSeq?: number;
+}
+
+/**
+ * DAP stackTrace request arguments.
+ */
+interface StackTraceRequest {
+  threadId: number;
+  startFrame?: number;
+  levels?: number;
+}
+
 export class DAPClient {
   private currentFrameId: number | undefined;
   private stackFrames: StackFrame[] = [];
@@ -70,10 +117,10 @@ export class DAPClient {
     this.trackerDisposable = vscode.debug.registerDebugAdapterTrackerFactory('*', {
       createDebugAdapterTracker: (_session: vscode.DebugSession) => {
         return {
-          onWillReceiveMessage: (_message: any) => {
+          onWillReceiveMessage: (_message: DAPMessage) => {
             // Can inspect outgoing messages if needed
           },
-          onDidSendMessage: (message: any) => {
+          onDidSendMessage: (message: DAPMessage) => {
             this.handleDAPMessage(message);
           },
           onError: (error: Error) => {
@@ -98,17 +145,11 @@ export class DAPClient {
         this.lastKnownThreadId ??
         DEFAULT_THREAD_ID;
 
-      const request: any = {
+      const request: StackTraceRequest = {
         threadId: preferredThreadId,
+        startFrame: options?.startFrame,
+        levels: options?.levels,
       };
-
-      // Pass depth limits to the debug adapter to avoid unnecessary materialization
-      if (options?.startFrame !== undefined) {
-        request.startFrame = options.startFrame;
-      }
-      if (options?.levels !== undefined) {
-        request.levels = options.levels;
-      }
 
       const response = await session.customRequest('stackTrace', request);
       if (response?.stackFrames) {
@@ -266,38 +307,42 @@ export class DAPClient {
     return this.constrainStackFrames(windowed, options);
   }
 
-  private handleDAPMessage(message: any): void {
+  private handleDAPMessage(message: DAPMessage): void {
     if (message.type === 'response') {
       switch (message.command) {
-        case 'stackTrace':
-          if (message.success && message.body?.stackFrames) {
-            this.stackFrames = message.body.stackFrames;
+        case 'stackTrace': {
+          const body = message.body as DAPStackTraceResponseBody | undefined;
+          if (message.success && body?.stackFrames) {
+            this.stackFrames = body.stackFrames;
             if (this.stackFrames.length > 0 && this.stackFrames[0]) {
               this.currentFrameId = this.stackFrames[0].id;
             }
           }
           break;
+        }
         // Note: We don't cache scopes or variables because request_seq doesn't map
         // to the actual frameId/variablesReference. Instead, we fetch them on-demand
         // via getScopes() and getVariables() methods.
       }
     } else if (message.type === 'event') {
       switch (message.event) {
-        case 'stopped':
+        case 'stopped': {
+          const body = message.body as DAPStoppedEventBody | undefined;
           this.executionState = 'paused';
           this.stoppedInfo = {
-            threadId: message.body?.threadId,
-            reason: message.body?.reason || 'unknown',
-            description: message.body?.description,
-            text: message.body?.text,
-            allThreadsStopped: message.body?.allThreadsStopped,
-            hitBreakpointIds: message.body?.hitBreakpointIds,
+            threadId: body?.threadId ?? DEFAULT_THREAD_ID,
+            reason: body?.reason ?? 'unknown',
+            description: body?.description,
+            text: body?.text,
+            allThreadsStopped: body?.allThreadsStopped,
+            hitBreakpointIds: body?.hitBreakpointIds,
           };
-          if (typeof message.body?.threadId === 'number') {
-            this.lastKnownThreadId = message.body.threadId;
+          if (typeof body?.threadId === 'number') {
+            this.lastKnownThreadId = body.threadId;
           }
           this.stateChangeEmitter.fire('paused');
           break;
+        }
         case 'continued':
           this.executionState = 'running';
           this.stoppedInfo = undefined;
@@ -308,18 +353,20 @@ export class DAPClient {
           this.stoppedInfo = undefined;
           this.stateChangeEmitter.fire('terminated');
           break;
-        case 'output':
-          if (message.body?.output) {
+        case 'output': {
+          const body = message.body as DAPOutputEventBody | undefined;
+          if (body?.output) {
             this.captureConsoleOutput({
-              category: message.body.category || 'console',
-              output: message.body.output,
+              category: body.category ?? 'console',
+              output: body.output,
               timestamp: Date.now(),
-              variablesReference: message.body.variablesReference,
-              source: message.body.source,
-              line: message.body.line,
+              variablesReference: body.variablesReference,
+              source: body.source,
+              line: body.line,
             });
           }
           break;
+        }
       }
     }
   }

@@ -3,11 +3,24 @@
 
 import * as vscode from 'vscode';
 
+/**
+ * Breakpoint data returned from set/toggle operations.
+ */
+export interface BreakpointData {
+  id?: string;
+  filePath: string;
+  line: number;
+  enabled: boolean;
+  condition?: string;
+  hitCondition?: string;
+  logMessage?: string;
+}
+
 export interface BreakpointResult {
   success: boolean;
   message?: string;
   error?: string;
-  breakpoint?: any;
+  breakpoint?: BreakpointData;
 }
 
 export interface BreakpointInfo {
@@ -42,14 +55,25 @@ export class BreakpointTools {
 
       vscode.debug.addBreakpoints([breakpoint]);
 
+      // Find the added breakpoint to get its VS Code-assigned ID
+      const addedBreakpoint = vscode.debug.breakpoints.find(
+        (bp) =>
+          bp instanceof vscode.SourceBreakpoint &&
+          bp.location.uri.fsPath === uri.fsPath &&
+          bp.location.range.start.line === args.line - 1
+      ) as vscode.SourceBreakpoint | undefined;
+
       return {
         success: true,
         message: `Breakpoint set at ${args.filePath}:${args.line}`,
         breakpoint: {
+          id: addedBreakpoint?.id,
           filePath: args.filePath,
           line: args.line,
           enabled: true,
           condition: args.condition,
+          hitCondition: args.hitCondition,
+          logMessage: args.logMessage,
         },
       };
     } catch (error: unknown) {
