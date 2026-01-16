@@ -6,6 +6,7 @@ import {
   DEFAULT_CONSOLE_OUTPUT_LIMIT,
   MAX_CONSOLE_OUTPUT_LIMIT,
 } from '../../constants';
+import { TOOL_NAMES } from '../toolNames';
 
 /**
  * Tool schemas for inspection and state query operations.
@@ -13,7 +14,7 @@ import {
 
 export const inspectionSchemas = [
   {
-    name: 'get_variables',
+    name: TOOL_NAMES.getVariables,
     description:
       'Get variables from the current stack frame. WARNING: Can be verbose with many variables. Consider filtering by scope (e.g., "Local") to reduce output.',
     inputSchema: {
@@ -32,7 +33,7 @@ export const inspectionSchemas = [
     },
   },
   {
-    name: 'get_call_stack',
+    name: TOOL_NAMES.getCallStack,
     description:
       'Get the current call stack. WARNING: Can be very verbose with deep call stacks. Only call when you need to understand the execution path. Consider using get_debug_state first for just the current location.',
     inputSchema: {
@@ -46,7 +47,7 @@ export const inspectionSchemas = [
     },
   },
   {
-    name: 'evaluate_expression',
+    name: TOOL_NAMES.evaluateExpression,
     description:
       'Evaluate an expression in the current debug context. Use simple expressions (e.g., "x", "obj.prop") rather than complex ones that return large objects. For large objects, use get_variables with scope filter instead. SECURITY: Expressions are validated to prevent side effects (function calls, assignments, etc.). If validation fails, user approval is requested. Expression length is also limited to prevent prompt injection attacks. Validation can be disabled in settings.',
     inputSchema: {
@@ -66,7 +67,7 @@ export const inspectionSchemas = [
     },
   },
   {
-    name: 'get_threads',
+    name: TOOL_NAMES.getThreads,
     description: 'Get all threads in the current debug session',
     inputSchema: {
       type: 'object',
@@ -74,7 +75,7 @@ export const inspectionSchemas = [
     },
   },
   {
-    name: 'get_debug_state',
+    name: TOOL_NAMES.getDebugState,
     description:
       'Get current debug session state including execution state (running/paused), current location if paused, and reason for stopping. Lightweight - always check this first before calling more verbose tools like get_call_stack.',
     inputSchema: {
@@ -83,7 +84,7 @@ export const inspectionSchemas = [
     },
   },
   {
-    name: 'get_console_output',
+    name: TOOL_NAMES.getConsoleOutput,
     description: `Get output from the debug console including stdout, stderr, and console.log messages. WARNING: Can be extremely verbose. Always specify a limit (default: ${DEFAULT_CONSOLE_OUTPUT_LIMIT} most recent entries). Use category filter to reduce output.`,
     inputSchema: {
       type: 'object',
@@ -111,7 +112,7 @@ export const inspectionSchemas = [
     },
   },
   {
-    name: 'clear_console_output',
+    name: TOOL_NAMES.clearConsoleOutput,
     description: 'Clear the debug console output buffer',
     inputSchema: {
       type: 'object',

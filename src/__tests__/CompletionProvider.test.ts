@@ -24,11 +24,7 @@ function createMockWorkspaceFolder(name: string, basePath = '/project') {
 /**
  * Creates a mock DocumentSymbol.
  */
-function createDocumentSymbol(
-  name: string,
-  kind: number,
-  children: any[] = []
-): any {
+function createDocumentSymbol(name: string, kind: number, children: any[] = []): any {
   return { name, kind, children };
 }
 
@@ -61,9 +57,11 @@ describe('CompletionProvider', () => {
 
     it('should route filePath arguments to file path completions', async () => {
       vscode.workspace.workspaceFolders = [createMockWorkspaceFolder('project')] as any;
-      vscode.workspace.findFiles = vi.fn().mockResolvedValue([
-        { fsPath: '/project/project/src/index.ts', toString: () => 'src/index.ts' },
-      ]);
+      vscode.workspace.findFiles = vi
+        .fn()
+        .mockResolvedValue([
+          { fsPath: '/project/project/src/index.ts', toString: () => 'src/index.ts' },
+        ]);
 
       const result = await completionProvider.getCompletions('test', 'filePath', '');
 
@@ -182,9 +180,11 @@ describe('CompletionProvider', () => {
       const folder = createMockWorkspaceFolder('project');
       vscode.workspace.workspaceFolders = [folder] as any;
 
-      vscode.workspace.findFiles = vi.fn().mockResolvedValue([
-        { fsPath: `${folder.uri.fsPath}/src/index.ts`, toString: () => 'src/index.ts' },
-      ]);
+      vscode.workspace.findFiles = vi
+        .fn()
+        .mockResolvedValue([
+          { fsPath: `${folder.uri.fsPath}/src/index.ts`, toString: () => 'src/index.ts' },
+        ]);
 
       const result = await completionProvider.getCompletions('test', 'filePath', '');
 
@@ -218,14 +218,10 @@ describe('CompletionProvider', () => {
         document: { uri: { fsPath: '/test.ts' } },
       } as any;
 
-      let callCount = 0;
       vscode.commands.executeCommand = vi.fn().mockImplementation((command) => {
-        callCount++;
         if (command === 'vscode.executeDocumentSymbolProvider') {
           // Return few local functions to trigger workspace search
-          return Promise.resolve([
-            createDocumentSymbol('localFunc', vscode.SymbolKind.Function),
-          ]);
+          return Promise.resolve([createDocumentSymbol('localFunc', vscode.SymbolKind.Function)]);
         }
         if (command === 'vscode.executeWorkspaceSymbolProvider') {
           // Return workspace symbols
@@ -258,11 +254,13 @@ describe('CompletionProvider', () => {
         document: { uri: { fsPath: '/test.ts' } },
       } as any;
 
-      vscode.commands.executeCommand = vi.fn().mockResolvedValue([
-        createDocumentSymbol('processData', vscode.SymbolKind.Function),
-        createDocumentSymbol('processError', vscode.SymbolKind.Function),
-        createDocumentSymbol('fetchData', vscode.SymbolKind.Function),
-      ]);
+      vscode.commands.executeCommand = vi
+        .fn()
+        .mockResolvedValue([
+          createDocumentSymbol('processData', vscode.SymbolKind.Function),
+          createDocumentSymbol('processError', vscode.SymbolKind.Function),
+          createDocumentSymbol('fetchData', vscode.SymbolKind.Function),
+        ]);
 
       const result = await completionProvider.getCompletions('test', 'functionName', 'process');
 
@@ -276,13 +274,15 @@ describe('CompletionProvider', () => {
         document: { uri: { fsPath: '/test.ts' } },
       } as any;
 
-      vscode.commands.executeCommand = vi.fn().mockResolvedValue([
-        createDocumentSymbol('MyClass', vscode.SymbolKind.Class, [
-          createDocumentSymbol('constructor', vscode.SymbolKind.Constructor),
-          createDocumentSymbol('getData', vscode.SymbolKind.Method),
-          createDocumentSymbol('setData', vscode.SymbolKind.Method),
-        ]),
-      ]);
+      vscode.commands.executeCommand = vi
+        .fn()
+        .mockResolvedValue([
+          createDocumentSymbol('MyClass', vscode.SymbolKind.Class, [
+            createDocumentSymbol('constructor', vscode.SymbolKind.Constructor),
+            createDocumentSymbol('getData', vscode.SymbolKind.Method),
+            createDocumentSymbol('setData', vscode.SymbolKind.Method),
+          ]),
+        ]);
 
       const result = await completionProvider.getCompletions('test', 'functionName', '');
 
@@ -315,9 +315,7 @@ describe('CompletionProvider', () => {
           }
           if (command === 'scopes') {
             return Promise.resolve({
-              scopes: [
-                { name: 'Local', variablesReference: 1, expensive: false },
-              ],
+              scopes: [{ name: 'Local', variablesReference: 1, expensive: false }],
             });
           }
           if (command === 'variables') {
@@ -348,11 +346,13 @@ describe('CompletionProvider', () => {
       } as any;
 
       // Use correct SymbolKind values: Variable = 12, Property = 6
-      vscode.commands.executeCommand = vi.fn().mockResolvedValue([
-        createDocumentSymbol('myVariable', vscode.SymbolKind.Variable),
-        createDocumentSymbol('myProperty', vscode.SymbolKind.Property),
-        createDocumentSymbol('myConstant', vscode.SymbolKind.Constant),
-      ]);
+      vscode.commands.executeCommand = vi
+        .fn()
+        .mockResolvedValue([
+          createDocumentSymbol('myVariable', vscode.SymbolKind.Variable),
+          createDocumentSymbol('myProperty', vscode.SymbolKind.Property),
+          createDocumentSymbol('myConstant', vscode.SymbolKind.Constant),
+        ]);
 
       const result = await completionProvider.getCompletions('test', 'variableName', '');
 
@@ -390,9 +390,11 @@ describe('CompletionProvider', () => {
     it('should use cached file paths for subsequent requests', async () => {
       const folder = createMockWorkspaceFolder('project');
       vscode.workspace.workspaceFolders = [folder] as any;
-      vscode.workspace.findFiles = vi.fn().mockResolvedValue([
-        { fsPath: `${folder.uri.fsPath}/src/index.ts`, toString: () => 'src/index.ts' },
-      ]);
+      vscode.workspace.findFiles = vi
+        .fn()
+        .mockResolvedValue([
+          { fsPath: `${folder.uri.fsPath}/src/index.ts`, toString: () => 'src/index.ts' },
+        ]);
 
       await completionProvider.getCompletions('test', 'filePath', '');
       const initialCallCount = (vscode.workspace.findFiles as any).mock.calls.length;

@@ -8,6 +8,7 @@
 
 import { z } from 'zod';
 import { MAX_CONSOLE_OUTPUT_LIMIT } from '../../constants';
+import { TOOL_NAMES } from '../toolNames';
 
 export const SetBreakpointArgsSchema = z.object({
   filePath: z.string().min(1, { error: 'filePath must be a non-empty string' }),
@@ -98,27 +99,27 @@ export type ToolArgs =
   | Record<string, never>; // For tools with no arguments
 
 export const Validators = {
-  set_breakpoint: SetBreakpointArgsSchema,
-  remove_breakpoint: RemoveBreakpointArgsSchema,
-  list_breakpoints: z.object({}),
-  toggle_breakpoint: ToggleBreakpointArgsSchema,
-  remove_all_breakpoints: z.object({}),
-  get_variables: GetVariablesArgsSchema,
-  get_call_stack: GetCallStackArgsSchema,
-  evaluate_expression: EvaluateExpressionArgsSchema,
-  get_threads: z.object({}),
-  get_debug_state: z.object({}),
-  get_console_output: GetConsoleOutputArgsSchema,
-  clear_console_output: z.object({}),
-  start_debugging: StartDebuggingArgsSchema,
-  stop_debugging: z.object({}),
-  continue: z.object({}),
-  pause: z.object({}),
-  restart: z.object({}),
-  wait_for_breakpoint: WaitForBreakpointArgsSchema,
-  step_over: z.object({}),
-  step_into: z.object({}),
-  step_out: z.object({}),
+  [TOOL_NAMES.setBreakpoint]: SetBreakpointArgsSchema,
+  [TOOL_NAMES.removeBreakpoint]: RemoveBreakpointArgsSchema,
+  [TOOL_NAMES.listBreakpoints]: z.object({}),
+  [TOOL_NAMES.toggleBreakpoint]: ToggleBreakpointArgsSchema,
+  [TOOL_NAMES.removeAllBreakpoints]: z.object({}),
+  [TOOL_NAMES.getVariables]: GetVariablesArgsSchema,
+  [TOOL_NAMES.getCallStack]: GetCallStackArgsSchema,
+  [TOOL_NAMES.evaluateExpression]: EvaluateExpressionArgsSchema,
+  [TOOL_NAMES.getThreads]: z.object({}),
+  [TOOL_NAMES.getDebugState]: z.object({}),
+  [TOOL_NAMES.getConsoleOutput]: GetConsoleOutputArgsSchema,
+  [TOOL_NAMES.clearConsoleOutput]: z.object({}),
+  [TOOL_NAMES.startDebugging]: StartDebuggingArgsSchema,
+  [TOOL_NAMES.stopDebugging]: z.object({}),
+  [TOOL_NAMES.continueExecution]: z.object({}),
+  [TOOL_NAMES.pause]: z.object({}),
+  [TOOL_NAMES.restart]: z.object({}),
+  [TOOL_NAMES.waitForBreakpoint]: WaitForBreakpointArgsSchema,
+  [TOOL_NAMES.stepOver]: z.object({}),
+  [TOOL_NAMES.stepInto]: z.object({}),
+  [TOOL_NAMES.stepOut]: z.object({}),
 } as const;
 
 export type ValidatorKey = keyof typeof Validators;

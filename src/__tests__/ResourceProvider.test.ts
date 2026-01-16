@@ -3,6 +3,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ResourceProvider } from '../routing/ResourceProvider';
+import { TOOL_NAMES } from '../routing/toolNames';
 import { vscode } from './setup';
 
 /**
@@ -93,7 +94,8 @@ describe('ResourceProvider', () => {
       expect(resource?.uri).toBe('debugssy:///my-app/launch.json');
       expect(resource?.name).toBe('my-app Debug Configurations');
       expect(resource?.description).toContain('launch.json');
-      expect(resource?.description).toContain('start_debugging');
+      expect(resource?.description).toContain(TOOL_NAMES.startDebugging);
+
       expect(resource?.mimeType).toBe('application/json');
     });
 

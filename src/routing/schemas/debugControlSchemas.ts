@@ -6,9 +6,12 @@
  * These schemas are only available in full automation mode.
  */
 
+import { TOOL_NAMES } from '../toolNames';
+
 export const debugControlSchemas = [
   {
-    name: 'start_debugging',
+    name: TOOL_NAMES.startDebugging,
+
     description:
       'Start a debugging session with the specified configuration. Requires full automation mode.',
     inputSchema: {
@@ -30,7 +33,7 @@ export const debugControlSchemas = [
     },
   },
   {
-    name: 'wait_for_breakpoint',
+    name: TOOL_NAMES.waitForBreakpoint,
     description:
       'Wait for execution to pause at a breakpoint. Blocks until next breakpoint is hit or timeout occurs. Requires full automation mode. After calling this, always use get_debug_state to verify the breakpoint was hit and inspect the current location.',
     inputSchema: {
@@ -45,7 +48,7 @@ export const debugControlSchemas = [
     },
   },
   {
-    name: 'continue',
+    name: TOOL_NAMES.continueExecution,
     description:
       'Continue execution until the next breakpoint. This is the recommended way to navigate between inspection points.',
     inputSchema: {
@@ -54,7 +57,7 @@ export const debugControlSchemas = [
     },
   },
   {
-    name: 'pause',
+    name: TOOL_NAMES.pause,
     description: 'Pause execution in the current debug session',
     inputSchema: {
       type: 'object',
@@ -62,7 +65,7 @@ export const debugControlSchemas = [
     },
   },
   {
-    name: 'restart',
+    name: TOOL_NAMES.restart,
     description:
       'Restart the current debug session (only works if currently debugging). Use this to re-run debugging with the same configuration after making changes or to reset execution state.',
     inputSchema: {
@@ -71,7 +74,7 @@ export const debugControlSchemas = [
     },
   },
   {
-    name: 'stop_debugging',
+    name: TOOL_NAMES.stopDebugging,
     description: 'Stop the current debugging session',
     inputSchema: {
       type: 'object',
@@ -82,7 +85,7 @@ export const debugControlSchemas = [
 
 export const stepOperationSchemas = [
   {
-    name: 'step_over',
+    name: TOOL_NAMES.stepOver,
     description:
       'Step over the current line. NOTE: For efficient AI debugging, prefer setting strategic breakpoints and using "continue". Use this only for fine-grained exploration of complex runtime behavior.',
     inputSchema: {
@@ -91,7 +94,7 @@ export const stepOperationSchemas = [
     },
   },
   {
-    name: 'step_into',
+    name: TOOL_NAMES.stepInto,
     description:
       'Step into the current function. NOTE: For efficient AI debugging, prefer setting strategic breakpoints and using "continue". Use this only for fine-grained exploration of complex runtime behavior.',
     inputSchema: {
@@ -100,7 +103,7 @@ export const stepOperationSchemas = [
     },
   },
   {
-    name: 'step_out',
+    name: TOOL_NAMES.stepOut,
     description:
       'Step out of the current function. NOTE: For efficient AI debugging, prefer setting strategic breakpoints and using "continue". Use this only for fine-grained exploration of complex runtime behavior.',
     inputSchema: {

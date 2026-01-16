@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { ToolRouter } from '../routing/ToolRouter';
 import type { ToolRegistry } from '../tools';
 import { ConfigManager } from '../Config';
+import { TOOL_NAMES } from '../routing/toolNames';
 import './setup';
 
 // Mock ToolRegistry
@@ -64,16 +65,16 @@ describe('ToolRouter', () => {
 
       // Should include breakpoint and inspection tools
       const toolNames = schemas.map((s: any) => s.name);
-      expect(toolNames).toContain('set_breakpoint');
-      expect(toolNames).toContain('list_breakpoints');
-      expect(toolNames).toContain('get_variables');
-      expect(toolNames).toContain('evaluate_expression');
-      expect(toolNames).toContain('get_debug_state');
+      expect(toolNames).toContain(TOOL_NAMES.setBreakpoint);
+      expect(toolNames).toContain(TOOL_NAMES.listBreakpoints);
+      expect(toolNames).toContain(TOOL_NAMES.getVariables);
+      expect(toolNames).toContain(TOOL_NAMES.evaluateExpression);
+      expect(toolNames).toContain(TOOL_NAMES.getDebugState);
 
       // Should NOT include full automation tools
-      expect(toolNames).not.toContain('start_debugging');
-      expect(toolNames).not.toContain('stop_debugging');
-      expect(toolNames).not.toContain('continue');
+      expect(toolNames).not.toContain(TOOL_NAMES.startDebugging);
+      expect(toolNames).not.toContain(TOOL_NAMES.stopDebugging);
+      expect(toolNames).not.toContain(TOOL_NAMES.continueExecution);
     });
 
     it('should return all tools in full automation mode', () => {
@@ -92,13 +93,13 @@ describe('ToolRouter', () => {
       const toolNames = schemas.map((s: any) => s.name);
 
       // Should include all tools
-      expect(toolNames).toContain('set_breakpoint');
-      expect(toolNames).toContain('start_debugging');
-      expect(toolNames).toContain('stop_debugging');
-      expect(toolNames).toContain('continue');
-      expect(toolNames).toContain('pause');
-      expect(toolNames).toContain('restart');
-      expect(toolNames).toContain('wait_for_breakpoint');
+      expect(toolNames).toContain(TOOL_NAMES.setBreakpoint);
+      expect(toolNames).toContain(TOOL_NAMES.startDebugging);
+      expect(toolNames).toContain(TOOL_NAMES.stopDebugging);
+      expect(toolNames).toContain(TOOL_NAMES.continueExecution);
+      expect(toolNames).toContain(TOOL_NAMES.pause);
+      expect(toolNames).toContain(TOOL_NAMES.restart);
+      expect(toolNames).toContain(TOOL_NAMES.waitForBreakpoint);
     });
 
     it('should include step operations when enabled', () => {
@@ -115,9 +116,9 @@ describe('ToolRouter', () => {
       const schemas = toolRouter.getToolSchemas();
       const toolNames = schemas.map((s: any) => s.name);
 
-      expect(toolNames).toContain('step_over');
-      expect(toolNames).toContain('step_into');
-      expect(toolNames).toContain('step_out');
+      expect(toolNames).toContain(TOOL_NAMES.stepOver);
+      expect(toolNames).toContain(TOOL_NAMES.stepInto);
+      expect(toolNames).toContain(TOOL_NAMES.stepOut);
     });
 
     it('should not include step operations when disabled', () => {
@@ -134,16 +135,16 @@ describe('ToolRouter', () => {
       const schemas = toolRouter.getToolSchemas();
       const toolNames = schemas.map((s: any) => s.name);
 
-      expect(toolNames).not.toContain('step_over');
-      expect(toolNames).not.toContain('step_into');
-      expect(toolNames).not.toContain('step_out');
+      expect(toolNames).not.toContain(TOOL_NAMES.stepOver);
+      expect(toolNames).not.toContain(TOOL_NAMES.stepInto);
+      expect(toolNames).not.toContain(TOOL_NAMES.stepOut);
     });
   });
 
   describe('routeToolCall', () => {
     describe('Breakpoint Tools', () => {
       it('should route set_breakpoint correctly', async () => {
-        const result = await toolRouter.routeToolCall('set_breakpoint', {
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.setBreakpoint, {
           filePath: '/test/file.js',
           line: 10,
         });
@@ -156,7 +157,7 @@ describe('ToolRouter', () => {
       });
 
       it('should route remove_breakpoint correctly', async () => {
-        const result = await toolRouter.routeToolCall('remove_breakpoint', {
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.removeBreakpoint, {
           filePath: '/test/file.js',
           line: 10,
         });
@@ -166,14 +167,14 @@ describe('ToolRouter', () => {
       });
 
       it('should route list_breakpoints correctly', async () => {
-        const result = await toolRouter.routeToolCall('list_breakpoints', {});
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.listBreakpoints, {});
 
         expect(mockToolRegistry.breakpoints.listBreakpoints).toHaveBeenCalled();
         expect(result.success).toBe(true);
       });
 
       it('should route toggle_breakpoint correctly', async () => {
-        const result = await toolRouter.routeToolCall('toggle_breakpoint', {
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.toggleBreakpoint, {
           filePath: '/test/file.js',
           line: 10,
         });
@@ -183,7 +184,7 @@ describe('ToolRouter', () => {
       });
 
       it('should route remove_all_breakpoints correctly', async () => {
-        const result = await toolRouter.routeToolCall('remove_all_breakpoints', {});
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.removeAllBreakpoints, {});
 
         expect(mockToolRegistry.breakpoints.removeAllBreakpoints).toHaveBeenCalled();
         expect(result.success).toBe(true);
@@ -192,14 +193,14 @@ describe('ToolRouter', () => {
 
     describe('Inspection Tools', () => {
       it('should route get_variables correctly', async () => {
-        const result = await toolRouter.routeToolCall('get_variables', {});
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.getVariables, {});
 
         expect(mockToolRegistry.inspection.getVariables).toHaveBeenCalled();
         expect(result.success).toBe(true);
       });
 
       it('should route get_variables with scope filter', async () => {
-        await toolRouter.routeToolCall('get_variables', { scope: 'Locals' });
+        await toolRouter.routeToolCall(TOOL_NAMES.getVariables, { scope: 'Locals' });
 
         expect(mockToolRegistry.inspection.getVariables).toHaveBeenCalledWith({
           scope: 'Locals',
@@ -207,7 +208,7 @@ describe('ToolRouter', () => {
       });
 
       it('should route get_call_stack correctly', async () => {
-        const result = await toolRouter.routeToolCall('get_call_stack', {});
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.getCallStack, {});
 
         expect(mockToolRegistry.inspection.getCallStack).toHaveBeenCalled();
         expect(result.success).toBe(true);
@@ -224,7 +225,7 @@ describe('ToolRouter', () => {
           expressionValidationLevel: 'disabled' as const,
         });
 
-        const result = await toolRouter.routeToolCall('evaluate_expression', {
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.evaluateExpression, {
           expression: 'myVar',
         });
 
@@ -235,28 +236,28 @@ describe('ToolRouter', () => {
       });
 
       it('should route get_threads correctly', async () => {
-        const result = await toolRouter.routeToolCall('get_threads', {});
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.getThreads, {});
 
         expect(mockToolRegistry.inspection.getThreads).toHaveBeenCalled();
         expect(result.success).toBe(true);
       });
 
       it('should route get_debug_state correctly', async () => {
-        const result = await toolRouter.routeToolCall('get_debug_state', {});
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.getDebugState, {});
 
         expect(mockToolRegistry.inspection.getDebugState).toHaveBeenCalled();
         expect(result.success).toBe(true);
       });
 
       it('should route get_console_output correctly', async () => {
-        const result = await toolRouter.routeToolCall('get_console_output', {});
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.getConsoleOutput, {});
 
         expect(mockToolRegistry.inspection.getConsoleOutput).toHaveBeenCalled();
         expect(result.success).toBe(true);
       });
 
       it('should route clear_console_output correctly', async () => {
-        const result = await toolRouter.routeToolCall('clear_console_output', {});
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.clearConsoleOutput, {});
 
         expect(mockToolRegistry.inspection.clearConsoleOutput).toHaveBeenCalled();
         expect(result.success).toBe(true);
@@ -265,7 +266,7 @@ describe('ToolRouter', () => {
 
     describe('Debug Control Tools', () => {
       it('should route start_debugging correctly', async () => {
-        const result = await toolRouter.routeToolCall('start_debugging', {
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.startDebugging, {
           name: 'Launch Program',
         });
 
@@ -274,49 +275,49 @@ describe('ToolRouter', () => {
       });
 
       it('should route stop_debugging correctly', async () => {
-        const result = await toolRouter.routeToolCall('stop_debugging', {});
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.stopDebugging, {});
 
         expect(mockToolRegistry.debugControl.stopDebugging).toHaveBeenCalled();
         expect(result.success).toBe(true);
       });
 
       it('should route continue correctly', async () => {
-        const result = await toolRouter.routeToolCall('continue', {});
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.continueExecution, {});
 
         expect(mockToolRegistry.debugControl.continueExecution).toHaveBeenCalled();
         expect(result.success).toBe(true);
       });
 
       it('should route pause correctly', async () => {
-        const result = await toolRouter.routeToolCall('pause', {});
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.pause, {});
 
         expect(mockToolRegistry.debugControl.pause).toHaveBeenCalled();
         expect(result.success).toBe(true);
       });
 
       it('should route restart correctly', async () => {
-        const result = await toolRouter.routeToolCall('restart', {});
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.restart, {});
 
         expect(mockToolRegistry.debugControl.restart).toHaveBeenCalled();
         expect(result.success).toBe(true);
       });
 
       it('should route step_over correctly', async () => {
-        const result = await toolRouter.routeToolCall('step_over', {});
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.stepOver, {});
 
         expect(mockToolRegistry.debugControl.stepOver).toHaveBeenCalled();
         expect(result.success).toBe(true);
       });
 
       it('should route step_into correctly', async () => {
-        const result = await toolRouter.routeToolCall('step_into', {});
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.stepInto, {});
 
         expect(mockToolRegistry.debugControl.stepInto).toHaveBeenCalled();
         expect(result.success).toBe(true);
       });
 
       it('should route step_out correctly', async () => {
-        const result = await toolRouter.routeToolCall('step_out', {});
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.stepOut, {});
 
         expect(mockToolRegistry.debugControl.stepOut).toHaveBeenCalled();
         expect(result.success).toBe(true);
@@ -335,7 +336,7 @@ describe('ToolRouter', () => {
         (mockToolRegistry.breakpoints.setBreakpoint as any).mockRejectedValue(error);
 
         await expect(
-          toolRouter.routeToolCall('set_breakpoint', {
+          toolRouter.routeToolCall(TOOL_NAMES.setBreakpoint, {
             filePath: '/test.js',
             line: 1,
           })
@@ -347,7 +348,7 @@ describe('ToolRouter', () => {
   describe('Input Validation', () => {
     it('should reject set_breakpoint with missing filePath', async () => {
       await expect(
-        toolRouter.routeToolCall('set_breakpoint', {
+        toolRouter.routeToolCall(TOOL_NAMES.setBreakpoint, {
           line: 10,
         })
       ).rejects.toThrow(/filePath/i);
@@ -355,7 +356,7 @@ describe('ToolRouter', () => {
 
     it('should reject set_breakpoint with missing line', async () => {
       await expect(
-        toolRouter.routeToolCall('set_breakpoint', {
+        toolRouter.routeToolCall(TOOL_NAMES.setBreakpoint, {
           filePath: '/test/file.js',
         })
       ).rejects.toThrow(/line/i);
@@ -363,7 +364,7 @@ describe('ToolRouter', () => {
 
     it('should reject set_breakpoint with invalid line number', async () => {
       await expect(
-        toolRouter.routeToolCall('set_breakpoint', {
+        toolRouter.routeToolCall(TOOL_NAMES.setBreakpoint, {
           filePath: '/test/file.js',
           line: -1,
         })
@@ -372,20 +373,20 @@ describe('ToolRouter', () => {
 
     it('should reject evaluate_expression with empty expression', async () => {
       await expect(
-        toolRouter.routeToolCall('evaluate_expression', {
+        toolRouter.routeToolCall(TOOL_NAMES.evaluateExpression, {
           expression: '',
         })
       ).rejects.toThrow(/expression/i);
     });
 
     it('should reject start_debugging without name or configuration', async () => {
-      await expect(toolRouter.routeToolCall('start_debugging', {})).rejects.toThrow(
+      await expect(toolRouter.routeToolCall(TOOL_NAMES.startDebugging, {})).rejects.toThrow(
         /name|configuration/i
       );
     });
 
     it('should accept set_breakpoint with optional parameters', async () => {
-      await toolRouter.routeToolCall('set_breakpoint', {
+      await toolRouter.routeToolCall(TOOL_NAMES.setBreakpoint, {
         filePath: '/test/file.js',
         line: 10,
         condition: 'x > 5',
@@ -403,7 +404,7 @@ describe('ToolRouter', () => {
     });
 
     it('should accept get_console_output with all optional parameters', async () => {
-      await toolRouter.routeToolCall('get_console_output', {
+      await toolRouter.routeToolCall(TOOL_NAMES.getConsoleOutput, {
         category: 'stdout',
         limit: 50,
         since: 1234567890,
@@ -420,7 +421,7 @@ describe('ToolRouter', () => {
 
     it('should reject get_console_output with invalid category', async () => {
       await expect(
-        toolRouter.routeToolCall('get_console_output', {
+        toolRouter.routeToolCall(TOOL_NAMES.getConsoleOutput, {
           category: 'invalid_category',
         })
       ).rejects.toThrow(/category/i);
@@ -439,7 +440,7 @@ describe('ToolRouter', () => {
         expressionValidationLevel: 'moderate' as const,
       });
 
-      await toolRouter.routeToolCall('wait_for_breakpoint', {});
+      await toolRouter.routeToolCall(TOOL_NAMES.waitForBreakpoint, {});
 
       expect(mockToolRegistry.inspection.waitForBreakpoint).toHaveBeenCalledWith({
         timeout: undefined,
@@ -458,7 +459,7 @@ describe('ToolRouter', () => {
         expressionValidationLevel: 'moderate' as const,
       });
 
-      await toolRouter.routeToolCall('wait_for_breakpoint', { timeout: 10000 });
+      await toolRouter.routeToolCall(TOOL_NAMES.waitForBreakpoint, { timeout: 10000 });
 
       expect(mockToolRegistry.inspection.waitForBreakpoint).toHaveBeenCalledWith({
         timeout: 10000,

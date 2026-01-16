@@ -85,7 +85,11 @@ export interface DAPMessage {
   type: 'response' | 'event' | 'request';
   command?: string;
   event?: string;
-  body?: DAPStoppedEventBody | DAPOutputEventBody | DAPStackTraceResponseBody | Record<string, unknown>;
+  body?:
+    | DAPStoppedEventBody
+    | DAPOutputEventBody
+    | DAPStackTraceResponseBody
+    | Record<string, unknown>;
   success?: boolean;
   requestSeq?: number;
 }

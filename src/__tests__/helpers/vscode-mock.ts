@@ -254,6 +254,15 @@ export const createMockCommandsAPI = () => ({
   getCommands: vi.fn(() => Promise.resolve([])),
 });
 
+// Disposable class mock
+export class MockDisposable {
+  constructor(private disposeFn: () => void = () => {}) {}
+
+  dispose() {
+    this.disposeFn();
+  }
+}
+
 /**
  * Creates a complete VS Code API mock for testing
  */
@@ -289,13 +298,15 @@ export function createVSCodeMock() {
     SymbolKind,
 
     // Types
-    Disposable: {
+    Disposable: Object.assign(MockDisposable, {
       from: (...disposables: any[]) => ({
         dispose: () => disposables.forEach((d) => d.dispose()),
       }),
-    },
+    }),
   };
 }
+
+export const Disposable = MockDisposable;
 
 /**
  * Helper to reset all mocks in the VS Code API

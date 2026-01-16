@@ -28,6 +28,7 @@ import {
 } from './types/toolArguments';
 import type { ToolSchema, EvaluationResult } from './types/toolResults';
 import { UnknownToolError, InvalidArgumentsError, ExpressionUserDeclinedError } from '../errors';
+import { TOOL_NAMES } from './toolNames';
 
 /**
  * Type for tool handler functions.
@@ -76,10 +77,10 @@ export class ToolRouter {
     const allowStepOperations = this.configManager.getConfig().allowStepOperations;
 
     // Tools available in all modes (inspection and breakpoints)
-    const commonTools = [...breakpointSchemas, ...inspectionSchemas];
+    const commonTools: ToolSchema[] = [...breakpointSchemas, ...inspectionSchemas];
 
     // Tools only available in full automation mode
-    const fullAutomationTools = [...debugControlSchemas];
+    const fullAutomationTools: ToolSchema[] = [...debugControlSchemas];
 
     // Conditionally add step operations if enabled
     if (allowStepOperations) {
@@ -127,7 +128,7 @@ export class ToolRouter {
     }
 
     // Special handling for evaluate_expression with security validation
-    if (toolName === 'evaluate_expression' && server) {
+    if (toolName === TOOL_NAMES.evaluateExpression && server) {
       return await this.handleEvaluateExpressionWithValidation(
         validatedArgs as EvaluateExpressionArgs,
         server
@@ -145,52 +146,52 @@ export class ToolRouter {
     return new Map<string, ToolHandler>([
       // Breakpoint tools
       [
-        'set_breakpoint',
+        TOOL_NAMES.setBreakpoint,
         (args: SetBreakpointArgs) => this.toolRegistry.breakpoints.setBreakpoint(args),
       ],
       [
-        'remove_breakpoint',
+        TOOL_NAMES.removeBreakpoint,
         (args: RemoveBreakpointArgs) => this.toolRegistry.breakpoints.removeBreakpoint(args),
       ],
-      ['list_breakpoints', () => this.toolRegistry.breakpoints.listBreakpoints()],
+      [TOOL_NAMES.listBreakpoints, () => this.toolRegistry.breakpoints.listBreakpoints()],
       [
-        'toggle_breakpoint',
+        TOOL_NAMES.toggleBreakpoint,
         (args: ToggleBreakpointArgs) => this.toolRegistry.breakpoints.toggleBreakpoint(args),
       ],
-      ['remove_all_breakpoints', () => this.toolRegistry.breakpoints.removeAllBreakpoints()],
+      [TOOL_NAMES.removeAllBreakpoints, () => this.toolRegistry.breakpoints.removeAllBreakpoints()],
 
       // Inspection tools
       [
-        'get_variables',
+        TOOL_NAMES.getVariables,
         (args: GetVariablesArgs) => this.toolRegistry.inspection.getVariables(args),
       ],
       [
-        'get_call_stack',
+        TOOL_NAMES.getCallStack,
         (args: GetCallStackArgs) => this.toolRegistry.inspection.getCallStack(args),
       ],
       [
-        'evaluate_expression',
+        TOOL_NAMES.evaluateExpression,
         (args: EvaluateExpressionArgs) => this.toolRegistry.inspection.evaluateExpression(args),
       ],
-      ['get_threads', () => this.toolRegistry.inspection.getThreads()],
-      ['get_debug_state', () => this.toolRegistry.inspection.getDebugState()],
+      [TOOL_NAMES.getThreads, () => this.toolRegistry.inspection.getThreads()],
+      [TOOL_NAMES.getDebugState, () => this.toolRegistry.inspection.getDebugState()],
       [
-        'get_console_output',
+        TOOL_NAMES.getConsoleOutput,
         (args: GetConsoleOutputArgs) => this.toolRegistry.inspection.getConsoleOutput(args),
       ],
-      ['clear_console_output', () => this.toolRegistry.inspection.clearConsoleOutput()],
+      [TOOL_NAMES.clearConsoleOutput, () => this.toolRegistry.inspection.clearConsoleOutput()],
 
       // Debug control tools (full automation only)
       [
-        'start_debugging',
+        TOOL_NAMES.startDebugging,
         (args: StartDebuggingArgs) => this.toolRegistry.debugControl.startDebugging(args),
       ],
-      ['stop_debugging', () => this.toolRegistry.debugControl.stopDebugging()],
-      ['continue', () => this.toolRegistry.debugControl.continueExecution()],
-      ['pause', () => this.toolRegistry.debugControl.pause()],
-      ['restart', () => this.toolRegistry.debugControl.restart()],
+      [TOOL_NAMES.stopDebugging, () => this.toolRegistry.debugControl.stopDebugging()],
+      [TOOL_NAMES.continueExecution, () => this.toolRegistry.debugControl.continueExecution()],
+      [TOOL_NAMES.pause, () => this.toolRegistry.debugControl.pause()],
+      [TOOL_NAMES.restart, () => this.toolRegistry.debugControl.restart()],
       [
-        'wait_for_breakpoint',
+        TOOL_NAMES.waitForBreakpoint,
         (args: WaitForBreakpointArgs) => {
           const automationLevel = this.configManager.getConfig().automationLevel;
           return this.toolRegistry.inspection.waitForBreakpoint({
@@ -201,9 +202,9 @@ export class ToolRouter {
       ],
 
       // Step operations (opt-in)
-      ['step_over', () => this.toolRegistry.debugControl.stepOver()],
-      ['step_into', () => this.toolRegistry.debugControl.stepInto()],
-      ['step_out', () => this.toolRegistry.debugControl.stepOut()],
+      [TOOL_NAMES.stepOver, () => this.toolRegistry.debugControl.stepOver()],
+      [TOOL_NAMES.stepInto, () => this.toolRegistry.debugControl.stepInto()],
+      [TOOL_NAMES.stepOut, () => this.toolRegistry.debugControl.stepOut()],
     ]);
   }
 

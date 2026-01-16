@@ -5,9 +5,12 @@
  * Tool schemas for breakpoint management operations.
  */
 
+import { TOOL_NAMES } from '../toolNames';
+
 export const breakpointSchemas = [
   {
-    name: 'set_breakpoint',
+    name: TOOL_NAMES.setBreakpoint,
+
     description: 'Set a breakpoint at the specified file and line',
     inputSchema: {
       type: 'object',
@@ -37,7 +40,7 @@ export const breakpointSchemas = [
     },
   },
   {
-    name: 'remove_breakpoint',
+    name: TOOL_NAMES.removeBreakpoint,
     description: 'Remove a breakpoint at the specified location',
     inputSchema: {
       type: 'object',
@@ -55,7 +58,7 @@ export const breakpointSchemas = [
     },
   },
   {
-    name: 'list_breakpoints',
+    name: TOOL_NAMES.listBreakpoints,
     description: 'List all breakpoints in the workspace',
     inputSchema: {
       type: 'object',
@@ -63,7 +66,7 @@ export const breakpointSchemas = [
     },
   },
   {
-    name: 'toggle_breakpoint',
+    name: TOOL_NAMES.toggleBreakpoint,
     description: 'Toggle a breakpoint enabled/disabled state',
     inputSchema: {
       type: 'object',
@@ -81,7 +84,7 @@ export const breakpointSchemas = [
     },
   },
   {
-    name: 'remove_all_breakpoints',
+    name: TOOL_NAMES.removeAllBreakpoints,
     description: 'Remove all breakpoints from the workspace',
     inputSchema: {
       type: 'object',

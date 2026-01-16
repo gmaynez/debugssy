@@ -40,8 +40,12 @@ export enum ErrorCode {
   INVALID_ARGUMENTS = 'INVALID_ARGUMENTS',
   TOOL_EXECUTION_FAILED = 'TOOL_EXECUTION_FAILED',
 
+  // Resource errors (5xx)
+  RESOURCE_READ_FAILED = 'RESOURCE_READ_FAILED',
+
   // Automation level errors (6xx)
   AUTOMATION_LEVEL_RESTRICTED = 'AUTOMATION_LEVEL_RESTRICTED',
+
   STEP_OPERATIONS_DISABLED = 'STEP_OPERATIONS_DISABLED',
 
   // DAP errors (7xx)
@@ -270,6 +274,24 @@ export class ToolExecutionError extends DebugssyError {
   constructor(toolName: string, reason: string) {
     super(`Tool '${toolName}' execution failed: ${reason}`, {
       toolName,
+      reason,
+    });
+  }
+}
+
+// =============================================================================
+// Resource Errors
+// =============================================================================
+
+/**
+ * Error thrown when a resource cannot be read.
+ */
+export class ResourceReadError extends DebugssyError {
+  readonly code = ErrorCode.RESOURCE_READ_FAILED;
+
+  constructor(resourceUri: string, reason: string) {
+    super(`Failed to read resource: ${resourceUri}. ${reason}`, {
+      resourceUri,
       reason,
     });
   }

@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: 2025 Guillermo Garcia Maynez
 
 import * as vscode from 'vscode';
+import { ResourceReadError } from '../errors';
+import { TOOL_NAMES } from './toolNames';
 
 /**
  * Provides MCP resources for debugging context.
@@ -42,7 +44,7 @@ export class ResourceProvider {
         resources.push({
           uri,
           name: `${folder.name} Debug Configurations`,
-          description: `Debug configurations from ${folder.name}/.vscode/launch.json. Use the "name" field from configurations when calling start_debugging.`,
+          description: `Debug configurations from ${folder.name}/.vscode/launch.json. Use the "name" field from configurations when calling ${TOOL_NAMES.startDebugging}.`,
           mimeType: 'application/json',
         });
       } catch {
@@ -68,8 +70,9 @@ export class ResourceProvider {
     const match = uri.match(/^debugssy:\/\/\/([^/]+)\/launch\.json$/);
 
     if (!match) {
-      throw new Error(
-        `Invalid resource URI: ${uri}. Expected format: debugssy:///workspaceName/launch.json`
+      throw new ResourceReadError(
+        uri,
+        'Invalid resource URI. Expected format: debugssy:///workspaceName/launch.json'
       );
     }
 
@@ -77,13 +80,13 @@ export class ResourceProvider {
     const workspaceFolders = vscode.workspace.workspaceFolders;
 
     if (!workspaceFolders) {
-      throw new Error('No workspace folders open');
+      throw new ResourceReadError(uri, 'No workspace folders open');
     }
 
     // Find the workspace folder
     const folder = workspaceFolders.find((f) => f.name === workspaceName);
     if (!folder) {
-      throw new Error(`Workspace folder "${workspaceName}" not found`);
+      throw new ResourceReadError(uri, `Workspace folder "${workspaceName}" not found`);
     }
 
     const launchUri = vscode.Uri.joinPath(folder.uri, '.vscode', 'launch.json');
@@ -103,7 +106,10 @@ export class ResourceProvider {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`Failed to read launch.json from ${folder.name}: ${message}`);
+      throw new ResourceReadError(
+        uri,
+        `Failed to read launch.json from ${folder.name}: ${message}`
+      );
     }
   }
 }

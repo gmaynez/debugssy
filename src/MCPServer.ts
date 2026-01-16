@@ -398,6 +398,201 @@ export class MCPServer {
     });
   }
 
+  private isSSERequest(req: express.Request): boolean {
+    const acceptHeader = req.headers['accept'] as string | undefined;
+    return req.method === 'GET' && acceptHeader?.includes('text/event-stream') === true;
+  }
+
+  private sendJsonRpcError(
+    res: express.Response,
+    status: number,
+    error: string,
+    extra: Record<string, unknown> = {}
+  ): void {
+    if (res.headersSent) {
+      return;
+    }
+    res.status(status).json({
+      error,
+      jsonrpc: '2.0',
+      id: null,
+      ...extra,
+    });
+  }
+
+  private ensureTransportReady(res: express.Response): StreamableHTTPServerTransport | null {
+    if (!this.isTransportReady || !this.transport) {
+      this.metrics.initRejections503++;
+      this.logger.warn(
+        `MCP request received before transport is ready (rejection #${this.metrics.initRejections503})`
+      );
+      this.sendJsonRpcError(res, 503, 'Service temporarily unavailable - transport initializing', {
+        retryAfter: 1,
+      });
+      return null;
+    }
+
+    return this.transport;
+  }
+
+  private async handleMcpRequest(req: express.Request, res: express.Response): Promise<void> {
+    try {
+      const transport = this.ensureTransportReady(res);
+      if (!transport) {
+        return;
+      }
+
+      const sessionId = req.headers['mcp-session-id'] as string | undefined;
+      const isInitRequest = !sessionId;
+      const isSSERequest = this.isSSERequest(req);
+
+      if (isInitRequest) {
+        await this.handleInitRequest(req, res, transport, isSSERequest);
+        return;
+      }
+
+      await transport.handleRequest(req, res);
+    } catch (error: unknown) {
+      this.logger.error('Error handling MCP request:', error);
+
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.sendJsonRpcError(res, 500, errorMessage);
+    }
+  }
+
+  private async handleInitRequest(
+    req: express.Request,
+    res: express.Response,
+    transport: StreamableHTTPServerTransport,
+    isSSERequest: boolean
+  ): Promise<void> {
+    const requestId = randomUUID().substring(0, 8);
+    this.metrics.initAttempts++;
+    this.logger.info(
+      `[${requestId}] Init request received, isSSE=${isSSERequest}, total attempts: ${this.metrics.initAttempts}`
+    );
+
+    const requestPromise = isSSERequest
+      ? this.handleSSEInitRequest(req, res, transport, requestId)
+      : this.handleSerializedInitRequest(req, res, transport, requestId);
+
+    this.trackRequest(requestPromise);
+    await requestPromise;
+  }
+
+  private async handleSerializedInitRequest(
+    req: express.Request,
+    res: express.Response,
+    transport: StreamableHTTPServerTransport,
+    requestId: string
+  ): Promise<void> {
+    let release: (() => void) | null = null;
+
+    try {
+      if (this.hasSuccessfulInit) {
+        this.metrics.initRejections503++;
+        this.logger.info(
+          `[${requestId}] Rejecting init - transport already initialized by another client (rejection #${this.metrics.initRejections503})`
+        );
+        this.sendJsonRpcError(res, 503, 'Server busy with another initialization - please retry', {
+          retryAfter: 1,
+        });
+        return;
+      }
+
+      if (this.isInitLockHeld) {
+        this.metrics.concurrentInitRejections++;
+        this.logger.info(
+          `[${requestId}] Rejecting concurrent init - lock held (concurrent rejection #${this.metrics.concurrentInitRejections})`
+        );
+        this.sendJsonRpcError(res, 503, 'Server busy with another initialization - please retry', {
+          retryAfter: 1,
+        });
+        return;
+      }
+
+      release = await this.acquireInitLock();
+      this.initLockRelease = release;
+      this.logger.debug(`[${requestId}] Processing initialization request (lock acquired)`);
+
+      if (!this.transport) {
+        throw new Error('Transport became unavailable during initialization');
+      }
+
+      await transport.handleRequest(req, res);
+      this.logger.debug(`[${requestId}] Transport completed successfully`);
+
+      this.hasSuccessfulInit = true;
+      this.metrics.initSuccesses++;
+      this.logger.info(
+        `[${requestId}] Initialization successful (success #${this.metrics.initSuccesses})`
+      );
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`[${requestId}] Transport error:`, errorMessage);
+
+      if (errorMessage.includes('Server already initialized')) {
+        this.metrics.alreadyInitializedErrors++;
+        this.logger.debug(
+          `[${requestId}] Transport already initialized (error #${this.metrics.alreadyInitializedErrors})`
+        );
+
+        this.sendJsonRpcError(res, 503, 'Server busy with another initialization - please retry', {
+          retryAfter: 1,
+        });
+        return;
+      }
+
+      throw error;
+    } finally {
+      if (release) {
+        this.scheduleTimer(() => {
+          if (release) {
+            release();
+            this.initLockRelease = null;
+            this.logger.debug(`[${requestId}] Lock released`);
+          }
+        }, 10);
+      }
+    }
+  }
+
+  private async handleSSEInitRequest(
+    req: express.Request,
+    res: express.Response,
+    transport: StreamableHTTPServerTransport,
+    requestId: string
+  ): Promise<void> {
+    this.logger.debug(`[${requestId}] Processing SSE initialization request (no lock)`);
+
+    try {
+      if (!this.transport) {
+        throw new Error('Transport became unavailable during initialization');
+      }
+
+      await transport.handleRequest(req, res);
+      this.logger.debug(`[${requestId}] SSE transport completed successfully`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`[${requestId}] SSE transport error:`, errorMessage);
+      throw error;
+    }
+  }
+
+  private handleHealthCheck(_req: express.Request, res: express.Response): void {
+    const isReady = this.isTransportReady && !!this.transport;
+    res.status(isReady ? 200 : 503).json({
+      status: isReady ? 'ready' : 'initializing',
+      server: 'debugssy-mcp',
+      version: EXTENSION_VERSION,
+      transportInitialized: !!this.transport,
+      transportReady: this.isTransportReady,
+      transport: 'streamable-http',
+      protocolVersion: CURRENT_MCP_PROTOCOL_VERSION,
+      supportedProtocolVersions: SUPPORTED_MCP_PROTOCOL_VERSIONS,
+    });
+  }
+
   private initializeMCPServer(): void {
     // Create a fresh MCP Server instance
     this.mcpServer = new Server(
@@ -516,12 +711,7 @@ export class MCPServer {
     this.mcpServer.setRequestHandler(ReadResourceRequestSchema, async (request) => {
       const { uri } = request.params;
 
-      try {
-        return await this.resourceProvider.readResource(uri);
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-        throw new Error(`Failed to read resource: ${errorMessage}`);
-      }
+      return await this.resourceProvider.readResource(uri);
     });
   }
 
@@ -571,202 +761,12 @@ export class MCPServer {
 
     // Main MCP endpoint - StreamableHTTPServerTransport handles sessions internally
     this.app.all('/mcp', async (req, res) => {
-      try {
-        // Check if transport is ready - return 503 to trigger client retry
-        if (!this.isTransportReady || !this.transport) {
-          this.metrics.initRejections503++;
-          this.logger.warn(
-            `MCP request received before transport is ready (rejection #${this.metrics.initRejections503})`
-          );
-          if (!res.headersSent) {
-            res.status(503).json({
-              error: 'Service temporarily unavailable - transport initializing',
-              jsonrpc: '2.0',
-              id: null,
-              retryAfter: 1, // Suggest retry after 1 second
-            });
-          }
-          return;
-        }
-
-        // Detect initialization requests (no Mcp-Session-Id header)
-        // and serialize them to prevent "Server already initialized" errors
-        const sessionId = req.headers['mcp-session-id'] as string | undefined;
-        const isInitRequest = !sessionId;
-
-        // Check if this is an SSE request (fallback mechanism)
-        // SSE requests should always be allowed, even during initialization
-        const acceptHeader = req.headers['accept'] as string | undefined;
-        const isSSERequest = req.method === 'GET' && acceptHeader?.includes('text/event-stream');
-
-        if (isInitRequest) {
-          // Use cryptographically secure UUID for request IDs (consistent with session ID generation)
-          const requestId = randomUUID().substring(0, 8);
-          this.metrics.initAttempts++;
-          this.logger.info(
-            `[${requestId}] Init request received, isSSE=${isSSERequest}, total attempts: ${this.metrics.initAttempts}`
-          );
-
-          // Track this request for graceful shutdown
-          const requestPromise = (async () => {
-            // Allow SSE requests to bypass serialization
-            // SSE is a fallback mechanism that should always work concurrently
-            if (!isSSERequest) {
-              // Try to acquire the initialization lock
-              // This serializes concurrent init requests properly
-              let release: (() => void) | null = null;
-              try {
-                // Check if an initialization has already succeeded
-                // MCP transport only allows ONE initialization per server instance
-                if (this.hasSuccessfulInit) {
-                  this.metrics.initRejections503++;
-                  this.logger.info(
-                    `[${requestId}] Rejecting init - transport already initialized by another client (rejection #${this.metrics.initRejections503})`
-                  );
-                  if (!res.headersSent) {
-                    res.status(503).json({
-                      error: 'Server busy with another initialization - please retry',
-                      jsonrpc: '2.0',
-                      id: null,
-                      retryAfter: 1,
-                    });
-                  }
-                  return;
-                }
-
-                // Check if lock is already held by another request
-                if (this.isInitLockHeld) {
-                  // Another init is in progress - reject with 503
-                  this.metrics.concurrentInitRejections++;
-                  this.logger.info(
-                    `[${requestId}] Rejecting concurrent init - lock held (concurrent rejection #${this.metrics.concurrentInitRejections})`
-                  );
-                  if (!res.headersSent) {
-                    res.status(503).json({
-                      error: 'Server busy with another initialization - please retry',
-                      jsonrpc: '2.0',
-                      id: null,
-                      retryAfter: 1,
-                    });
-                  }
-                  return;
-                }
-
-                // Acquire the lock
-                release = await this.acquireInitLock();
-                this.initLockRelease = release;
-                this.logger.debug(
-                  `[${requestId}] Processing initialization request (lock acquired)`
-                );
-
-                // Double-check transport is still available
-                if (!this.transport) {
-                  throw new Error('Transport became unavailable during initialization');
-                }
-
-                // Handle the request
-                await this.transport.handleRequest(req, res);
-                this.logger.debug(`[${requestId}] Transport completed successfully`);
-
-                // Mark that an initialization has succeeded
-                // This prevents subsequent init attempts from trying
-                this.hasSuccessfulInit = true;
-                this.metrics.initSuccesses++;
-                this.logger.info(
-                  `[${requestId}] Initialization successful (success #${this.metrics.initSuccesses})`
-                );
-              } catch (error: unknown) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                this.logger.error(`[${requestId}] Transport error:`, errorMessage);
-
-                // Check if this is a "Server already initialized" error from the MCP transport
-                // This can happen when MCP clients create multiple instances for the same server
-                if (errorMessage.includes('Server already initialized')) {
-                  this.metrics.alreadyInitializedErrors++;
-                  this.logger.debug(
-                    `[${requestId}] Transport already initialized (error #${this.metrics.alreadyInitializedErrors})`
-                  );
-
-                  if (!res.headersSent) {
-                    res.status(503).json({
-                      error: 'Server busy with another initialization - please retry',
-                      jsonrpc: '2.0',
-                      id: null,
-                      retryAfter: 1,
-                    });
-                  }
-                  return;
-                }
-
-                throw error;
-              } finally {
-                // Release the lock
-                if (release) {
-                  // Small delay to ensure response is fully sent before allowing next init
-                  // This prevents race conditions in quick succession scenarios
-                  this.scheduleTimer(() => {
-                    if (release) {
-                      release();
-                      this.initLockRelease = null;
-                      this.logger.debug(`[${requestId}] Lock released`);
-                    }
-                  }, 10);
-                }
-              }
-            } else {
-              // SSE requests bypass the lock entirely
-              this.logger.debug(`[${requestId}] Processing SSE initialization request (no lock)`);
-              try {
-                // Double-check transport is still available
-                if (!this.transport) {
-                  throw new Error('Transport became unavailable during initialization');
-                }
-
-                await this.transport.handleRequest(req, res);
-                this.logger.debug(`[${requestId}] SSE transport completed successfully`);
-              } catch (error: unknown) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                this.logger.error(`[${requestId}] SSE transport error:`, errorMessage);
-                throw error;
-              }
-            }
-          })();
-
-          this.trackRequest(requestPromise);
-          await requestPromise;
-          return; // Exit early to prevent duplicate handling
-        }
-
-        // Handle non-initialization requests (with session ID) normally
-        // These bypass the queue and process immediately
-        await this.transport.handleRequest(req, res);
-      } catch (error: unknown) {
-        this.logger.error('Error handling MCP request:', error);
-
-        if (!res.headersSent) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-          res.status(500).json({
-            error: errorMessage,
-            jsonrpc: '2.0',
-            id: null,
-          });
-        }
-      }
+      await this.handleMcpRequest(req, res);
     });
 
     // Health check endpoint - allows clients to poll for readiness
-    this.app.get('/health', (_req, res) => {
-      const isReady = this.isTransportReady && !!this.transport;
-      res.status(isReady ? 200 : 503).json({
-        status: isReady ? 'ready' : 'initializing',
-        server: 'debugssy-mcp',
-        version: EXTENSION_VERSION,
-        transportInitialized: !!this.transport,
-        transportReady: this.isTransportReady,
-        transport: 'streamable-http',
-        protocolVersion: CURRENT_MCP_PROTOCOL_VERSION,
-        supportedProtocolVersions: SUPPORTED_MCP_PROTOCOL_VERSIONS,
-      });
+    this.app.get('/health', (req, res) => {
+      this.handleHealthCheck(req, res);
     });
   }
 
