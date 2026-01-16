@@ -57,6 +57,23 @@ export class MockUri {
     return new MockUri('file', '', value, '', '', value);
   }
 
+  /**
+   * Static method to join path segments to a base URI.
+   * Matches VS Code's vscode.Uri.joinPath(base, ...segments) signature.
+   */
+  static joinPath(base: MockUri, ...pathSegments: string[]): MockUri {
+    const joinedPath = [base.fsPath, ...pathSegments].join('/');
+    return new MockUri('file', '', joinedPath, '', '', joinedPath);
+  }
+
+  /**
+   * Instance method for compatibility (some code may use uri.joinPath()).
+   * @deprecated Use static Uri.joinPath(uri, ...segments) instead.
+   */
+  joinPath(...pathSegments: string[]): MockUri {
+    return MockUri.joinPath(this, ...pathSegments);
+  }
+
   toString() {
     return this.fsPath;
   }
@@ -101,6 +118,14 @@ export class MockSourceBreakpoint {
   }
 }
 
+// RelativePattern mock
+export class MockRelativePattern {
+  constructor(
+    public base: string,
+    public pattern: string
+  ) {}
+}
+
 // Debug Session mock
 export const createMockDebugSession = (name: string = 'test-session', type: string = 'node') =>
   ({
@@ -120,6 +145,7 @@ export const createMockDebugSession = (name: string = 'test-session', type: stri
 // Debug API mock
 export const createMockDebugAPI = () => ({
   activeDebugSession: undefined as any,
+  activeStackFrame: undefined as any,
   breakpoints: [] as any[],
   onDidStartDebugSession: vi.fn(() => mockDisposable()),
   onDidTerminateDebugSession: vi.fn(() => mockDisposable()),
@@ -137,6 +163,44 @@ export const createMockDebugAPI = () => ({
   stopDebugging: vi.fn(),
 });
 
+// File type enum mock (matches vscode.FileType)
+export const FileType = {
+  Unknown: 0,
+  File: 1,
+  Directory: 2,
+  SymbolicLink: 64,
+} as const;
+
+// Symbol kind enum mock (matches vscode.SymbolKind)
+export const SymbolKind = {
+  File: 0,
+  Module: 1,
+  Namespace: 2,
+  Package: 3,
+  Class: 4,
+  Method: 5,
+  Property: 6,
+  Field: 7,
+  Constructor: 8,
+  Enum: 9,
+  Interface: 10,
+  Function: 11,
+  Variable: 12,
+  Constant: 13,
+  String: 14,
+  Number: 15,
+  Boolean: 16,
+  Array: 17,
+  Object: 18,
+  Key: 19,
+  Null: 20,
+  EnumMember: 21,
+  Struct: 22,
+  Event: 23,
+  Operator: 24,
+  TypeParameter: 25,
+} as const;
+
 // Workspace API mock
 export const createMockWorkspaceAPI = () => ({
   workspaceFolders: [] as any[],
@@ -148,16 +212,24 @@ export const createMockWorkspaceAPI = () => ({
   })),
   onDidChangeConfiguration: vi.fn(() => mockDisposable()),
   onDidChangeWorkspaceFolders: vi.fn(() => mockDisposable()),
+  findFiles: vi.fn(),
+  createFileSystemWatcher: vi.fn(() => ({
+    onDidCreate: vi.fn(() => mockDisposable()),
+    onDidDelete: vi.fn(() => mockDisposable()),
+    dispose: vi.fn(),
+  })),
   fs: {
     readFile: vi.fn(),
     writeFile: vi.fn(),
     delete: vi.fn(),
+    stat: vi.fn(),
     createDirectory: vi.fn(),
   },
 });
 
 // Window API mock
 export const createMockWindowAPI = () => ({
+  activeTextEditor: undefined as any,
   showInformationMessage: vi.fn(),
   showWarningMessage: vi.fn(),
   showErrorMessage: vi.fn(),
@@ -205,6 +277,7 @@ export function createVSCodeMock() {
     Location: MockLocation,
     SourceBreakpoint: MockSourceBreakpoint,
     EventEmitter: MockEventEmitter,
+    RelativePattern: MockRelativePattern,
 
     // Enums
     ProgressLocation: {
@@ -212,6 +285,8 @@ export function createVSCodeMock() {
       SourceControl: 1,
       Window: 10,
     },
+    FileType,
+    SymbolKind,
 
     // Types
     Disposable: {
