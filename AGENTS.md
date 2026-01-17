@@ -171,6 +171,26 @@ export function validate[Lang](expr, checkMutations, checkWhitelists, extractCal
 4. **Zod validation** - All tool inputs validated before processing
 5. **Disposable cleanup** - All event listeners must be disposed
 6. **Session security** - UUIDs from crypto.randomUUID()
+7. **Type version alignment** - Keep `@types/vscode` and `@types/node` aligned
+   with minimum supported VS Code version (see `engines.vscode` in package.json)
+
+## Dependency Updates
+
+When updating npm dependencies, these packages are version-locked:
+
+| Package         | Constraint                                                  |
+| --------------- | ----------------------------------------------------------- |
+| `@types/vscode` | Must match `engines.vscode` (currently ^1.101.0)            |
+| `@types/node`   | Must match Node.js bundled in min VS Code (1.101 → Node 22) |
+
+VS Code bundles Electron which includes a specific Node.js version. To find the
+Node.js version for a VS Code release:
+
+1. Check VS Code release notes for Electron version
+2. Check what Node.js that Electron version bundles
+3. Or search: "VS Code [version] Electron Node.js version"
+
+Reference: VS Code 1.101 uses Electron 35.5.1 with Node.js 22.15.1
 
 ## Common Mistakes
 
