@@ -12,18 +12,26 @@ updates:
       prefix: "chore"
       include: "scope"
 
-  # Keep npm dependencies up to date
+  # Keep npm dependencies up to date (reduced frequency to minimize noise)
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
       - "npm"
     commit-message:
       prefix: "chore"
       include: "scope"
-    # Ignore major version updates for production dependencies
     ignore:
+      # Ignore major version updates for all dependencies
       - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      # @types/vscode must match engines.vscode (minimum supported VS Code version)
+      # Currently pinned to ^1.101.0 - do not update
+      - dependency-name: "@types/vscode"
+      # @types/node must match Node.js bundled in minimum VS Code version
+      # VS Code 1.101 bundles Node 22 via Electron 35 - stay on v22.x
+      - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
