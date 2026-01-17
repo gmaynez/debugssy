@@ -601,6 +601,8 @@ export class MCPServer {
       {
         name: 'debugssy',
         version: EXTENSION_VERSION,
+        description:
+          'MCP server for VS Code debugging - provides tools for breakpoints, variable inspection, and debug control via the Debug Adapter Protocol (DAP)',
       },
       {
         capabilities: {
