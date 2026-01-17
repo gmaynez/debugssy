@@ -59,6 +59,7 @@ describe('DebugControlTools', () => {
         automationLevel: 'assisted',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate',
       });
@@ -80,6 +81,7 @@ describe('DebugControlTools', () => {
         automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate',
       });
@@ -111,6 +113,7 @@ describe('DebugControlTools', () => {
         automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate',
       });
@@ -132,6 +135,7 @@ describe('DebugControlTools', () => {
         automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate',
       });
@@ -156,6 +160,7 @@ describe('DebugControlTools', () => {
         automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate',
       });
@@ -198,6 +203,7 @@ describe('DebugControlTools', () => {
         automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate',
       });
@@ -272,6 +278,7 @@ describe('DebugControlTools', () => {
           automationLevel: 'assisted',
           waitForBreakpointTimeout: 5000,
           allowStepOperations: false,
+          minifyResponses: true,
           maxExpressionLength: 100,
           expressionValidationLevel: 'moderate',
         });
@@ -291,6 +298,7 @@ describe('DebugControlTools', () => {
           automationLevel: 'full',
           waitForBreakpointTimeout: 5000,
           allowStepOperations: false,
+          minifyResponses: true,
           maxExpressionLength: 100,
           expressionValidationLevel: 'moderate',
         });
@@ -313,6 +321,7 @@ describe('DebugControlTools', () => {
           automationLevel: 'assisted',
           waitForBreakpointTimeout: 5000,
           allowStepOperations: false,
+          minifyResponses: true,
           maxExpressionLength: 100,
           expressionValidationLevel: 'moderate',
         });
@@ -331,6 +340,7 @@ describe('DebugControlTools', () => {
           automationLevel: 'full',
           waitForBreakpointTimeout: 5000,
           allowStepOperations: false,
+          minifyResponses: true,
           maxExpressionLength: 100,
           expressionValidationLevel: 'moderate',
         });
@@ -352,6 +362,7 @@ describe('DebugControlTools', () => {
           automationLevel: 'full',
           waitForBreakpointTimeout: 5000,
           allowStepOperations: false,
+          minifyResponses: true,
           maxExpressionLength: 100,
           expressionValidationLevel: 'moderate',
         });
@@ -373,6 +384,7 @@ describe('DebugControlTools', () => {
           automationLevel: 'full',
           waitForBreakpointTimeout: 5000,
           allowStepOperations: false,
+          minifyResponses: true,
           maxExpressionLength: 100,
           expressionValidationLevel: 'moderate',
         });
@@ -394,6 +406,7 @@ describe('DebugControlTools', () => {
           automationLevel: 'full',
           waitForBreakpointTimeout: 5000,
           allowStepOperations: false,
+          minifyResponses: true,
           maxExpressionLength: 100,
           expressionValidationLevel: 'moderate',
         });
@@ -413,6 +426,7 @@ describe('DebugControlTools', () => {
           automationLevel: 'full',
           waitForBreakpointTimeout: 5000,
           allowStepOperations: false,
+          minifyResponses: true,
           maxExpressionLength: 100,
           expressionValidationLevel: 'moderate',
         });
@@ -435,6 +449,7 @@ describe('DebugControlTools', () => {
         automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate',
       });
@@ -456,6 +471,7 @@ describe('DebugControlTools', () => {
         automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate',
       });
@@ -479,6 +495,7 @@ describe('DebugControlTools', () => {
         automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate',
       });

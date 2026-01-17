@@ -29,6 +29,7 @@ describe('ConfigManager', () => {
       expect(config.port).toBe(3000);
       expect(config.automationLevel).toBe('assisted');
       expect(config.allowStepOperations).toBe(false);
+      expect(config.minifyResponses).toBe(true);
       expect(config.maxExpressionLength).toBe(100);
       expect(config.expressionValidationLevel).toBe('moderate');
     });
@@ -41,6 +42,7 @@ describe('ConfigManager', () => {
               const config: Record<string, any> = {
                 'mcp.enabled': false,
                 'mcp.port': 8080,
+                'mcp.minifyResponses': false,
                 automationLevel: 'full',
                 waitForBreakpointTimeout: 10000,
                 allowStepOperations: true,
@@ -58,6 +60,7 @@ describe('ConfigManager', () => {
       expect(config.automationLevel).toBe('full');
       expect(config.waitForBreakpointTimeout).toBe(10000);
       expect(config.allowStepOperations).toBe(true);
+      expect(config.minifyResponses).toBe(false);
       expect(config.maxExpressionLength).toBe(200);
       expect(config.expressionValidationLevel).toBe('strict');
     });
@@ -71,6 +74,7 @@ describe('ConfigManager', () => {
         automationLevel: 'assisted' as const,
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate' as const,
       };
@@ -86,6 +90,7 @@ describe('ConfigManager', () => {
         automationLevel: 'assisted' as const,
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate' as const,
       };
@@ -101,6 +106,7 @@ describe('ConfigManager', () => {
         automationLevel: 'assisted' as const,
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate' as const,
       };
@@ -116,6 +122,7 @@ describe('ConfigManager', () => {
         automationLevel: 'assisted' as const,
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate' as const,
       };
@@ -139,6 +146,7 @@ describe('ConfigManager', () => {
           automationLevel: 'assisted' as const,
           waitForBreakpointTimeout: 5000,
           allowStepOperations: false,
+          minifyResponses: true,
           maxExpressionLength: 100,
           expressionValidationLevel: level,
         };
@@ -155,6 +163,7 @@ describe('ConfigManager', () => {
         automationLevel: 'assisted' as const,
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate' as const,
       };
@@ -178,6 +187,7 @@ describe('ConfigManager', () => {
         automationLevel: 'assisted' as const,
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate' as const,
       };

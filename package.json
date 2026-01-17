@@ -50,6 +50,11 @@
           "default": 3000,
           "description": "Port for the MCP server to listen on (localhost only)"
         },
+        "debugssy.mcp.minifyResponses": {
+          "type": "boolean",
+          "default": true,
+          "description": "Minify MCP tool JSON responses to reduce payload size"
+        },
         "debugssy.automationLevel": {
           "type": "string",
           "enum": [

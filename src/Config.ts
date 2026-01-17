@@ -12,6 +12,7 @@ import {
   MIN_EXPRESSION_LENGTH,
   MAX_EXPRESSION_LENGTH,
   DEFAULT_MAX_EXPRESSION_LENGTH,
+  DEFAULT_MINIFY_MCP_RESPONSES,
 } from './constants';
 import { Logger } from './utils/Logger';
 
@@ -37,6 +38,7 @@ export const DebugConfigurationSchema = z.object({
       message: `Timeout must be <= ${MAX_BREAKPOINT_TIMEOUT_MS}ms`,
     }),
   allowStepOperations: z.boolean(),
+  minifyResponses: z.boolean(),
   maxExpressionLength: z
     .number()
     .int()
@@ -76,6 +78,7 @@ export class ConfigManager {
         DEFAULT_BREAKPOINT_TIMEOUT_MS
       ),
       allowStepOperations: config.get<boolean>('allowStepOperations', false),
+      minifyResponses: config.get<boolean>('mcp.minifyResponses', DEFAULT_MINIFY_MCP_RESPONSES),
       maxExpressionLength: config.get<number>('maxExpressionLength', DEFAULT_MAX_EXPRESSION_LENGTH),
       expressionValidationLevel: config.get<'strict' | 'moderate' | 'permissive' | 'disabled'>(
         'expressionValidationLevel',
@@ -104,6 +107,7 @@ export class ConfigManager {
         automationLevel: 'assisted',
         waitForBreakpointTimeout: DEFAULT_BREAKPOINT_TIMEOUT_MS,
         allowStepOperations: false,
+        minifyResponses: DEFAULT_MINIFY_MCP_RESPONSES,
         maxExpressionLength: DEFAULT_MAX_EXPRESSION_LENGTH,
         expressionValidationLevel: 'moderate',
       });

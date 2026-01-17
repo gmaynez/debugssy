@@ -138,6 +138,7 @@ describe('InspectionTools', () => {
         automationLevel: 'assisted',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate',
       });
@@ -248,6 +249,7 @@ describe('InspectionTools', () => {
         automationLevel: 'full',
         waitForBreakpointTimeout: 100,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate',
       });
@@ -591,6 +593,7 @@ describe('InspectionTools', () => {
         automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 50,
         expressionValidationLevel: 'moderate',
       });

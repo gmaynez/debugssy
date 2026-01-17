@@ -123,6 +123,11 @@ export const MIN_BREAKPOINT_TIMEOUT_MS = 1000;
  */
 export const MAX_BREAKPOINT_TIMEOUT_MS = 300000;
 
+/**
+ * Default behavior for minifying MCP JSON responses.
+ */
+export const DEFAULT_MINIFY_MCP_RESPONSES = true;
+
 // =============================================================================
 // Completion & Search Constants
 // =============================================================================

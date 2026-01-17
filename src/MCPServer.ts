@@ -105,6 +105,7 @@ export class MCPServer {
   private completionProvider: CompletionProvider;
   private resourceProvider: ResourceProvider;
   private logger: Logger;
+  private configManager: ConfigManager;
 
   constructor(
     private port: number,
@@ -112,6 +113,7 @@ export class MCPServer {
     configManager: ConfigManager
   ) {
     this.logger = Logger.getInstance();
+    this.configManager = configManager;
     this.currentAutomationLevel = configManager.getConfig().automationLevel;
     this.app = express();
     // Note: Do NOT use express.json() middleware as it consumes the request stream
@@ -637,7 +639,7 @@ export class MCPServer {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(result, null, 2),
+              text: this.stringifyMcpPayload(result),
             },
           ],
         };
@@ -648,16 +650,12 @@ export class MCPServer {
             content: [
               {
                 type: 'text',
-                text: JSON.stringify(
-                  {
-                    success: false,
-                    error: error.message,
-                    code: getErrorCode(error),
-                    details: error.details,
-                  },
-                  null,
-                  2
-                ),
+                text: this.stringifyMcpPayload({
+                  success: false,
+                  error: error.message,
+                  code: getErrorCode(error),
+                  details: error.details,
+                }),
               },
             ],
             isError: true,
@@ -670,20 +668,21 @@ export class MCPServer {
           content: [
             {
               type: 'text',
-              text: JSON.stringify(
-                {
-                  success: false,
-                  error: errorMessage,
-                },
-                null,
-                2
-              ),
+              text: this.stringifyMcpPayload({
+                success: false,
+                error: errorMessage,
+              }),
             },
           ],
           isError: true,
         };
       }
     });
+  }
+
+  private stringifyMcpPayload(payload: unknown): string {
+    const { minifyResponses } = this.configManager.getConfig();
+    return minifyResponses ? JSON.stringify(payload) : JSON.stringify(payload, null, 2);
   }
 
   private setupPromptHandlers(): void {

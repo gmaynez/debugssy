@@ -85,6 +85,7 @@ describe('ToolRouter', () => {
         automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate' as const,
       });
@@ -109,6 +110,7 @@ describe('ToolRouter', () => {
         automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: true,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate' as const,
       });
@@ -128,6 +130,7 @@ describe('ToolRouter', () => {
         automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate' as const,
       });
@@ -221,6 +224,7 @@ describe('ToolRouter', () => {
           automationLevel: 'assisted',
           waitForBreakpointTimeout: 5000,
           allowStepOperations: false,
+          minifyResponses: true,
           maxExpressionLength: 100,
           expressionValidationLevel: 'disabled' as const,
         });
@@ -436,6 +440,7 @@ describe('ToolRouter', () => {
         automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate' as const,
       });
@@ -455,6 +460,7 @@ describe('ToolRouter', () => {
         automationLevel: 'full',
         waitForBreakpointTimeout: 5000,
         allowStepOperations: false,
+        minifyResponses: true,
         maxExpressionLength: 100,
         expressionValidationLevel: 'moderate' as const,
       });
