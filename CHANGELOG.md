@@ -2,6 +2,23 @@
 
 All notable changes to the "Debugssy" extension will be documented in this file.
 
+## [1.5.0] - 2026-01-16
+
+### Added
+
+- New setting `debugssy.mcp.minifyResponses` to reduce JSON payload sizes
+  (enabled by default)
+
+### Changed
+
+- Enhanced MCP request handling with better error responses
+- Improved type safety in DAP message handling
+- Updated MCP SDK to 1.25.2 and other dependencies
+
+### Fixed
+
+- Memory leak from configuration change listener
+
 ## [1.4.6] - 2025-12-05
 
 ### Changed
