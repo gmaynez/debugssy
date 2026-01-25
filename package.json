@@ -2,7 +2,7 @@
   "name": "debugssy",
   "displayName": "Debugssy",
   "description": "MCP server for VS Code debugging with tools for breakpoints, debug control, and variable inspection",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "publisher": "gamag",
   "author": {
     "name": "Guillermo Garcia Maynez Rocha"
@@ -144,26 +144,26 @@
     "publish-marketplace": "npm run prepare-publish && npm run package && npm run restore-publish"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.0",
+    "@eslint/js": "^9.39.2",
     "@types/express": "^5.0.6",
     "@types/node": "^22.19.7",
     "@types/vscode": "^1.101.0",
-    "@typescript-eslint/eslint-plugin": "^8.48.1",
-    "@typescript-eslint/parser": "^8.48.1",
-    "@vitest/coverage-v8": "^4.0.15",
-    "@vitest/ui": "^4.0.15",
+    "@typescript-eslint/eslint-plugin": "^8.53.1",
+    "@typescript-eslint/parser": "^8.53.1",
+    "@vitest/coverage-v8": "^4.0.17",
+    "@vitest/ui": "^4.0.17",
     "@vscode/vsce": "^3.7.1",
-    "esbuild": "^0.27.1",
-    "eslint": "^9.39.0",
+    "esbuild": "^0.27.2",
+    "eslint": "^9.39.2",
     "npm-run-all": "^4.1.5",
-    "ovsx": "^0.10.7",
+    "ovsx": "^0.10.8",
     "prettier": "3.8.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.15"
+    "vitest": "^4.0.17"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.24.3",
+    "@modelcontextprotocol/sdk": "^1.25.3",
     "express": "^5.2.1",
-    "zod": "^4.1.13"
+    "zod": "^4.3.5"
   }
 }

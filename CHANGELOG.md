@@ -2,6 +2,18 @@
 
 All notable changes to the "Debugssy" extension will be documented in this file.
 
+## [1.5.1] - 2026-01-25
+
+### Fixed
+
+- MCP reconnection now works automatically after config changes or extension
+  toggles. Previously required manually running "Debugssy: Restart Server".
+
+### Changed
+
+- Session replacement: new MCP client connections now take over from stale
+  sessions (single client at a time by design)
+
 ## [1.5.0] - 2026-01-16
 
 ### Added
