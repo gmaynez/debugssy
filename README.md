@@ -254,6 +254,8 @@ Press `F5` in VS Code to launch the Extension Development Host for live testing.
 
 ## Known Limitations
 
+- **Single MCP client at a time.** If multiple AI assistants connect to the same
+  Debugssy instance, the most recent connection takes over.
 - **Copilot caches tools.** Restart VS Code after changing `automationLevel`.
 - **No watch expressions.** Use `evaluate_expression` instead.
 - **Single-threaded assumption.** Defaults to thread ID 1.

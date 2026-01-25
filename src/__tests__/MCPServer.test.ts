@@ -58,7 +58,7 @@ describe('MCPServer', () => {
       try {
         await server.stop();
         server.dispose();
-      } catch (e) {
+      } catch (_e) {
         // Ignore cleanup errors
       }
     }
@@ -122,6 +122,7 @@ describe('MCPServer', () => {
       initRejections503: 0,
       concurrentInitRejections: 0,
       alreadyInitializedErrors: 0,
+      sessionReplacements: 0,
     });
   });
 

@@ -90,6 +90,7 @@ export class MCPServer {
     initRejections503: 0,
     concurrentInitRejections: 0,
     alreadyInitializedErrors: 0,
+    sessionReplacements: 0,
   };
 
   // Async mutex for serializing initialization requests
@@ -148,17 +149,11 @@ export class MCPServer {
       initRejections503: 0,
       concurrentInitRejections: 0,
       alreadyInitializedErrors: 0,
+      sessionReplacements: 0,
     };
 
     // Initialize transport before starting HTTP server
-    this.transport = new StreamableHTTPServerTransport({
-      // Generate cryptographically secure session IDs using crypto.randomUUID()
-      // Per MCP Security Best Practices 2025-11-25: "Generated session IDs (e.g., UUIDs) SHOULD use secure random number generators"
-      // Session IDs must contain only visible ASCII characters (0x21 to 0x7E)
-      sessionIdGenerator: () => {
-        return `mcp-session-${randomUUID()}`;
-      },
-    });
+    this.transport = this.createTransport();
     await this.mcpServer.connect(this.transport);
     this.logger.info('MCP transport initialized');
 
@@ -391,6 +386,58 @@ export class MCPServer {
   }
 
   /**
+   * Resets session state to allow new connections.
+   * Called when a session is properly closed via DELETE request,
+   * or when replacing a stale session.
+   */
+  private resetSessionState(): void {
+    this.hasSuccessfulInit = false;
+    // Release any held init lock
+    if (this.initLockRelease) {
+      this.initLockRelease();
+      this.initLockRelease = null;
+    }
+    this.isInitLockHeld = false;
+    this.logger.debug('Session state reset - ready for new connections');
+  }
+
+  /**
+   * Creates a new transport instance with standard configuration.
+   * Used for initial setup and session replacement.
+   */
+  private createTransport(): StreamableHTTPServerTransport {
+    return new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => {
+        return `mcp-session-${randomUUID()}`;
+      },
+      onsessioninitialized: (sessionId) => {
+        this.logger.info(`MCP session initialized: ${sessionId}`);
+      },
+      onsessionclosed: (sessionId) => {
+        this.logger.info(`MCP session closed via DELETE: ${sessionId}`);
+        this.resetSessionState();
+      },
+    });
+  }
+
+  /**
+   * Recreates the transport to reset its internal state.
+   * This is necessary for session replacement because the MCP SDK's transport
+   * maintains internal state (_initialized) that can't be reset externally.
+   */
+  private async recreateTransport(): Promise<void> {
+    // Close the old transport to clean up SSE connections
+    if (this.transport) {
+      await this.transport.close();
+    }
+
+    // Create and connect new transport
+    this.transport = this.createTransport();
+    await this.mcpServer.connect(this.transport);
+    this.logger.debug('Transport recreated with fresh state');
+  }
+
+  /**
    * Tracks an in-flight request for graceful shutdown.
    */
   private trackRequest(requestPromise: Promise<void>): void {
@@ -485,21 +532,25 @@ export class MCPServer {
   private async handleSerializedInitRequest(
     req: express.Request,
     res: express.Response,
-    transport: StreamableHTTPServerTransport,
+    _transport: StreamableHTTPServerTransport,
     requestId: string
   ): Promise<void> {
     let release: (() => void) | null = null;
 
     try {
+      // Allow session replacement: if a previous session exists but a new client
+      // is trying to initialize (no session ID = fresh connection), recreate transport
+      // and allow the new connection. This handles the case where clients disconnect
+      // without sending DELETE (e.g., MCP config changes, extension toggles).
+      // We must recreate the transport because the MCP SDK's internal _initialized
+      // state cannot be reset externally.
       if (this.hasSuccessfulInit) {
-        this.metrics.initRejections503++;
+        this.metrics.sessionReplacements++;
         this.logger.info(
-          `[${requestId}] Rejecting init - transport already initialized by another client (rejection #${this.metrics.initRejections503})`
+          `[${requestId}] Replacing existing session - recreating transport (replacement #${this.metrics.sessionReplacements})`
         );
-        this.sendJsonRpcError(res, 503, 'Server busy with another initialization - please retry', {
-          retryAfter: 1,
-        });
-        return;
+        this.resetSessionState();
+        await this.recreateTransport();
       }
 
       if (this.isInitLockHeld) {
@@ -521,7 +572,8 @@ export class MCPServer {
         throw new Error('Transport became unavailable during initialization');
       }
 
-      await transport.handleRequest(req, res);
+      // Use this.transport (may have been recreated above) instead of the parameter
+      await this.transport.handleRequest(req, res);
       this.logger.debug(`[${requestId}] Transport completed successfully`);
 
       this.hasSuccessfulInit = true;
@@ -562,7 +614,7 @@ export class MCPServer {
   private async handleSSEInitRequest(
     req: express.Request,
     res: express.Response,
-    transport: StreamableHTTPServerTransport,
+    _transport: StreamableHTTPServerTransport,
     requestId: string
   ): Promise<void> {
     this.logger.debug(`[${requestId}] Processing SSE initialization request (no lock)`);
@@ -572,7 +624,8 @@ export class MCPServer {
         throw new Error('Transport became unavailable during initialization');
       }
 
-      await transport.handleRequest(req, res);
+      // Use this.transport (may have been recreated) instead of the parameter
+      await this.transport.handleRequest(req, res);
       this.logger.debug(`[${requestId}] SSE transport completed successfully`);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
