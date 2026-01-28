@@ -181,8 +181,19 @@ export class MCPServer {
           resolve();
         });
 
-        this.httpServer.on('error', (error: any) => {
+        this.httpServer.on('error', async (error: any) => {
           this.isTransportReady = false;
+
+          // Close transport that was connected before listen() failed
+          if (this.transport) {
+            try {
+              await this.transport.close();
+            } catch (closeError) {
+              this.logger.warn('Error closing transport after listen failure:', closeError);
+            }
+            this.transport = undefined;
+          }
+
           if (error.code === 'EADDRINUSE') {
             vscode.window.showErrorMessage(
               `Port ${this.port} is already in use. Please change the port in settings.`
@@ -199,7 +210,8 @@ export class MCPServer {
 
   /**
    * Stops the MCP server and closes all connections.
-   * Waits for in-flight requests to complete (with 5 second timeout).
+   * Waits for in-flight init requests to complete (with 5 second timeout).
+   * Note: Regular tool calls are handled by the transport layer during close().
    * @returns Promise that resolves when server is fully stopped
    */
   async stop(): Promise<void> {
@@ -207,10 +219,11 @@ export class MCPServer {
     this.isTransportReady = false;
     this.hasSuccessfulInit = false;
 
-    // Wait for in-flight requests to complete (with timeout)
+    // Wait for in-flight init requests to complete (with timeout)
+    // Note: Only init requests are tracked; tool calls are handled by transport.close()
     if (this.inflightRequests.size > 0) {
       this.logger.info(
-        `Waiting for ${this.inflightRequests.size} in-flight request(s) to complete...`
+        `Waiting for ${this.inflightRequests.size} in-flight init request(s) to complete...`
       );
       try {
         await Promise.race([
@@ -222,6 +235,8 @@ export class MCPServer {
       } catch (error) {
         this.logger.warn('Some requests did not complete before timeout:', error);
       }
+      // Clear stale promises after timeout to prevent retention across restart cycles
+      this.inflightRequests.clear();
     }
 
     // Release any pending init lock

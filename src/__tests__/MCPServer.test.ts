@@ -236,4 +236,62 @@ describe('MCPServer', () => {
 
     await expect(server.updatePort(3001)).resolves.not.toThrow();
   });
+
+  it('recreates transport and increments session replacement metrics', async () => {
+    server = new MCPServer(3000, createMockToolRegistry(), new ConfigManager());
+
+    // Simulate a previous successful init
+    (server as any).hasSuccessfulInit = true;
+    (server as any).isTransportReady = true;
+
+    // Create a mock transport
+    const mockTransport = {
+      close: vi.fn().mockResolvedValue(undefined),
+      handleRequest: vi.fn().mockResolvedValue(undefined),
+    };
+    (server as any).transport = mockTransport;
+
+    // Avoid real timers for lock release
+    (server as any).scheduleTimer = (callback: () => void) => {
+      callback();
+      return 0;
+    };
+
+    // Spy on transport recreation
+    const recreateTransport = vi.fn().mockResolvedValue(undefined);
+    (server as any).recreateTransport = recreateTransport;
+
+    const req = { method: 'POST', headers: {}, url: '/mcp' } as any;
+    const res = { headersSent: false, status: vi.fn().mockReturnThis(), json: vi.fn() } as any;
+
+    await (server as any).handleSerializedInitRequest(req, res, mockTransport, 'test');
+
+    const metrics = server.getMetrics();
+    expect(metrics.sessionReplacements).toBe(1);
+    expect(recreateTransport).toHaveBeenCalled();
+    expect(mockTransport.handleRequest).toHaveBeenCalled();
+    expect((server as any).hasSuccessfulInit).toBe(true);
+  });
+
+  it('clears inflightRequests after stop timeout', async () => {
+    vi.useFakeTimers();
+    server = new MCPServer(3000, createMockToolRegistry(), new ConfigManager());
+
+    try {
+      // Add a stale promise to inflightRequests
+      const neverResolves = new Promise<void>(() => {});
+      (server as any).inflightRequests.add(neverResolves);
+
+      expect((server as any).inflightRequests.size).toBe(1);
+
+      // Stop should clear the set after timeout
+      const stopPromise = server.stop();
+      await vi.advanceTimersByTimeAsync(5000);
+      await stopPromise;
+
+      expect((server as any).inflightRequests.size).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
