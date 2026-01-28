@@ -141,7 +141,8 @@
     "prepare-publish": "node scripts/prepare-marketplace.js swap",
     "restore-publish": "node scripts/prepare-marketplace.js restore",
     "publish-status": "node scripts/prepare-marketplace.js status",
-    "publish-marketplace": "npm run prepare-publish && npm run package && npm run restore-publish"
+    "publish-marketplace": "npm run prepare-publish && npm run package && npm run restore-publish",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
@@ -155,6 +156,7 @@
     "@vscode/vsce": "^3.7.1",
     "esbuild": "^0.27.2",
     "eslint": "^9.39.2",
+    "husky": "^9.1.7",
     "npm-run-all": "^4.1.5",
     "ovsx": "^0.10.8",
     "prettier": "3.8.0",
