@@ -563,6 +563,13 @@ describe('ExpressionValidator', () => {
       expect(result.riskLevel).toBe('high');
     });
 
+    it('should detect JavaScript from pwa-node debug session', () => {
+      const session = createMockDebugSession('test', 'pwa-node');
+      const result = validator.validateExpression('arr.push(1)', session);
+      expect(result.allowed).toBe(false);
+      expect(result.riskLevel).toBe('high');
+    });
+
     it('should detect Python from debugpy session', () => {
       const session = createMockDebugSession('test', 'debugpy');
       const result = validator.validateExpression('lst.append(1)', session);
@@ -755,6 +762,15 @@ describe('ExpressionValidator', () => {
 
       for (const func of safeFunctions) {
         const result = validator.validateExpression(func, pythonSession);
+        expect(result.allowed).toBe(true);
+      }
+    });
+
+    it('should allow Python list comprehensions', () => {
+      const expressions = ['[x * 2 for x in range(10)]', '[x for x in items if x > 0]'];
+
+      for (const expr of expressions) {
+        const result = validator.validateExpression(expr, pythonSession);
         expect(result.allowed).toBe(true);
       }
     });
@@ -1346,6 +1362,26 @@ describe('ExpressionValidator', () => {
 
     it('should handle method calls on literals', () => {
       expect(validator.validateExpression('"hello".toUpperCase()', jsSession).allowed).toBe(true);
+    });
+
+    it('should handle very long expressions', () => {
+      const longExpr = 'x.'.repeat(1000) + 'property';
+      const result = validator.validateExpression(longExpr);
+      expect(result).toBeDefined();
+    });
+
+    it('should handle expressions with special characters', () => {
+      const expr = "str.replace(/[^a-z]/gi, '')";
+      const result = validator.validateExpression(expr);
+      expect(result).toBeDefined();
+    });
+
+    it('should handle multi-line expressions', () => {
+      const expr = `array
+        .slice(0, 5)
+        .concat([1, 2])`;
+      const result = validator.validateExpression(expr);
+      expect(result.allowed).toBe(true);
     });
 
     it('should handle array methods with arrow functions', () => {
