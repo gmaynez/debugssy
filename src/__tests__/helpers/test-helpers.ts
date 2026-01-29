@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2025 Guillermo Garcia Maynez
 
+import { vi } from 'vitest';
 import { MockUri, MockPosition, MockLocation } from './vscode-mock';
+import type { ToolRegistry } from '../../tools';
 
 /**
  * Common test fixtures and helper functions
@@ -190,4 +192,40 @@ export function assertMatches<T>(actual: T, expected: Partial<T>, message?: stri
   if (errors.length > 0) {
     throw new Error(`${message || 'Assertion failed'}:\n${errors.join('\n')}`);
   }
+}
+
+/**
+ * Creates a mock ToolRegistry for testing MCPServer
+ */
+export function createMockToolRegistry(): ToolRegistry {
+  return {
+    debugControl: {
+      startDebugging: vi.fn(),
+      stopDebugging: vi.fn(),
+      continueExecution: vi.fn(),
+      pause: vi.fn(),
+      restart: vi.fn(),
+      stepOver: vi.fn(),
+      stepInto: vi.fn(),
+      stepOut: vi.fn(),
+    } as any,
+    breakpoints: {
+      setBreakpoint: vi.fn(),
+      removeBreakpoint: vi.fn(),
+      listBreakpoints: vi.fn(),
+      toggleBreakpoint: vi.fn(),
+      removeAllBreakpoints: vi.fn(),
+    } as any,
+    inspection: {
+      getVariables: vi.fn(),
+      getCallStack: vi.fn(),
+      evaluateExpression: vi.fn(),
+      getThreads: vi.fn(),
+      getDebugState: vi.fn(),
+      getConsoleOutput: vi.fn(),
+      clearConsoleOutput: vi.fn(),
+      waitForBreakpoint: vi.fn(),
+    } as any,
+    dispose: vi.fn(),
+  };
 }

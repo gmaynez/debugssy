@@ -4,41 +4,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Express } from 'express';
 import { MCPServer } from '../MCPServer';
-import type { ToolRegistry } from '../tools';
 import { ConfigManager } from '../Config';
 import { EXTENSION_VERSION, CURRENT_MCP_PROTOCOL_VERSION } from '../constants';
+import { createMockToolRegistry } from './helpers/test-helpers';
 import './setup';
-
-const createMockToolRegistry = (): ToolRegistry => ({
-  debugControl: {
-    startDebugging: vi.fn(),
-    stopDebugging: vi.fn(),
-    continueExecution: vi.fn(),
-    pause: vi.fn(),
-    restart: vi.fn(),
-    stepOver: vi.fn(),
-    stepInto: vi.fn(),
-    stepOut: vi.fn(),
-  } as any,
-  breakpoints: {
-    setBreakpoint: vi.fn(),
-    removeBreakpoint: vi.fn(),
-    listBreakpoints: vi.fn(),
-    toggleBreakpoint: vi.fn(),
-    removeAllBreakpoints: vi.fn(),
-  } as any,
-  inspection: {
-    getVariables: vi.fn(),
-    getCallStack: vi.fn(),
-    evaluateExpression: vi.fn(),
-    getThreads: vi.fn(),
-    getDebugState: vi.fn(),
-    getConsoleOutput: vi.fn(),
-    clearConsoleOutput: vi.fn(),
-    waitForBreakpoint: vi.fn(),
-  } as any,
-  dispose: vi.fn(),
-});
 
 const getRouteHandler = (app: Express, path: string) => {
   const stack = (app as any)._router?.stack ?? (app as any).router?.stack ?? [];
@@ -234,7 +203,7 @@ describe('MCPServer', () => {
   it('handles updatePort correctly', async () => {
     server = new MCPServer(3000, createMockToolRegistry(), new ConfigManager());
 
-    await expect(server.updatePort(3001)).resolves.not.toThrow();
+    await expect(server.updatePort(3002)).resolves.not.toThrow();
   });
 
   it('recreates transport and increments session replacement metrics', async () => {
