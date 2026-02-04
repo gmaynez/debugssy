@@ -2,6 +2,18 @@
 
 All notable changes to the "Debugssy" extension will be documented in this file.
 
+## [1.5.2] - 2026-02-03
+
+### Security
+
+- Pin patched transitive dependencies via npm overrides to address recent
+  advisories.
+
+### Changed
+
+- Updated direct dependencies (including MCP SDK + tooling) to latest compatible
+  versions and refreshed lockfile.
+
 ## [1.5.1] - 2026-01-25
 
 ### Fixed
