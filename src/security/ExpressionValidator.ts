@@ -101,8 +101,9 @@ export class ExpressionValidator {
    * 4. LOW - Getter patterns (likely safe)
    */
   validateExpression(expression: string, session?: vscode.DebugSession): ValidationResult {
-    // Trim whitespace for consistent validation
-    const trimmed = expression.trim();
+    // Trim whitespace and normalize Unicode (NFKC) to defeat confusable character attacks
+    // e.g. fullwidth ｅｖａｌ → eval, look-alike Cyrillic letters, etc.
+    const trimmed = expression.trim().normalize('NFKC');
 
     if (!trimmed) {
       return { allowed: false, reason: 'Empty expression', riskLevel: 'low' };

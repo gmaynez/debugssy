@@ -97,8 +97,10 @@ export function validateJavaScript(
     return mutationCheck;
   }
 
-  // Block eval, Function constructor, etc. (code generation)
-  if (/\beval\s*\(|\bFunction\s*\(/i.test(expression)) {
+  // Block eval and Function constructor in all invocation forms:
+  // direct call, comma operator (0, eval)(), array extraction [eval][0](),
+  // and tagged templates eval`code`
+  if (/\beval\b|\bFunction\s*[(`]/i.test(expression)) {
     return {
       allowed: false,
       reason: 'Code Execution: eval/Function not allowed',

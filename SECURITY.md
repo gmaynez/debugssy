@@ -15,8 +15,8 @@ Debugssy, please report it responsibly.
 ### How to Report
 
 1. **DO NOT** open a public GitHub issue for security vulnerabilities
-2. Email security concerns to:
-   **[Create a private security advisory](https://github.com/gmaynez/debugssy/security/advisories/new)**
+2. Open a private security advisory at:
+   **[GitHub Security Advisories](https://github.com/gmaynez/debugssy/security/advisories/new)**
 3. Include:
    - Description of the vulnerability
    - Steps to reproduce
@@ -56,26 +56,26 @@ Debugssy implements multiple security layers:
 
 The expression validator protects against code injection attacks through:
 
-| Protection Layer         | Attacks Blocked                                    |
-| ------------------------ | -------------------------------------------------- |
-| **Critical Operations**  | File system, process execution, network requests   |
-| **Prototype Chain**      | `__proto__`, `.constructor.constructor`, pollution |
-| **Global Object Access** | `globalThis`, `window`, `global`, `self`           |
-| **String Obfuscation**   | `String.fromCharCode`, `atob`, `Buffer.from`       |
-| **Meta-programming**     | `Proxy`, `Reflect`, `Object.defineProperty`        |
-| **Comment Injection**    | `/* */`, `//`, `#` hiding malicious code           |
-| **Dynamic Invocation**   | `eval`, `Function`, `exec`, `compile`              |
-| **State Mutations**      | Assignments, `push()`, `splice()`, `++`            |
-| **Bracket Obfuscation**  | `obj["ev" + "al"]()`, template literals            |
+| Protection Layer         | Attacks Blocked                                                                                                        |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| **Critical Operations**  | File system, process execution, network requests                                                                       |
+| **Prototype Chain**      | `__proto__`, `.constructor.constructor`, pollution                                                                     |
+| **Global Object Access** | `globalThis`, `window`, `global`, `self`                                                                               |
+| **String Obfuscation**   | `String.fromCharCode`, `atob`, `Buffer.from`                                                                           |
+| **Meta-programming**     | `Proxy`, `Reflect`, `Object.defineProperty`                                                                            |
+| **Comment Injection**    | `/* */`, `//`, `#` hiding malicious code                                                                               |
+| **Dynamic Invocation**   | `eval`, `Function`, `exec`, `compile`                                                                                  |
+| **State Mutations**      | Assignments, `push()`, `splice()`, `++`                                                                                |
+| **Bracket Obfuscation**  | Concatenation `["ev"+"al"]()`, template literals, variable identifiers `[varName]()`, escape sequences `["\x65val"]()` |
 
 ### Validation Levels
 
-| Level        | Risk Threshold | Use Case                   |
-| ------------ | -------------- | -------------------------- |
-| `strict`     | All risks      | Maximum security           |
-| `moderate`   | Medium+        | Balanced (default)         |
-| `permissive` | High+          | Experienced users          |
-| `disabled`   | None           | Fully trusted environments |
+| Level        | Risk Threshold  | Use Case                   |
+| ------------ | --------------- | -------------------------- |
+| `strict`     | All risks       | Maximum security           |
+| `moderate`   | Medium+         | Balanced (default)         |
+| `permissive` | Critical + High | Experienced users          |
+| `disabled`   | None            | Fully trusted environments |
 
 ---
 
@@ -180,19 +180,32 @@ See [ALLOWLIST_GUIDE.md](./docs/ALLOWLIST_GUIDE.md) for complete examples.
 
 ### Known Limitations
 
-The regex-based expression validator has inherent limitations. These edge cases
-require specific JavaScript expertise to exploit:
+The regex-based expression validator has inherent limitations.
 
-- Comma operator: `(0, eval)("code")`
-- Array extraction: `[eval][0]("code")`
-- Tagged templates: `` eval`code` ``
-- Unicode confusables
+Previously, indirect invocation techniques (indirect calling conventions, array
+extraction, tagged template syntax) and Unicode confusable characters could
+bypass keyword detection. These have been addressed:
 
-These are mitigated by:
+- Indirect `eval` invocation forms are now blocked by matching the bare keyword
+  rather than only `eval(` call syntax
+- Unicode normalization (NFKC) is applied before validation to neutralize
+  fullwidth and compatibility look-alike characters
+
+Remaining inherent limitations of a regex-based approach:
+
+- **Novel obfuscation chains** not yet covered by existing patterns may go
+  undetected until identified and patched
+- **NFKC-invisible confusables** — characters that are visually similar but have
+  no NFKC decomposition to ASCII (e.g. some Cyrillic/Greek look-alikes) are not
+  normalized away; a full Unicode confusables database would be needed for
+  complete coverage
+
+These residual risks are mitigated by:
 
 1. User elicitation for unrecognized patterns
-2. Operational security (fresh agent windows)
-3. Low likelihood in typical prompt injection attacks
+2. Operational security (fresh agent windows, avoiding web searches mid-session)
+3. Low likelihood of these specific techniques appearing in typical prompt
+   injection attacks targeting a debug tool
 
 ---
 

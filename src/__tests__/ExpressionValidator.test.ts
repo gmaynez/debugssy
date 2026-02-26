@@ -325,6 +325,37 @@ describe('ExpressionValidator', () => {
       expect(result.riskLevel).toBe('high');
     });
 
+    it('should reject eval via comma operator', () => {
+      const result = validator.validateExpression('(0, eval)("code")', jsSession);
+      expect(result.allowed).toBe(false);
+      expect(result.riskLevel).toBe('high');
+    });
+
+    it('should reject eval via array extraction', () => {
+      const result = validator.validateExpression('[eval][0]("code")', jsSession);
+      expect(result.allowed).toBe(false);
+      expect(result.riskLevel).toBe('high');
+    });
+
+    it('should reject eval as tagged template', () => {
+      const result = validator.validateExpression('eval`code`', jsSession);
+      expect(result.allowed).toBe(false);
+      expect(result.riskLevel).toBe('high');
+    });
+
+    it('should reject Function as tagged template', () => {
+      const result = validator.validateExpression('Function`return 1`', jsSession);
+      expect(result.allowed).toBe(false);
+      expect(result.riskLevel).toBe('high');
+    });
+
+    it('should reject eval using fullwidth Unicode characters (NFKC confusables)', () => {
+      // Fullwidth ｅｖａｌ (U+FF45 U+FF56 U+FF41 U+FF4C) normalizes to eval under NFKC
+      const result = validator.validateExpression('\uFF45\uFF56\uFF41\uFF4C("code")', jsSession);
+      expect(result.allowed).toBe(false);
+      expect(result.riskLevel).toBe('high');
+    });
+
     it('should flag eval as medium risk without session', () => {
       // Without session, unknown functions are medium risk
       const result = validator.validateExpression('eval("code")');
