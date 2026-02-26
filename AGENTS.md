@@ -176,12 +176,18 @@ export function validate[Lang](expr, checkMutations, checkWhitelists, extractCal
 
 ## Dependency Updates
 
-When updating npm dependencies, these packages are version-locked:
+When updating npm dependencies, these packages are version-locked and **must not
+be bumped during routine dependency updates**:
 
-| Package         | Constraint                                                  |
-| --------------- | ----------------------------------------------------------- |
-| `@types/vscode` | Must match `engines.vscode` (currently ^1.101.0)            |
-| `@types/node`   | Must match Node.js bundled in min VS Code (1.101 → Node 22) |
+| Package         | Constraint                                                                       |
+| --------------- | -------------------------------------------------------------------------------- |
+| `@types/vscode` | **Pinned to `engines.vscode` minimum** — currently `^1.101.0`. Do NOT bump this. |
+| `@types/node`   | Must match Node.js bundled in min VS Code (1.101 → Node 22) — currently `^22.x`  |
+
+`@types/vscode` defines which VS Code API surface the extension compiles
+against. Bumping it beyond `engines.vscode` silently allows use of APIs
+unavailable to users on the minimum supported version. Always keep it equal to
+the `engines.vscode` floor, not the latest VS Code release.
 
 VS Code bundles Electron which includes a specific Node.js version. To find the
 Node.js version for a VS Code release:
@@ -200,6 +206,8 @@ Reference: VS Code 1.101 uses Electron 35.5.1 with Node.js 22.15.1
 - Using `any` instead of proper types
 - Not handling `error: unknown` properly
 - Forgetting to update tool list in both schema and handler
+- **Bumping `@types/vscode` during dependency updates** — it must stay pinned to
+  `engines.vscode` (currently `^1.101.0`), never the latest VS Code version
 
 ## Config Keys
 
