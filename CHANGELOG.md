@@ -2,6 +2,21 @@
 
 All notable changes to the "Debugssy" extension will be documented in this file.
 
+## [1.5.3] - 2026-02-26
+
+### Security
+
+- `eval` and `Function` blocking now covers all indirect invocation forms: comma
+  operator `(0, eval)()`, array extraction `[eval][0]()`, and tagged template
+  syntax `` eval`code` ``
+- Unicode normalization (NFKC) applied before expression validation to
+  neutralize fullwidth and compatibility look-alike character attacks
+
+### Changed
+
+- Updated direct dependencies: MCP SDK to 1.27.1, hono to 4.12.2, and tooling
+  updates (`@types/vscode`, `@types/node`, eslint, esbuild, ovsx)
+
 ## [1.5.2] - 2026-02-03
 
 ### Security
