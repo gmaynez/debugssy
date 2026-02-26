@@ -194,4 +194,4 @@ etc.)
 
 ---
 
-Apache 2.0 · © 2025 Guillermo Garcia Maynez
+Apache 2.0 · © 2025-2026 Guillermo Garcia Maynez

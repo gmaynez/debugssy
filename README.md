@@ -294,4 +294,4 @@ for starter tasks.
 
 Apache 2.0. See [LICENSE](./LICENSE).
 
-Copyright © 2025 Guillermo Garcia Maynez
+Copyright © 2025-2026 Guillermo Garcia Maynez
