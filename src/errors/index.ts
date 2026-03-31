@@ -58,10 +58,9 @@ export enum ErrorCode {
 }
 /* eslint-enable @typescript-eslint/naming-convention */
 
-/**
- * Risk levels for expression validation.
- */
-export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
+import type { RiskLevel } from '../security/expression/types';
+
+export type { RiskLevel };
 
 /**
  * Base error class for all Debugssy errors.

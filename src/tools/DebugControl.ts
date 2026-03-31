@@ -3,6 +3,7 @@
 
 import * as vscode from 'vscode';
 import { ConfigManager } from '../Config';
+import { formatErrorMessage } from '../errors';
 
 export interface DebugControlResult {
   success: boolean;
@@ -124,7 +125,7 @@ export class DebugControlTools implements vscode.Disposable {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: formatErrorMessage(error),
       };
     }
   }
@@ -146,7 +147,7 @@ export class DebugControlTools implements vscode.Disposable {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: formatErrorMessage(error),
       };
     }
   }
@@ -238,7 +239,7 @@ export class DebugControlTools implements vscode.Disposable {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: formatErrorMessage(error),
       };
     }
   }

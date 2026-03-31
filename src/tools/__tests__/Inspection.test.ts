@@ -49,7 +49,7 @@ describe('InspectionTools', () => {
         sessionType: 'node',
         executionState: 'running',
       });
-      expect(result.data?.stoppedInfo).toBeUndefined();
+      expect((result.data as any)?.stoppedInfo).toBeUndefined();
     });
 
     it('should return detailed state when paused with stack frame', async () => {
@@ -113,8 +113,8 @@ describe('InspectionTools', () => {
       const result = await tools.getDebugState();
 
       expect(result.success).toBe(true);
-      expect(result.data?.stoppedInfo).toBeDefined();
-      expect(result.data?.currentLocation).toBeUndefined();
+      expect((result.data as any)?.stoppedInfo).toBeDefined();
+      expect((result.data as any)?.currentLocation).toBeUndefined();
     });
 
     it('should handle errors gracefully', async () => {
@@ -179,7 +179,7 @@ describe('InspectionTools', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.data?.executionState).toBe('paused');
+      expect((result.data as any)?.executionState).toBe('paused');
     });
 
     it('should wait for paused event', async () => {
@@ -312,9 +312,9 @@ describe('InspectionTools', () => {
       const result = await tools.getVariables({});
 
       expect(result.success).toBe(true);
-      expect(result.data?.frameId).toBe(1);
-      expect(result.data?.scopes).toHaveLength(1);
-      expect(result.data?.scopes[0]).toMatchObject({
+      expect((result.data as any)?.frameId).toBe(1);
+      expect((result.data as any)?.scopes).toHaveLength(1);
+      expect((result.data as any)?.scopes[0]).toMatchObject({
         name: 'Local',
         variables: [
           { name: 'x', value: '10', type: 'number' },
@@ -340,7 +340,7 @@ describe('InspectionTools', () => {
       const result = await tools.getVariables({ frameId: 2 });
 
       expect(result.success).toBe(true);
-      expect(result.data?.frameId).toBe(2);
+      expect((result.data as any)?.frameId).toBe(2);
       expect(dapClient.getScopes).toHaveBeenCalledWith(mockSession, 2);
     });
 
@@ -361,8 +361,8 @@ describe('InspectionTools', () => {
       const result = await tools.getVariables({ scope: 'Local' });
 
       expect(result.success).toBe(true);
-      expect(result.data?.scopes).toHaveLength(1);
-      expect(result.data?.scopes[0]?.name).toBe('Local: main');
+      expect((result.data as any)?.scopes).toHaveLength(1);
+      expect((result.data as any)?.scopes[0]?.name).toBe('Local: main');
       // Global scope should be filtered out
       expect(dapClient.getVariables).toHaveBeenCalledTimes(1);
       expect(dapClient.getVariables).toHaveBeenCalledWith(mockSession, 100);
@@ -410,9 +410,9 @@ describe('InspectionTools', () => {
       const result = await tools.getCallStack();
 
       expect(result.success).toBe(true);
-      expect(result.data?.frames).toHaveLength(20); // Default max depth
-      expect(result.data?.totalFrames).toBe(30); // Real total from DAP
-      expect(result.data?.truncated).toBe(true); // 30 > 20 returned
+      expect((result.data as any)?.frames).toHaveLength(20); // Default max depth
+      expect((result.data as any)?.totalFrames).toBe(30); // Real total from DAP
+      expect((result.data as any)?.truncated).toBe(true); // 30 > 20 returned
       expect(dapClient.getStackTrace).toHaveBeenCalledWith(mockSession, { levels: 21 });
     });
 
@@ -437,9 +437,9 @@ describe('InspectionTools', () => {
       const result = await tools.getCallStack({ maxDepth: 5 });
 
       expect(result.success).toBe(true);
-      expect(result.data?.frames).toHaveLength(5);
-      expect(result.data?.totalFrames).toBe(10); // Real total from DAP
-      expect(result.data?.truncated).toBe(true); // 10 > 5 returned
+      expect((result.data as any)?.frames).toHaveLength(5);
+      expect((result.data as any)?.totalFrames).toBe(10); // Real total from DAP
+      expect((result.data as any)?.truncated).toBe(true); // 10 > 5 returned
       expect(dapClient.getStackTrace).toHaveBeenCalledWith(mockSession, { levels: 6 });
     });
 
@@ -462,8 +462,8 @@ describe('InspectionTools', () => {
       const result = await tools.getCallStack();
 
       expect(result.success).toBe(true);
-      expect(result.data?.frames).toHaveLength(1);
-      expect(result.data?.truncated).toBe(false);
+      expect((result.data as any)?.frames).toHaveLength(1);
+      expect((result.data as any)?.truncated).toBe(false);
     });
 
     it('should infer truncation when adapters omit totalFrames', async () => {
@@ -482,9 +482,9 @@ describe('InspectionTools', () => {
       const result = await tools.getCallStack();
 
       expect(result.success).toBe(true);
-      expect(result.data?.frames).toHaveLength(DEFAULT_MAX_STACK_DEPTH);
-      expect(result.data?.truncated).toBe(true);
-      expect(result.data?.totalFrames).toBe(DEFAULT_MAX_STACK_DEPTH + 1);
+      expect((result.data as any)?.frames).toHaveLength(DEFAULT_MAX_STACK_DEPTH);
+      expect((result.data as any)?.truncated).toBe(true);
+      expect((result.data as any)?.totalFrames).toBe(DEFAULT_MAX_STACK_DEPTH + 1);
     });
 
     it('should not mark truncation when fewer frames are returned without totals', async () => {
@@ -503,9 +503,9 @@ describe('InspectionTools', () => {
       const result = await tools.getCallStack({ maxDepth: 5 });
 
       expect(result.success).toBe(true);
-      expect(result.data?.frames).toHaveLength(3);
-      expect(result.data?.truncated).toBe(false);
-      expect(result.data?.totalFrames).toBe(3);
+      expect((result.data as any)?.frames).toHaveLength(3);
+      expect((result.data as any)?.truncated).toBe(false);
+      expect((result.data as any)?.totalFrames).toBe(3);
     });
 
     it('should format frames correctly', async () => {
@@ -526,7 +526,7 @@ describe('InspectionTools', () => {
       const result = await tools.getCallStack();
 
       expect(result.success).toBe(true);
-      expect(result.data?.frames[0]).toEqual({
+      expect((result.data as any)?.frames[0]).toEqual({
         id: 1,
         name: 'main',
         source: '/test/file.js',
@@ -641,7 +641,7 @@ describe('InspectionTools', () => {
       const result = await tools.getThreads();
 
       expect(result.success).toBe(true);
-      expect(result.data?.threads).toHaveLength(2);
+      expect((result.data as any)?.threads).toHaveLength(2);
       expect(mockSession.customRequest).toHaveBeenCalledWith('threads');
     });
 
@@ -669,8 +669,8 @@ describe('InspectionTools', () => {
       const result = await tools.getConsoleOutput();
 
       expect(result.success).toBe(true);
-      expect(result.data?.entries).toHaveLength(1);
-      expect(result.data?.entries[0]).toMatchObject({
+      expect((result.data as any)?.entries).toHaveLength(1);
+      expect((result.data as any)?.entries[0]).toMatchObject({
         category: 'console',
         output: 'Test log',
       });
@@ -742,7 +742,7 @@ describe('InspectionTools', () => {
       const result = await tools.clearConsoleOutput();
 
       expect(result.success).toBe(true);
-      expect(result.data?.message).toContain('cleared');
+      expect((result.data as any)?.message).toContain('cleared');
       expect(dapClient.clearConsoleOutput).toHaveBeenCalledTimes(1);
     });
 

@@ -55,6 +55,7 @@ export interface BreakpointInfo {
 }
 
 export interface BreakpointData {
+  id?: string;
   filePath: string;
   line: number;
   enabled: boolean;

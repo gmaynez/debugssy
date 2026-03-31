@@ -2,35 +2,16 @@
 // SPDX-FileCopyrightText: 2025 Guillermo Garcia Maynez
 
 import * as vscode from 'vscode';
+import { formatErrorMessage } from '../errors';
+import type { BreakpointData, BreakpointInfo } from '../routing/types/toolResults';
 
-/**
- * Breakpoint data returned from set/toggle operations.
- */
-export interface BreakpointData {
-  id?: string;
-  filePath: string;
-  line: number;
-  enabled: boolean;
-  condition?: string;
-  hitCondition?: string;
-  logMessage?: string;
-}
+export type { BreakpointData, BreakpointInfo };
 
 export interface BreakpointResult {
   success: boolean;
   message?: string;
   error?: string;
   breakpoint?: BreakpointData;
-}
-
-export interface BreakpointInfo {
-  id: string;
-  location: {
-    uri: string;
-    line: number;
-  };
-  enabled: boolean;
-  condition?: string;
 }
 
 export class BreakpointTools {
@@ -79,7 +60,7 @@ export class BreakpointTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: formatErrorMessage(error),
       };
     }
   }
@@ -114,7 +95,7 @@ export class BreakpointTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: formatErrorMessage(error),
       };
     }
   }
@@ -150,7 +131,7 @@ export class BreakpointTools {
       return {
         success: false,
         breakpoints: [],
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: formatErrorMessage(error),
       };
     }
   }
@@ -196,7 +177,7 @@ export class BreakpointTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: formatErrorMessage(error),
       };
     }
   }
@@ -213,7 +194,7 @@ export class BreakpointTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: formatErrorMessage(error),
       };
     }
   }

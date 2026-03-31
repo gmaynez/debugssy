@@ -4,6 +4,7 @@
 import * as vscode from 'vscode';
 import { DAPClient } from '../dap/Client';
 import { ConfigManager } from '../Config';
+import { formatErrorMessage } from '../errors';
 import {
   DEFAULT_CONSOLE_OUTPUT_LIMIT,
   DEFAULT_MAX_STACK_DEPTH,
@@ -12,7 +13,7 @@ import {
 
 export interface InspectionResult {
   success: boolean;
-  data?: any;
+  data?: unknown;
   error?: string;
 }
 
@@ -90,7 +91,7 @@ export class InspectionTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: formatErrorMessage(error),
       };
     }
   }
@@ -181,7 +182,7 @@ export class InspectionTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: formatErrorMessage(error),
       };
     }
   }
@@ -249,7 +250,7 @@ export class InspectionTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: formatErrorMessage(error),
       };
     }
   }
@@ -306,7 +307,7 @@ export class InspectionTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: formatErrorMessage(error),
       };
     }
   }
@@ -359,7 +360,7 @@ export class InspectionTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: formatErrorMessage(error),
       };
     }
   }
@@ -407,7 +408,7 @@ export class InspectionTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: formatErrorMessage(error),
       };
     }
   }
@@ -457,7 +458,7 @@ export class InspectionTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: formatErrorMessage(error),
       };
     }
   }
@@ -479,7 +480,7 @@ export class InspectionTools {
     } catch (error: unknown) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: formatErrorMessage(error),
       };
     }
   }
