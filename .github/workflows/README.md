@@ -13,7 +13,7 @@ Quick reference for Debugssy's CI/CD workflows.
 **What it does:**
 1. Verifies tag is on `main` branch
 2. Runs linting and type checking
-3. **Runs full test suite (210 tests) - Publishing blocked if tests fail!**
+3. **Runs full test suite (529 tests) - Publishing blocked if tests fail!**
 4. **Verifies test coverage meets requirements**
 5. Builds and packages extension
 6. Publishes to **VS Code Marketplace**
@@ -21,7 +21,7 @@ Quick reference for Debugssy's CI/CD workflows.
 8. Creates **GitHub Release** with `.vsix` file attached
 
 **Quality gates:**
-- ✅ All tests must pass (210/210)
+- ✅ All tests must pass (529/529)
 - ✅ No linting errors
 - ✅ Type checking passes
 - ✅ Build succeeds
@@ -39,12 +39,11 @@ Quick reference for Debugssy's CI/CD workflows.
 
 **Triggers:**
 - Push to `main`, `develop`, `feature/*`, `fix/*`
-- Pull requests to `main` or `develop`
+- Note: PRs are handled by `pr-validation.yml` to avoid duplicate runs
 
 **What it does:**
-- **Runs 210 unit tests** across all platforms
-- Tests on Ubuntu, Windows, macOS
-- Tests with Node.js 18 and 20
+- **Runs 529 unit tests** across all platforms
+- Tests on Ubuntu, Windows, macOS with Node.js 22
 - Runs linting and type checking
 - **Generates test coverage reports** (84%+ coverage)
 - Security audit with `npm audit`
@@ -69,8 +68,7 @@ Quick reference for Debugssy's CI/CD workflows.
 - Validates `package.json`
 - Checks version bumps (for PRs to main)
 - Detects breaking changes
-- **Runs full test suite (210 tests)**
-- **Generates and displays coverage report**
+- **Runs full test suite (529 tests)**
 - Runs build and lint
 - Auto-comments on PR with results
 

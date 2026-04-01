@@ -151,12 +151,14 @@
     "prepare": "husky"
   },
   "devDependencies": {
+    "@emnapi/core": "1.9.1",
+    "@emnapi/runtime": "1.9.1",
     "@eslint/js": "^10.0.1",
     "@types/express": "^5.0.6",
     "@types/node": "^22.19.15",
     "@types/vscode": "^1.105.0",
-    "@typescript-eslint/eslint-plugin": "^8.57.2",
-    "@typescript-eslint/parser": "^8.57.2",
+    "@typescript-eslint/eslint-plugin": "^8.58.0",
+    "@typescript-eslint/parser": "^8.58.0",
     "@vitest/coverage-v8": "^4.1.2",
     "@vitest/ui": "^4.1.2",
     "@vscode/vsce": "^3.7.1",
@@ -170,7 +172,7 @@
     "vitest": "^4.1.2"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.28.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "express": "^5.2.1",
     "hono": "^4.12.9",
     "zod": "^4.3.6"

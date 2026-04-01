@@ -48,8 +48,10 @@ jobs:
           fi
 
       - name: Check for breaking changes in description
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          if echo "${{ github.event.pull_request.body }}" | grep -qi "breaking"; then
+          if echo "$PR_BODY" | grep -qi "breaking"; then
             echo "⚠️  Breaking changes detected in PR description"
             echo "Make sure to update version appropriately (major version bump)"
           fi
