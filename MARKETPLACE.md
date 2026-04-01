@@ -41,37 +41,21 @@ Or:
 
 ### 2. Connect Your AI
 
-All clients connect to the same URL: `http://localhost:3000/mcp`
+**GitHub Copilot and Cursor — nothing to configure.** Debugssy registers its MCP
+server automatically. Install the extension and start chatting.
 
-**GitHub Copilot** —
-[One-click install](https://gmaynez.github.io/debugssy/oneclick-vscode.html), or
-add to `settings.json`:
+> Upgrading from an older version? Remove any manual `"debugssy"` entry from
+> your `settings.json` or `mcp.json` to avoid duplicates.
 
-```json
-{
-  "github.copilot.chat.mcp.servers": {
-    "debugssy": { "url": "http://localhost:3000/mcp" }
-  }
-}
-```
-
-**Cursor** —
-[One-click install](https://cursor.com/en-US/install-mcp?name=debugssy&config=eyJ0eXBlIjoiaHR0cCIsInVybCI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMC9tY3AifQ%3D%3D),
-or add to `~/.cursor/mcp.json`:
+**Claude Desktop, Claude Code, OpenCode, and other MCP clients** — add this to
+your client's config:
 
 ```json
 { "mcpServers": { "debugssy": { "url": "http://localhost:3000/mcp" } } }
 ```
 
-**Claude Desktop** — Add to
-`~/Library/Application Support/Claude/claude_desktop_config.json` (Mac) or
-`%APPDATA%\Claude\claude_desktop_config.json` (Windows):
-
-```json
-{ "mcpServers": { "debugssy": { "url": "http://localhost:3000/mcp" } } }
-```
-
-**Other MCP clients** — Point them at `http://localhost:3000/mcp`.
+Config file locations vary by client. The URL is always
+`http://localhost:3000/mcp` (or your custom port).
 
 ### 3. Debug
 
@@ -181,7 +165,7 @@ rebinding. Follows
 
 ## Requirements
 
-VS Code 1.101.0+ and an MCP-compatible AI (Cursor, Copilot, Claude Desktop,
+VS Code 1.105.0+ and an MCP-compatible AI (Copilot, Cursor, Claude Desktop,
 etc.)
 
 ---

@@ -2,6 +2,34 @@
 
 All notable changes to the "Debugssy" extension will be documented in this file.
 
+## [1.6.0] - 2026-03-31
+
+### Added
+
+- **Zero-config MCP registration for VS Code and Cursor.** The extension now
+  registers its MCP server automatically — no manual `mcp.json` or
+  `settings.json` edits required. VS Code discovers the server via the
+  `McpHttpServerDefinition` provider API; Cursor discovers it via
+  `vscode.cursor.mcp.registerServer`. Other clients (Claude Desktop, Claude
+  Code, OpenCode, etc.) still use manual config as before.
+- Server definitions update dynamically when the port changes or the server is
+  stopped/restarted — the host IDE reconnects automatically.
+
+### Changed
+
+- Minimum VS Code version bumped from 1.101.0 to **1.105.0** to enable the MCP
+  server definition provider API, autostart, and `when` clause support on the
+  `mcpServerDefinitionProviders` contribution point.
+
+### Breaking
+
+- **Duplicate MCP server entries.** If you previously added a manual
+  `"debugssy"` entry in your VS Code `settings.json`
+  (`github.copilot.chat.mcp.servers`) or Cursor `mcp.json`, the extension will
+  now also register one automatically. This may result in two "debugssy" servers
+  appearing in your MCP tool list. **Fix:** Remove the manual entry and let the
+  extension handle registration.
+
 ## [1.5.3] - 2026-02-26
 
 ### Security
