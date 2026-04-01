@@ -26,7 +26,7 @@
   ],
   "icon": "assets/debugssy_logo.png",
   "engines": {
-    "vscode": "^1.101.0"
+    "vscode": "^1.105.0"
   },
   "categories": [
     "Debuggers",
@@ -119,6 +119,12 @@
         "command": "debugssy.restartServer",
         "title": "Debugssy: Restart Server"
       }
+    ],
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "debugssy",
+        "label": "Debugssy AI Debugger"
+      }
     ]
   },
   "scripts": {
@@ -148,7 +154,7 @@
     "@eslint/js": "^10.0.1",
     "@types/express": "^5.0.6",
     "@types/node": "^22.19.15",
-    "@types/vscode": "^1.101.0",
+    "@types/vscode": "^1.105.0",
     "@typescript-eslint/eslint-plugin": "^8.57.2",
     "@typescript-eslint/parser": "^8.57.2",
     "@vitest/coverage-v8": "^4.1.2",

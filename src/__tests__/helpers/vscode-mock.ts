@@ -254,6 +254,26 @@ export const createMockCommandsAPI = () => ({
   getCommands: vi.fn(() => Promise.resolve([])),
 });
 
+// McpHttpServerDefinition mock (VS Code 1.105+ MCP auto-discovery)
+export class MockMcpHttpServerDefinition {
+  public label: string;
+  public uri: MockUri;
+  public headers?: Record<string, string>;
+  public version?: string;
+
+  constructor(label: string, uri: MockUri, headers?: Record<string, string>, version?: string) {
+    this.label = label;
+    this.uri = uri;
+    this.headers = headers;
+    this.version = version;
+  }
+}
+
+// Language Model API mock
+export const createMockLmAPI = () => ({
+  registerMcpServerDefinitionProvider: vi.fn(() => mockDisposable()),
+});
+
 // Disposable class mock
 export class MockDisposable {
   constructor(private disposeFn: () => void = () => {}) {}
@@ -271,6 +291,7 @@ export function createVSCodeMock() {
   const workspace = createMockWorkspaceAPI();
   const window = createMockWindowAPI();
   const commands = createMockCommandsAPI();
+  const lm = createMockLmAPI();
 
   return {
     // APIs
@@ -278,6 +299,7 @@ export function createVSCodeMock() {
     workspace,
     window,
     commands,
+    lm,
 
     // Classes
     Uri: MockUri,
@@ -287,6 +309,7 @@ export function createVSCodeMock() {
     SourceBreakpoint: MockSourceBreakpoint,
     EventEmitter: MockEventEmitter,
     RelativePattern: MockRelativePattern,
+    McpHttpServerDefinition: MockMcpHttpServerDefinition,
 
     // Enums
     ProgressLocation: {

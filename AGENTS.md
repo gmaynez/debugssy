@@ -18,24 +18,24 @@ extension.ts → MCPServer.ts → [ToolRouter, PromptHandler, CompletionProvider
 
 ## File Map
 
-| File                                  | Purpose                            | Modify When             |
-| ------------------------------------- | ---------------------------------- | ----------------------- |
-| `extension.ts`                        | Entry point, lifecycle, commands   | Adding VS Code commands |
-| `MCPServer.ts`                        | HTTP server, MCP SDK, session mgmt | Adding MCP capabilities |
-| `Config.ts`                           | Zod-validated settings             | Adding config options   |
-| `constants.ts`                        | All magic numbers                  | Adding limits/defaults  |
-| `routing/ToolRouter.ts`               | Tool routing, validation           | Adding/modifying tools  |
-| `routing/PromptHandler.ts`            | MCP prompts                        | Adding prompts          |
-| `routing/CompletionProvider.ts`       | Autocomplete                       | Adding completions      |
-| `routing/schemas/*.ts`                | Tool JSON schemas                  | Adding tool parameters  |
-| `routing/types/toolArguments.ts`      | Zod validators + TS types          | Adding tool arg types   |
-| `security/ExpressionValidator.ts`     | Expression safety                  | Adding language support |
-| `security/expression/validators/*.ts` | Per-language validators            | Language-specific rules |
-| `tools/Breakpoints.ts`                | Breakpoint ops                     | Breakpoint features     |
-| `tools/Inspection.ts`                 | Variable/stack inspection          | Inspection features     |
-| `tools/DebugControl.ts`               | Start/stop/step                    | Execution control       |
-| `dap/Client.ts`                       | DAP interception, state            | DAP event handling      |
-| `errors/index.ts`                     | Custom error types with codes      | Adding new error types  |
+| File                                  | Purpose                                                          | Modify When                              |
+| ------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------- |
+| `extension.ts`                        | Entry point, lifecycle, commands, MCP server definition provider | Adding VS Code commands or MCP discovery |
+| `MCPServer.ts`                        | HTTP server, MCP SDK, session mgmt                               | Adding MCP capabilities                  |
+| `Config.ts`                           | Zod-validated settings                                           | Adding config options                    |
+| `constants.ts`                        | All magic numbers                                                | Adding limits/defaults                   |
+| `routing/ToolRouter.ts`               | Tool routing, validation                                         | Adding/modifying tools                   |
+| `routing/PromptHandler.ts`            | MCP prompts                                                      | Adding prompts                           |
+| `routing/CompletionProvider.ts`       | Autocomplete                                                     | Adding completions                       |
+| `routing/schemas/*.ts`                | Tool JSON schemas                                                | Adding tool parameters                   |
+| `routing/types/toolArguments.ts`      | Zod validators + TS types                                        | Adding tool arg types                    |
+| `security/ExpressionValidator.ts`     | Expression safety                                                | Adding language support                  |
+| `security/expression/validators/*.ts` | Per-language validators                                          | Language-specific rules                  |
+| `tools/Breakpoints.ts`                | Breakpoint ops                                                   | Breakpoint features                      |
+| `tools/Inspection.ts`                 | Variable/stack inspection                                        | Inspection features                      |
+| `tools/DebugControl.ts`               | Start/stop/step                                                  | Execution control                        |
+| `dap/Client.ts`                       | DAP interception, state                                          | DAP event handling                       |
+| `errors/index.ts`                     | Custom error types with codes                                    | Adding new error types                   |
 
 ## File Dependencies
 
@@ -172,7 +172,8 @@ export function validate[Lang](expr, checkMutations, checkWhitelists, extractCal
 5. **Disposable cleanup** - All event listeners must be disposed
 6. **Session security** - UUIDs from crypto.randomUUID()
 7. **Type version alignment** - Keep `@types/vscode` and `@types/node` aligned
-   with minimum supported VS Code version (see `engines.vscode` in package.json)
+   with minimum supported VS Code version (see `engines.vscode` in package.json,
+   currently `^1.105.0`)
 
 ## Dependency Updates
 
@@ -181,8 +182,8 @@ be bumped during routine dependency updates**:
 
 | Package         | Constraint                                                                       |
 | --------------- | -------------------------------------------------------------------------------- |
-| `@types/vscode` | **Pinned to `engines.vscode` minimum** — currently `^1.101.0`. Do NOT bump this. |
-| `@types/node`   | Must match Node.js bundled in min VS Code (1.101 → Node 22) — currently `^22.x`  |
+| `@types/vscode` | **Pinned to `engines.vscode` minimum** — currently `^1.105.0`. Do NOT bump this. |
+| `@types/node`   | Must match Node.js bundled in min VS Code (1.105 → Node 22) — currently `^22.x`  |
 
 `@types/vscode` defines which VS Code API surface the extension compiles
 against. Bumping it beyond `engines.vscode` silently allows use of APIs
@@ -196,7 +197,7 @@ Node.js version for a VS Code release:
 2. Check what Node.js that Electron version bundles
 3. Or search: "VS Code [version] Electron Node.js version"
 
-Reference: VS Code 1.101 uses Electron 35.5.1 with Node.js 22.15.1
+Reference: VS Code 1.105 uses Electron 37.6.0 with Node.js 22.19.0
 
 ## Common Mistakes
 
@@ -207,7 +208,7 @@ Reference: VS Code 1.101 uses Electron 35.5.1 with Node.js 22.15.1
 - Not handling `error: unknown` properly
 - Forgetting to update tool list in both schema and handler
 - **Bumping `@types/vscode` during dependency updates** — it must stay pinned to
-  `engines.vscode` (currently `^1.101.0`), never the latest VS Code version
+  `engines.vscode` (currently `^1.105.0`), never the latest VS Code version
 
 ## Config Keys
 

@@ -6,6 +6,7 @@ import { ConfigManager, DebugConfiguration } from './Config';
 import { MCPServer } from './MCPServer';
 import { DAPClient } from './dap/Client';
 import { createToolRegistry, ToolRegistry } from './tools';
+import { EXTENSION_VERSION } from './constants';
 import { Logger } from './utils/Logger';
 
 /**
@@ -17,11 +18,16 @@ class ExtensionContext {
   private readonly configManager: ConfigManager;
   private readonly dapClient: DAPClient;
   private readonly toolRegistry: ToolRegistry;
+  private onServerDefinitionChanged?: () => void;
 
   constructor() {
     this.configManager = new ConfigManager();
     this.dapClient = new DAPClient();
     this.toolRegistry = createToolRegistry(this.dapClient, this.configManager);
+  }
+
+  setServerDefinitionChangedCallback(callback: () => void): void {
+    this.onServerDefinitionChanged = callback;
   }
 
   getConfigManager(): ConfigManager {
@@ -44,6 +50,7 @@ class ExtensionContext {
     try {
       this.mcpServer = new MCPServer(port, this.toolRegistry, this.configManager);
       await this.mcpServer.start();
+      this.onServerDefinitionChanged?.();
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       vscode.window.showErrorMessage(`Failed to start MCP Server: ${errorMessage}`);
@@ -54,8 +61,9 @@ class ExtensionContext {
   async stopMCPServer(): Promise<void> {
     if (this.mcpServer) {
       await this.mcpServer.stop();
-      this.mcpServer.dispose(); // Clean up resources before discarding
+      this.mcpServer.dispose();
       this.mcpServer = undefined;
+      this.onServerDefinitionChanged?.();
       vscode.window.showInformationMessage('Debugssy MCP Server stopped');
     }
   }
@@ -110,6 +118,7 @@ class ExtensionContext {
 
     if (mcpServer && newConfig.port !== previousConfig.port) {
       await mcpServer.updatePort(newConfig.port);
+      this.onServerDefinitionChanged?.();
       vscode.window.showInformationMessage(
         `Debugssy: MCP server restarted on port ${newConfig.port}`
       );
@@ -164,6 +173,38 @@ export async function activate(context: vscode.ExtensionContext) {
   const config = configManager.getConfig();
   if (config.enabled) {
     await extensionContext.startMCPServer(config.port);
+  }
+
+  // Register MCP server definition provider for VS Code auto-discovery.
+  // Gated on API existence so Cursor and other hosts that lack vscode.lm are unaffected.
+  if (typeof vscode.lm?.registerMcpServerDefinitionProvider === 'function') {
+    const serverDefEmitter = new vscode.EventEmitter<void>();
+    context.subscriptions.push(serverDefEmitter);
+
+    extensionContext.setServerDefinitionChangedCallback(() => serverDefEmitter.fire());
+
+    context.subscriptions.push(
+      vscode.lm.registerMcpServerDefinitionProvider('debugssy', {
+        onDidChangeMcpServerDefinitions: serverDefEmitter.event,
+        provideMcpServerDefinitions: async () => {
+          const currentConfig = configManager.getConfig();
+          if (!currentConfig.enabled || !extensionContext?.getMCPServer()) {
+            return [];
+          }
+          return [
+            new vscode.McpHttpServerDefinition(
+              'Debugssy AI Debugger',
+              vscode.Uri.parse(`http://localhost:${currentConfig.port}/mcp`),
+              undefined,
+              EXTENSION_VERSION
+            ),
+          ];
+        },
+        resolveMcpServerDefinition: async (server) => server,
+      })
+    );
+
+    logger.info('Registered MCP server definition provider for VS Code auto-discovery');
   }
 
   // Watch for configuration changes

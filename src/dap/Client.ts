@@ -218,7 +218,7 @@ export class DAPClient {
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to evaluate expression: ${errorMessage}`);
+      throw new Error(`Failed to evaluate expression: ${errorMessage}`, { cause: error });
     }
   }
 
