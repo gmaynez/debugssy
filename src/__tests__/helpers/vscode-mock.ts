@@ -269,9 +269,15 @@ export class MockMcpHttpServerDefinition {
   }
 }
 
-// Language Model API mock
+// Language Model API mock (VS Code 1.105+)
 export const createMockLmAPI = () => ({
   registerMcpServerDefinitionProvider: vi.fn(() => mockDisposable()),
+});
+
+// Cursor MCP API mock
+export const createMockCursorMcpAPI = () => ({
+  registerServer: vi.fn(),
+  unregisterServer: vi.fn(),
 });
 
 // Disposable class mock
@@ -292,6 +298,7 @@ export function createVSCodeMock() {
   const window = createMockWindowAPI();
   const commands = createMockCommandsAPI();
   const lm = createMockLmAPI();
+  const cursor = { mcp: createMockCursorMcpAPI() };
 
   return {
     // APIs
@@ -300,6 +307,7 @@ export function createVSCodeMock() {
     window,
     commands,
     lm,
+    cursor,
 
     // Classes
     Uri: MockUri,

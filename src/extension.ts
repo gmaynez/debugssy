@@ -175,13 +175,21 @@ export async function activate(context: vscode.ExtensionContext) {
     await extensionContext.startMCPServer(config.port);
   }
 
-  // Register MCP server definition provider for VS Code auto-discovery.
-  // Gated on API existence so Cursor and other hosts that lack vscode.lm are unaffected.
-  if (typeof vscode.lm?.registerMcpServerDefinitionProvider === 'function') {
+  // --- Host-specific MCP auto-discovery registration ---
+  // Both VS Code and Cursor have their own APIs for programmatic MCP server
+  // registration. We detect each at runtime so both work and neither interferes
+  // with the other (or with hosts that support neither).
+
+  const hasVSCodeMcpProvider = typeof vscode.lm?.registerMcpServerDefinitionProvider === 'function';
+  const hasCursorMcp = typeof vscode.cursor?.mcp?.registerServer === 'function';
+
+  // Collect change-notification callbacks from each host, then set once.
+  const changeCallbacks: Array<() => void> = [];
+
+  // VS Code: provider pattern — VS Code re-queries when the event fires.
+  if (hasVSCodeMcpProvider) {
     const serverDefEmitter = new vscode.EventEmitter<void>();
     context.subscriptions.push(serverDefEmitter);
-
-    extensionContext.setServerDefinitionChangedCallback(() => serverDefEmitter.fire());
 
     context.subscriptions.push(
       vscode.lm.registerMcpServerDefinitionProvider('debugssy', {
@@ -204,7 +212,58 @@ export async function activate(context: vscode.ExtensionContext) {
       })
     );
 
+    changeCallbacks.push(() => serverDefEmitter.fire());
     logger.info('Registered MCP server definition provider for VS Code auto-discovery');
+  }
+
+  // Cursor: imperative register/unregister — we manage lifecycle ourselves.
+  if (hasCursorMcp) {
+    const cursorServerName = 'debugssy';
+
+    const syncCursorRegistration = () => {
+      const currentConfig = configManager.getConfig();
+      const isRunning = currentConfig.enabled && !!extensionContext?.getMCPServer();
+
+      try {
+        vscode.cursor.mcp.unregisterServer(cursorServerName);
+      } catch {
+        // Not registered yet — expected on first call
+      }
+
+      if (isRunning) {
+        vscode.cursor.mcp.registerServer({
+          name: cursorServerName,
+          server: { url: `http://localhost:${currentConfig.port}/mcp` },
+        });
+      }
+    };
+
+    changeCallbacks.push(syncCursorRegistration);
+
+    // Initial registration if the server is already running
+    syncCursorRegistration();
+
+    // Cleanup on deactivation
+    context.subscriptions.push({
+      dispose: () => {
+        try {
+          vscode.cursor.mcp.unregisterServer(cursorServerName);
+        } catch {
+          // Already gone
+        }
+      },
+    });
+
+    logger.info('Registered MCP server with Cursor auto-discovery');
+  }
+
+  // Wire the collected callbacks into the single lifecycle hook
+  if (changeCallbacks.length > 0) {
+    extensionContext.setServerDefinitionChangedCallback(() => {
+      for (const cb of changeCallbacks) {
+        cb();
+      }
+    });
   }
 
   // Watch for configuration changes

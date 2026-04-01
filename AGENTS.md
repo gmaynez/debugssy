@@ -18,24 +18,25 @@ extension.ts → MCPServer.ts → [ToolRouter, PromptHandler, CompletionProvider
 
 ## File Map
 
-| File                                  | Purpose                                                          | Modify When                              |
-| ------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------- |
-| `extension.ts`                        | Entry point, lifecycle, commands, MCP server definition provider | Adding VS Code commands or MCP discovery |
-| `MCPServer.ts`                        | HTTP server, MCP SDK, session mgmt                               | Adding MCP capabilities                  |
-| `Config.ts`                           | Zod-validated settings                                           | Adding config options                    |
-| `constants.ts`                        | All magic numbers                                                | Adding limits/defaults                   |
-| `routing/ToolRouter.ts`               | Tool routing, validation                                         | Adding/modifying tools                   |
-| `routing/PromptHandler.ts`            | MCP prompts                                                      | Adding prompts                           |
-| `routing/CompletionProvider.ts`       | Autocomplete                                                     | Adding completions                       |
-| `routing/schemas/*.ts`                | Tool JSON schemas                                                | Adding tool parameters                   |
-| `routing/types/toolArguments.ts`      | Zod validators + TS types                                        | Adding tool arg types                    |
-| `security/ExpressionValidator.ts`     | Expression safety                                                | Adding language support                  |
-| `security/expression/validators/*.ts` | Per-language validators                                          | Language-specific rules                  |
-| `tools/Breakpoints.ts`                | Breakpoint ops                                                   | Breakpoint features                      |
-| `tools/Inspection.ts`                 | Variable/stack inspection                                        | Inspection features                      |
-| `tools/DebugControl.ts`               | Start/stop/step                                                  | Execution control                        |
-| `dap/Client.ts`                       | DAP interception, state                                          | DAP event handling                       |
-| `errors/index.ts`                     | Custom error types with codes                                    | Adding new error types                   |
+| File                                  | Purpose                                                                 | Modify When                              |
+| ------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------- |
+| `extension.ts`                        | Entry point, lifecycle, commands, MCP auto-discovery (VS Code + Cursor) | Adding VS Code commands or MCP discovery |
+| `types/cursor.d.ts`                   | Type augmentation for Cursor's `vscode.cursor.mcp` API                  | Cursor MCP API changes                   |
+| `MCPServer.ts`                        | HTTP server, MCP SDK, session mgmt                                      | Adding MCP capabilities                  |
+| `Config.ts`                           | Zod-validated settings                                                  | Adding config options                    |
+| `constants.ts`                        | All magic numbers                                                       | Adding limits/defaults                   |
+| `routing/ToolRouter.ts`               | Tool routing, validation                                                | Adding/modifying tools                   |
+| `routing/PromptHandler.ts`            | MCP prompts                                                             | Adding prompts                           |
+| `routing/CompletionProvider.ts`       | Autocomplete                                                            | Adding completions                       |
+| `routing/schemas/*.ts`                | Tool JSON schemas                                                       | Adding tool parameters                   |
+| `routing/types/toolArguments.ts`      | Zod validators + TS types                                               | Adding tool arg types                    |
+| `security/ExpressionValidator.ts`     | Expression safety                                                       | Adding language support                  |
+| `security/expression/validators/*.ts` | Per-language validators                                                 | Language-specific rules                  |
+| `tools/Breakpoints.ts`                | Breakpoint ops                                                          | Breakpoint features                      |
+| `tools/Inspection.ts`                 | Variable/stack inspection                                               | Inspection features                      |
+| `tools/DebugControl.ts`               | Start/stop/step                                                         | Execution control                        |
+| `dap/Client.ts`                       | DAP interception, state                                                 | DAP event handling                       |
+| `errors/index.ts`                     | Custom error types with codes                                           | Adding new error types                   |
 
 ## File Dependencies
 
@@ -76,6 +77,19 @@ based on `automationLevel`.
 8. Generic pattern validation (assignments, increments, etc.)
 
 **DAP states:** `not_started` | `running` | `paused` | `terminated`
+
+**MCP auto-discovery:** The extension registers its HTTP server with the host
+IDE so users don't need manual `mcp.json` config. Two APIs are supported, each
+gated on runtime availability:
+
+- **VS Code** (`vscode.lm.registerMcpServerDefinitionProvider`): provider
+  pattern — VS Code re-queries via `onDidChangeMcpServerDefinitions` event
+- **Cursor** (`vscode.cursor.mcp.registerServer`): imperative
+  register/unregister — the extension manages lifecycle directly
+
+Both fire from the same `onServerDefinitionChanged` callback in
+`ExtensionContext` (triggered on server start, stop, and port change). Hosts
+that support neither API fall back to manual config.
 
 ## Patterns
 
