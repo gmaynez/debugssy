@@ -3,6 +3,11 @@
 
 import { ConfigManager } from '../Config';
 import { z } from 'zod';
+import {
+  RESOURCE_RESPONSE_EXAMPLES,
+  TOOL_RESPONSE_EXAMPLES,
+  formatJsonExample,
+} from './toolResponseExamples';
 
 const DebugCrashArgsSchema = z.object({
   errorMessage: z.string().min(1, { error: 'errorMessage is required and must not be empty' }),
@@ -60,11 +65,16 @@ export class PromptHandler {
    * These guidelines help less-capable models use tools correctly.
    */
   private getBestPracticesPrefix(): string {
+    const debugStateExample = formatJsonExample(TOOL_RESPONSE_EXAMPLES.getDebugStatePaused);
+    const variablesExample = formatJsonExample(TOOL_RESPONSE_EXAMPLES.getVariablesLocalScope);
+    const callStackExample = formatJsonExample(TOOL_RESPONSE_EXAMPLES.getCallStack);
+    const evaluateExample = formatJsonExample(TOOL_RESPONSE_EXAMPLES.evaluateExpression);
+
     return `DEBUGGING BEST PRACTICES - Follow these guidelines for all debugging tasks:
 
 1. ALWAYS call get_debug_state FIRST before any inspection operations
    - Verifies debugger is paused and shows current location
-   - Returns: {"executionState": "paused"|"running"|"not_started"|"terminated", "currentLocation": {...}, "stoppedInfo": {...}}
+   - Returns a ToolResult payload like: ${debugStateExample}
 
 2. Use filters and limits to reduce output verbosity:
    - get_variables: ALWAYS specify scope: "Local" to see only relevant variables
@@ -81,10 +91,10 @@ export class PromptHandler {
    - Adjust maxDepth/limit parameters or use more specific filters
 
 5. Common tool response patterns:
-   - get_debug_state → Check "executionState" first, then inspect "currentLocation" and "stoppedInfo"
-   - get_variables → Returns {"frameId": N, "scopes": [{"name": "...", "variables": [...]}]}
-   - get_call_stack → Array of frames with "totalFrames" count
-   - evaluate_expression → Returns "result" and "type" fields
+   - get_debug_state → Check "success", then inspect "data.executionState", "data.currentLocation", and "data.stoppedInfo"
+   - get_variables → Returns ${variablesExample}
+   - get_call_stack → Returns ${callStackExample}
+   - evaluate_expression → Returns ${evaluateExample}
 
 6. Error recovery:
    - "No active debug session" → Start debugging first
@@ -102,17 +112,22 @@ export class PromptHandler {
       return '';
     }
 
+    const listResourcesExample = formatJsonExample(RESOURCE_RESPONSE_EXAMPLES.listResources);
+    const readResourceExample = formatJsonExample(RESOURCE_RESPONSE_EXAMPLES.readLaunchJson);
+
     return `STEP 0 - Read Debug Configuration (Full Automation Mode):
 Before starting debugging, you need to find the correct configuration name:
 
 a. List available resources:
    Call: list_resources()
+   Example response: ${listResourcesExample}
 
 b. Find launch.json resource in response:
    Look for URI pattern: "debugssy:///{workspaceName}/launch.json"
 
 c. Read the resource:
    Call: read_resource({"uri": "debugssy:///{workspaceName}/launch.json"})
+   Example response: ${readResourceExample}
 
 d. Parse the JSON response to find "configurations" array
    Each configuration has a "name" field (e.g., "Launch Program", "Debug Tests")
@@ -283,6 +298,9 @@ e. Use one of these configuration names in start_debugging:
 
     const bestPractices = this.getBestPracticesPrefix();
     const resourceGuidance = this.getResourceReadingGuidance(automationLevel);
+    const debugStateExample = formatJsonExample(TOOL_RESPONSE_EXAMPLES.getDebugStatePaused);
+    const callStackExample = formatJsonExample(TOOL_RESPONSE_EXAMPLES.getCallStack);
+    const variablesExample = formatJsonExample(TOOL_RESPONSE_EXAMPLES.getVariablesLocalScope);
 
     const debugStartHint =
       automationLevel === 'assisted'
@@ -315,23 +333,23 @@ ${automationLevel === 'full' ? '  - After calling start_debugging, wait for it t
 
 STEP 3 - Verify Paused State (CRITICAL):
 Call get_debug_state() to confirm execution paused at the breakpoint:
-  Expected response: {"executionState": "paused", "stoppedInfo": {"reason": "breakpoint"}, "currentLocation": {"file": "...", "line": N}}
-  - If executionState is "running", the breakpoint hasn't been hit yet
-  - If executionState is "not_started" or "terminated", debugging isn't currently paused
+  Expected response: ${debugStateExample}
+  - If data.executionState is "running", the breakpoint hasn't been hit yet
+  - If data.executionState is "not_started" or "terminated", debugging isn't currently paused
 
 STEP 4 - Get Call Stack:
 Call get_call_stack to see the execution path leading to the error:
   Example: {"maxDepth": 10}
-  Response: {"frames": [...], "totalFrames": N, "truncated": true/false}
+  Response: ${callStackExample}
   - Shows function call chain leading to the crash
-  - Each frame has: {id, name, file, line}
-  - If truncated is true, increase maxDepth for more context
+  - Each frame is in data.frames with {id, name, source, line}
+  - If data.truncated is true, increase maxDepth for more context
 
 STEP 5 - Inspect Local Variables:
 Call get_variables to examine values at the point of failure:
   Example: {"scope": "Local"}
   CRITICAL: ALWAYS use scope filter to reduce output verbosity
-  Response: {"frameId": N, "scopes": [{"name": "Local: functionName", "variables": [{name, value, type}, ...]}]}
+  Response: ${variablesExample}
   - Look for null/undefined values that might cause the error
   - Check if objects have expected properties
 
@@ -374,6 +392,8 @@ COMMON ISSUES:
 
     const bestPractices = this.getBestPracticesPrefix();
     const resourceGuidance = this.getResourceReadingGuidance(automationLevel);
+    const debugStateExample = formatJsonExample(TOOL_RESPONSE_EXAMPLES.getDebugStatePaused);
+    const evaluateExample = formatJsonExample(TOOL_RESPONSE_EXAMPLES.evaluateExpression);
 
     const executionControl =
       automationLevel === 'assisted'
@@ -407,15 +427,15 @@ STEP 3 - First Breakpoint - Verify Initial State (CRITICAL):
 When execution pauses at the first breakpoint:
 
 a. Call get_debug_state() to verify pause:
-   Expected: {"executionState": "paused", "stoppedInfo": {"reason": "breakpoint"}}
+   Expected: ${debugStateExample}
 
 b. Call get_variables to see current value:
    Example: {"scope": "Local"}
-   Look for "${varName}" in the response
+   Look for "${varName}" in data.scopes[*].variables
 
 c. Or use evaluate_expression for specific check:
    Example: {"expression": "${varName}"}
-   Response: {"result": "...", "type": "..."}
+   Response: ${evaluateExample}
 
 STEP 4 - Continue to Next Breakpoint:
 ${executionControl}
@@ -485,6 +505,7 @@ COMMON ISSUES:
 
     const bestPractices = this.getBestPracticesPrefix();
     const resourceGuidance = this.getResourceReadingGuidance(automationLevel);
+    const debugStateExample = formatJsonExample(TOOL_RESPONSE_EXAMPLES.getDebugStatePaused);
 
     return {
       messages: [
@@ -511,7 +532,7 @@ STEP 3 - Verify Function Entry (CRITICAL):
 When breakpoint hits:
 
 a. Call get_debug_state():
-   Expected: {"executionState": "paused", "currentLocation": {"file": "${filePath}", "line": N}}
+   Expected shape: ${debugStateExample}
    - Confirms we're paused at function entry
 
 b. Call get_call_stack({"maxDepth": 5}):
@@ -595,6 +616,8 @@ COMMON ISSUES:
 
     const bestPractices = this.getBestPracticesPrefix();
     const resourceGuidance = this.getResourceReadingGuidance(automationLevel);
+    const debugStateExample = formatJsonExample(TOOL_RESPONSE_EXAMPLES.getDebugStatePaused);
+    const callStackExample = formatJsonExample(TOOL_RESPONSE_EXAMPLES.getCallStack);
 
     return {
       messages: [
@@ -625,11 +648,11 @@ STEP 3 - Verify Conditional Breakpoint Hit (CRITICAL):
 When the breakpoint hits (meaning condition is true):
 
 a. Call get_debug_state():
-   Expected: {"executionState": "paused", "stoppedInfo": {"reason": "breakpoint"}}
+   Expected: ${debugStateExample}
    - Confirms we caught the problematic iteration
 
 b. Call get_call_stack({"maxDepth": 10}):
-   Response: {"frames": [...], "totalFrames": N}
+   Response: ${callStackExample}
    - Shows how we entered this loop
    - May reveal if loop is being called unexpectedly
 
@@ -707,6 +730,11 @@ COMMON ISSUES:
     const entryPoint = args.entryPoint ? ` starting from ${args.entryPoint}` : '';
 
     const bestPractices = this.getBestPracticesPrefix();
+    const listResourcesExample = formatJsonExample(RESOURCE_RESPONSE_EXAMPLES.listResources);
+    const readResourceExample = formatJsonExample(RESOURCE_RESPONSE_EXAMPLES.readLaunchJson);
+    const debugStateExample = formatJsonExample(TOOL_RESPONSE_EXAMPLES.getDebugStatePaused);
+    const callStackExample = formatJsonExample(TOOL_RESPONSE_EXAMPLES.getCallStack);
+    const variablesExample = formatJsonExample(TOOL_RESPONSE_EXAMPLES.getVariablesLocalScope);
 
     return {
       messages: [
@@ -723,11 +751,11 @@ Follow these steps IN ORDER:
 
 STEP 1 - Find Debug Configuration:
 a. Call list_resources() to see available resources
-   Response will include: {"resources": [{"uri": "debugssy:///{workspaceName}/launch.json", ...}]}
+   Response will include: ${listResourcesExample}
 
 b. Call read_resource with the launch.json URI:
    Example: {"uri": "debugssy:///myproject/launch.json"}
-   Response contains: {"contents": [{"text": "{ configurations: [...] }"}]}
+   Response contains: ${readResourceExample}
 
 c. Parse the JSON to find configuration names:
    Look for "configurations" array, each has "name" field
@@ -771,15 +799,15 @@ STEP 6 - Inspect State at Breakpoint (CRITICAL PATTERN):
 At EACH breakpoint, follow this inspection pattern:
 
 a. Call get_debug_state():
-   Verify: {"executionState": "paused", "currentLocation": {"file": "...", "line": N}, "stoppedInfo": {"reason": "breakpoint"}}
+   Verify: ${debugStateExample}
 
 b. Call get_call_stack({"maxDepth": 10}):
-   Response: {"frames": [...], "totalFrames": N, "truncated": true/false}
+   Response: ${callStackExample}
    - Shows execution path to this point
    - Helps understand how we got here
 
 c. Call get_variables({"scope": "Local"}):
-   Response: {"frameId": N, "scopes": [{"name": "Local: functionName", "variables": [{name, value, type}, ...]}]}
+   Response: ${variablesExample}
    CRITICAL: Use scope filter to reduce verbosity
    - Examine values for correctness
    - Look for null/undefined/unexpected values

@@ -151,7 +151,10 @@ export class ToolRouter {
     const fullAutomationTools = new Set<string>(debugControlSchemas.map((schema) => schema.name));
     const stepOperationTools = new Set<string>(stepOperationSchemas.map((schema) => schema.name));
 
-    if ((fullAutomationTools.has(toolName) || stepOperationTools.has(toolName)) && automationLevel !== 'full') {
+    if (
+      (fullAutomationTools.has(toolName) || stepOperationTools.has(toolName)) &&
+      automationLevel !== 'full'
+    ) {
       throw new AutomationLevelRestrictedError(toolName, automationLevel, 'full');
     }
 

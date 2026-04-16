@@ -7,6 +7,12 @@ import { MCPServer } from '../../MCPServer';
 import { ConfigManager } from '../../Config';
 import { EXTENSION_VERSION, CURRENT_MCP_PROTOCOL_VERSION } from '../../constants';
 import { createMockToolRegistry } from '../helpers/test-helpers';
+import { TOOL_NAMES } from '../../routing/toolNames';
+import {
+  RESOURCE_RESPONSE_EXAMPLES,
+  TOOL_RESPONSE_EXAMPLES,
+  formatJsonExample,
+} from '../../routing/toolResponseExamples';
 import '../setup';
 
 const getRouteHandler = (app: Express, path: string) => {
@@ -14,6 +20,14 @@ const getRouteHandler = (app: Express, path: string) => {
   const layer = stack.find((entry: any) => entry.route?.path === path);
   return layer?.route?.stack?.[0]?.handle as ((req: any, res: any) => Promise<void>) | undefined;
 };
+
+const getMcpHandler = (server: MCPServer, method: string) => {
+  return ((server as any).mcpServer as any)._requestHandlers.get(method) as
+    | ((request: any) => Promise<any>)
+    | undefined;
+};
+
+const parseToolContent = (response: any) => JSON.parse(response.content[0].text);
 
 describe('MCPServer - Integration', () => {
   let server: MCPServer;
@@ -152,6 +166,148 @@ describe('MCPServer - Integration', () => {
           error: 'Transport error',
         })
       );
+    });
+  });
+
+  describe('Registered MCP Handlers', () => {
+    it('should expose assisted-mode tool discovery through tools/list', async () => {
+      server = new MCPServer(3000, createMockToolRegistry(), new ConfigManager());
+
+      const handler = getMcpHandler(server, 'tools/list');
+      const result = await handler?.({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/list',
+        params: {},
+      });
+
+      const toolNames = result.tools.map((tool: any) => tool.name);
+      expect(toolNames).toContain(TOOL_NAMES.getDebugState);
+      expect(toolNames).not.toContain(TOOL_NAMES.startDebugging);
+      expect(toolNames).not.toContain(TOOL_NAMES.stopDebugging);
+    });
+
+    it('should expose full-mode tools through tools/list', async () => {
+      const configManager = new ConfigManager();
+      vi.spyOn(configManager, 'getConfig').mockReturnValue({
+        enabled: true,
+        port: 3000,
+        automationLevel: 'full',
+        waitForBreakpointTimeout: 5000,
+        allowStepOperations: true,
+        minifyResponses: true,
+        maxExpressionLength: 100,
+        expressionValidationLevel: 'moderate' as const,
+      });
+
+      server = new MCPServer(3000, createMockToolRegistry(), configManager);
+
+      const handler = getMcpHandler(server, 'tools/list');
+      const result = await handler?.({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/list',
+        params: {},
+      });
+
+      const toolNames = result.tools.map((tool: any) => tool.name);
+      expect(toolNames).toContain(TOOL_NAMES.startDebugging);
+      expect(toolNames).toContain(TOOL_NAMES.stopDebugging);
+      expect(toolNames).toContain(TOOL_NAMES.stepOver);
+    });
+
+    it('should serialize successful tool results through tools/call', async () => {
+      const toolRegistry = createMockToolRegistry();
+      toolRegistry.inspection.getDebugState = vi
+        .fn()
+        .mockResolvedValue(TOOL_RESPONSE_EXAMPLES.getDebugStatePaused);
+
+      server = new MCPServer(3000, toolRegistry, new ConfigManager());
+
+      const handler = getMcpHandler(server, 'tools/call');
+      const result = await handler?.({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: {
+          name: TOOL_NAMES.getDebugState,
+          arguments: {},
+        },
+      });
+
+      expect(result.isError).toBeUndefined();
+      expect(parseToolContent(result)).toEqual(TOOL_RESPONSE_EXAMPLES.getDebugStatePaused);
+      expect(toolRegistry.inspection.getDebugState).toHaveBeenCalledTimes(1);
+    });
+
+    it('should serialize automation-level errors through tools/call without executing the tool', async () => {
+      const toolRegistry = createMockToolRegistry();
+      toolRegistry.debugControl.stopDebugging = vi.fn();
+
+      server = new MCPServer(3000, toolRegistry, new ConfigManager());
+
+      const handler = getMcpHandler(server, 'tools/call');
+      const result = await handler?.({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: {
+          name: TOOL_NAMES.stopDebugging,
+          arguments: {},
+        },
+      });
+
+      const payload = parseToolContent(result);
+      expect(result.isError).toBe(true);
+      expect(payload.success).toBe(false);
+      expect(payload.code).toBe('AUTOMATION_LEVEL_RESTRICTED');
+      expect(payload.error).toContain("requires 'full' automation level");
+      expect(toolRegistry.debugControl.stopDebugging).not.toHaveBeenCalled();
+    });
+
+    it('should expose prompt discovery and prompt content through registered handlers', async () => {
+      const configManager = new ConfigManager();
+      vi.spyOn(configManager, 'getConfig').mockReturnValue({
+        enabled: true,
+        port: 3000,
+        automationLevel: 'full',
+        waitForBreakpointTimeout: 5000,
+        allowStepOperations: true,
+        minifyResponses: true,
+        maxExpressionLength: 100,
+        expressionValidationLevel: 'moderate' as const,
+      });
+
+      server = new MCPServer(3000, createMockToolRegistry(), configManager);
+
+      const listHandler = getMcpHandler(server, 'prompts/list');
+      const getHandler = getMcpHandler(server, 'prompts/get');
+
+      const listed = await listHandler?.({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'prompts/list',
+        params: {},
+      });
+      const generated = await getHandler?.({
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'prompts/get',
+        params: {
+          name: 'auto-debug-session',
+          arguments: {
+            issue: 'Application crashes on startup',
+          },
+        },
+      });
+
+      const promptNames = listed.prompts.map((prompt: any) => prompt.name);
+      const promptText = generated.messages[0].content.text;
+
+      expect(promptNames).toContain('auto-debug-session');
+      expect(promptText).toContain(formatJsonExample(TOOL_RESPONSE_EXAMPLES.getDebugStatePaused));
+      expect(promptText).toContain(formatJsonExample(RESOURCE_RESPONSE_EXAMPLES.listResources));
+      expect(promptText).toContain(formatJsonExample(RESOURCE_RESPONSE_EXAMPLES.readLaunchJson));
     });
   });
 

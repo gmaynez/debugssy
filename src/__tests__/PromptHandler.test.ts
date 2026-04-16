@@ -4,6 +4,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PromptHandler } from '../routing/PromptHandler';
 import { ConfigManager } from '../Config';
+import {
+  RESOURCE_RESPONSE_EXAMPLES,
+  TOOL_RESPONSE_EXAMPLES,
+  formatJsonExample,
+} from '../routing/toolResponseExamples';
 
 describe('PromptHandler', () => {
   let promptHandler: PromptHandler;
@@ -383,10 +388,39 @@ describe('PromptHandler', () => {
           errorMessage: 'test',
         });
 
-        expect(result.messages[0].content.text).toContain('"truncated": true');
-        expect(result.messages[0].content.text).toContain('"executionState": "paused"');
-        expect(result.messages[0].content.text).toContain('"currentLocation"');
-        expect(result.messages[0].content.text).toContain('"stoppedInfo"');
+        expect(result.messages[0].content.text).toContain(
+          formatJsonExample(TOOL_RESPONSE_EXAMPLES.getDebugStatePaused)
+        );
+        expect(result.messages[0].content.text).toContain(
+          formatJsonExample(TOOL_RESPONSE_EXAMPLES.getVariablesLocalScope)
+        );
+        expect(result.messages[0].content.text).toContain(
+          formatJsonExample(TOOL_RESPONSE_EXAMPLES.getCallStack)
+        );
+      });
+
+      it('should include shared resource response examples in full automation prompts', () => {
+        vi.spyOn(configManager, 'getConfig').mockReturnValue({
+          enabled: true,
+          port: 3000,
+          automationLevel: 'full',
+          waitForBreakpointTimeout: 5000,
+          allowStepOperations: false,
+          minifyResponses: true,
+          maxExpressionLength: 100,
+          expressionValidationLevel: 'moderate' as const,
+        });
+
+        const result = promptHandler.generatePrompt('auto-debug-session', {
+          issue: 'test',
+        });
+
+        expect(result.messages[0].content.text).toContain(
+          formatJsonExample(RESOURCE_RESPONSE_EXAMPLES.listResources)
+        );
+        expect(result.messages[0].content.text).toContain(
+          formatJsonExample(RESOURCE_RESPONSE_EXAMPLES.readLaunchJson)
+        );
       });
     });
   });
