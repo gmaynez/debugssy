@@ -7,6 +7,23 @@ import { ConfigManager } from '../../Config';
 import { vscode } from '../../__tests__/setup';
 import { createMockDebugSession } from '../../__tests__/helpers/vscode-mock';
 
+function mockConfig(
+  configManager: ConfigManager,
+  overrides: Partial<ReturnType<ConfigManager['getConfig']>> = {}
+) {
+  return vi.spyOn(configManager, 'getConfig').mockReturnValue({
+    enabled: true,
+    port: 3000,
+    automationLevel: 'full',
+    waitForBreakpointTimeout: 5000,
+    allowStepOperations: false,
+    minifyResponses: true,
+    maxExpressionLength: 100,
+    expressionValidationLevel: 'moderate',
+    ...overrides,
+  });
+}
+
 describe('DebugControlTools', () => {
   let tools: DebugControlTools;
   let configManager: ConfigManager;
@@ -58,6 +75,35 @@ describe('DebugControlTools', () => {
       expect(tools.getActiveSession()).toBe(session);
     });
 
+    it('should keep the newer active session when an older session terminates', () => {
+      const firstSession = createMockDebugSession('first', 'node');
+      const secondSession = createMockDebugSession('second', 'node');
+      const startHandler = (vscode.debug.onDidStartDebugSession as any).mock.calls[0][0];
+      const changeHandler = (vscode.debug.onDidChangeActiveDebugSession as any).mock.calls[0][0];
+      const terminateHandler = (vscode.debug.onDidTerminateDebugSession as any).mock.calls[0][0];
+
+      startHandler(firstSession);
+      startHandler(secondSession);
+      vscode.debug.activeDebugSession = secondSession;
+      changeHandler(secondSession);
+
+      terminateHandler(firstSession);
+
+      expect(tools.getActiveSession()).toBe(secondSession);
+    });
+
+    it('should clear the active session when VS Code reports no active session anymore', () => {
+      const session = createMockDebugSession('active', 'node');
+      const startHandler = (vscode.debug.onDidStartDebugSession as any).mock.calls[0][0];
+      const changeHandler = (vscode.debug.onDidChangeActiveDebugSession as any).mock.calls[0][0];
+
+      startHandler(session);
+      vscode.debug.activeDebugSession = undefined;
+      changeHandler(undefined);
+
+      expect(tools.getActiveSession()).toBeUndefined();
+    });
+
     it('should fall back to the current active VS Code session when internal state is stale', async () => {
       const staleSession = createMockDebugSession('stale', 'node');
       const liveSession = createMockDebugSession('live', 'node');
@@ -87,6 +133,25 @@ describe('DebugControlTools', () => {
       expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
         'workbench.action.debug.continue'
       );
+    });
+
+    it('should use the current active VS Code session when stopping after a session switch', async () => {
+      const firstSession = createMockDebugSession('first', 'node');
+      const secondSession = createMockDebugSession('second', 'node');
+      const startHandler = (vscode.debug.onDidStartDebugSession as any).mock.calls[0][0];
+      const changeHandler = (vscode.debug.onDidChangeActiveDebugSession as any).mock.calls[0][0];
+
+      startHandler(firstSession);
+      startHandler(secondSession);
+      vscode.debug.activeDebugSession = secondSession;
+      changeHandler(secondSession);
+
+      vi.spyOn(vscode.debug, 'stopDebugging').mockResolvedValue(undefined);
+
+      const result = await tools.stopDebugging();
+
+      expect(result.success).toBe(true);
+      expect(vscode.debug.stopDebugging).toHaveBeenCalledWith(secondSession);
     });
   });
 
@@ -312,16 +377,7 @@ describe('DebugControlTools', () => {
 
     describe('continueExecution', () => {
       it('should return assisted message in assisted mode', async () => {
-        vi.spyOn(configManager, 'getConfig').mockReturnValue({
-          enabled: true,
-          port: 3000,
-          automationLevel: 'assisted',
-          waitForBreakpointTimeout: 5000,
-          allowStepOperations: false,
-          minifyResponses: true,
-          maxExpressionLength: 100,
-          expressionValidationLevel: 'moderate',
-        });
+        mockConfig(configManager, { automationLevel: 'assisted' });
 
         const result = await tools.continueExecution();
 
@@ -332,21 +388,43 @@ describe('DebugControlTools', () => {
       });
 
       it('should execute command in full automation mode', async () => {
-        vi.spyOn(configManager, 'getConfig').mockReturnValue({
-          enabled: true,
-          port: 3000,
-          automationLevel: 'full',
-          waitForBreakpointTimeout: 5000,
-          allowStepOperations: false,
-          minifyResponses: true,
-          maxExpressionLength: 100,
-          expressionValidationLevel: 'moderate',
-        });
+        mockConfig(configManager);
 
         const result = await tools.continueExecution();
 
         expect(result.success).toBe(true);
         expect(result.message).toContain('Execution continued');
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+          'workbench.action.debug.continue'
+        );
+      });
+
+      it('should fail when the active session is cleared before command execution', async () => {
+        const changeHandler = (vscode.debug.onDidChangeActiveDebugSession as any).mock.calls[0][0];
+
+        mockConfig(configManager);
+        vscode.debug.activeDebugSession = undefined;
+        changeHandler(undefined);
+
+        const result = await tools.continueExecution();
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('No active debug session');
+        expect(vscode.commands.executeCommand).not.toHaveBeenCalled();
+      });
+
+      it('should execute against the latest active session after switching sessions', async () => {
+        const latestSession = createMockDebugSession('latest', 'node');
+        const changeHandler = (vscode.debug.onDidChangeActiveDebugSession as any).mock.calls[0][0];
+
+        mockConfig(configManager);
+        vscode.debug.activeDebugSession = latestSession;
+        changeHandler(latestSession);
+
+        const result = await tools.continueExecution();
+
+        expect(result.success).toBe(true);
+        expect(tools.getActiveSession()).toBe(latestSession);
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
           'workbench.action.debug.continue'
         );
@@ -460,20 +538,30 @@ describe('DebugControlTools', () => {
 
     describe('restart', () => {
       it('should execute command in full automation mode', async () => {
-        vi.spyOn(configManager, 'getConfig').mockReturnValue({
-          enabled: true,
-          port: 3000,
-          automationLevel: 'full',
-          waitForBreakpointTimeout: 5000,
-          allowStepOperations: false,
-          minifyResponses: true,
-          maxExpressionLength: 100,
-          expressionValidationLevel: 'moderate',
-        });
+        mockConfig(configManager);
 
         const result = await tools.restart();
 
         expect(result.success).toBe(true);
+        expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+          'workbench.action.debug.restart'
+        );
+      });
+
+      it('should keep operating after a session replacement sequence', async () => {
+        const replacementSession = createMockDebugSession('replacement', 'node');
+        const terminateHandler = (vscode.debug.onDidTerminateDebugSession as any).mock.calls[0][0];
+        const changeHandler = (vscode.debug.onDidChangeActiveDebugSession as any).mock.calls[0][0];
+
+        mockConfig(configManager);
+        vscode.debug.activeDebugSession = replacementSession;
+        terminateHandler(createMockDebugSession('terminated', 'node'));
+        changeHandler(replacementSession);
+
+        const result = await tools.restart();
+
+        expect(result.success).toBe(true);
+        expect(tools.getActiveSession()).toBe(replacementSession);
         expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
           'workbench.action.debug.restart'
         );

@@ -1027,6 +1027,128 @@ describe('ExpressionValidator', () => {
     });
   });
 
+  describe('Go Specific Validation', () => {
+    let goSession: any;
+
+    beforeEach(() => {
+      goSession = createMockDebugSession('go', 'go');
+    });
+
+    it('should allow common safe Go helpers', () => {
+      expect(validator.validateExpression('len(items)', goSession).allowed).toBe(true);
+      expect(validator.validateExpression('strings.ToUpper(name)', goSession).allowed).toBe(true);
+    });
+
+    it('should detect Go critical operations', () => {
+      expect(validator.validateExpression('os.Remove("file.txt")', goSession).riskLevel).toBe(
+        'critical'
+      );
+      expect(
+        validator.validateExpression('http.Get("https://example.com")', goSession).riskLevel
+      ).toBe('critical');
+    });
+
+    it('should detect Go reflection and unsafe access', () => {
+      expect(
+        validator.validateExpression('reflect.ValueOf(fn).Call(args)', goSession).riskLevel
+      ).toBe('high');
+      expect(validator.validateExpression('unsafe.Pointer(ptr)', goSession).riskLevel).toBe('high');
+    });
+  });
+
+  describe('Rust Specific Validation', () => {
+    let rustSession: any;
+
+    beforeEach(() => {
+      rustSession = createMockDebugSession('rust', 'rust');
+    });
+
+    it('should allow common safe Rust methods', () => {
+      expect(validator.validateExpression('value.len()', rustSession).allowed).toBe(true);
+      expect(validator.validateExpression('text.trim()', rustSession).allowed).toBe(true);
+    });
+
+    it('should detect Rust critical operations', () => {
+      expect(
+        validator.validateExpression('std::fs::write("file.txt", bytes)', rustSession).riskLevel
+      ).toBe('critical');
+      expect(
+        validator.validateExpression('TcpStream::connect("example.com:80")', rustSession).riskLevel
+      ).toBe('critical');
+    });
+
+    it('should detect Rust unsafe and mutation patterns', () => {
+      expect(validator.validateExpression('unsafe { *ptr }', rustSession).riskLevel).toBe('high');
+      expect(validator.validateExpression('vec.push(1)', rustSession).riskLevel).toBe('high');
+      expect(validator.validateExpression('Library::new("evil.so")', rustSession).riskLevel).toBe(
+        'high'
+      );
+    });
+  });
+
+  describe('Ruby Specific Validation', () => {
+    let rubySession: any;
+
+    beforeEach(() => {
+      rubySession = createMockDebugSession('ruby', 'ruby');
+    });
+
+    it('should allow common safe Ruby helpers', () => {
+      expect(validator.validateExpression('Math.sqrt(9)', rubySession).allowed).toBe(true);
+      expect(validator.validateExpression('Time.now', rubySession).allowed).toBe(true);
+    });
+
+    it('should detect Ruby critical operations', () => {
+      expect(validator.validateExpression('system("ls")', rubySession).riskLevel).toBe('critical');
+      expect(validator.validateExpression('File.delete("file.txt")', rubySession).riskLevel).toBe(
+        'critical'
+      );
+      expect(validator.validateExpression('Net::HTTP.get(uri)', rubySession).riskLevel).toBe(
+        'critical'
+      );
+    });
+
+    it('should detect Ruby high-risk dynamic execution and mutations', () => {
+      expect(validator.validateExpression('eval("code")', rubySession).riskLevel).toBe('high');
+      expect(validator.validateExpression('send(:dangerous)', rubySession).riskLevel).toBe('high');
+      expect(validator.validateExpression('require(path)', rubySession).riskLevel).toBe('high');
+      expect(validator.validateExpression('items.push(1)', rubySession).riskLevel).toBe('high');
+    });
+  });
+
+  describe('PHP Specific Validation', () => {
+    let phpSession: any;
+
+    beforeEach(() => {
+      phpSession = createMockDebugSession('php', 'php');
+    });
+
+    it('should allow common safe PHP helpers', () => {
+      expect(validator.validateExpression('count($items)', phpSession).allowed).toBe(true);
+      expect(validator.validateExpression('strlen($name)', phpSession).allowed).toBe(true);
+    });
+
+    it('should detect PHP critical operations', () => {
+      expect(validator.validateExpression('exec("ls")', phpSession).riskLevel).toBe('critical');
+      expect(
+        validator.validateExpression('file_get_contents("https://example.com")', phpSession)
+          .riskLevel
+      ).toBe('critical');
+      expect(
+        validator.validateExpression('file_put_contents("x", $data)', phpSession).riskLevel
+      ).toBe('critical');
+    });
+
+    it('should detect PHP high-risk dynamic execution and array mutations', () => {
+      expect(validator.validateExpression('eval($code)', phpSession).riskLevel).toBe('high');
+      expect(validator.validateExpression('$fn()', phpSession).riskLevel).toBe('high');
+      expect(validator.validateExpression('include($path)', phpSession).riskLevel).toBe('high');
+      expect(validator.validateExpression('array_push($items, 1)', phpSession).riskLevel).toBe(
+        'high'
+      );
+    });
+  });
+
   describe('C++ Specific Validation', () => {
     let cppSession: any;
 

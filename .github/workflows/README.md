@@ -12,18 +12,17 @@ Quick reference for Debugssy's CI/CD workflows.
 
 **What it does:**
 1. Verifies tag is on `main` branch
-2. Runs linting and type checking
-3. **Runs full test suite (529 tests) - Publishing blocked if tests fail!**
-4. **Verifies test coverage meets requirements**
-5. Builds and packages extension
-6. Publishes to **VS Code Marketplace**
-7. Publishes to **Open VSX Registry**
-8. Creates **GitHub Release** with `.vsix` file attached
+2. Runs the shared `npm run verify` suite (build, type-check, lint, format-check, coverage)
+3. Blocks publishing if verification fails
+4. Builds and packages extension
+5. Publishes to **VS Code Marketplace**
+6. Publishes to **Open VSX Registry**
+7. Creates **GitHub Release** with `.vsix` file attached
 
 **Quality gates:**
-- ✅ All tests must pass (529/529)
-- ✅ No linting errors
-- ✅ Type checking passes
+- ✅ Shared verification suite passes
+- ✅ Coverage thresholds pass
+- ✅ No linting or formatting errors
 - ✅ Build succeeds
 
 **Required secrets:**
@@ -42,10 +41,10 @@ Quick reference for Debugssy's CI/CD workflows.
 - Note: PRs are handled by `pr-validation.yml` to avoid duplicate runs
 
 **What it does:**
-- **Runs 529 unit tests** across all platforms
+- Runs the cross-platform test suite on Ubuntu, Windows, and macOS
 - Tests on Ubuntu, Windows, macOS with Node.js 22
-- Runs linting and type checking
-- **Generates test coverage reports** (84%+ coverage)
+- Runs the shared `npm run verify` suite on Ubuntu for build, type-check, lint, format-check, and coverage
+- Generates coverage reports
 - Security audit with `npm audit`
 - Packages extension
 
@@ -68,8 +67,8 @@ Quick reference for Debugssy's CI/CD workflows.
 - Validates `package.json`
 - Checks version bumps (for PRs to main)
 - Detects breaking changes
-- **Runs full test suite (529 tests)**
-- Runs build and lint
+- Runs the shared `npm run verify` suite
+- Builds and packages the extension
 - Auto-comments on PR with results
 
 **No setup needed** - runs automatically on PRs
@@ -83,6 +82,9 @@ Quick reference for Debugssy's CI/CD workflows.
 ```bash
 # Run all tests
 npm test
+
+# Run the same verification suite CI uses
+npm run verify
 
 # Run tests in watch mode
 npm run test:watch

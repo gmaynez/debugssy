@@ -8,6 +8,23 @@ import { ConfigManager } from '../Config';
 import { TOOL_NAMES } from '../routing/toolNames';
 import './setup';
 
+function mockConfig(
+  configManager: ConfigManager,
+  overrides: Partial<ReturnType<ConfigManager['getConfig']>> = {}
+) {
+  return vi.spyOn(configManager, 'getConfig').mockReturnValue({
+    enabled: true,
+    port: 3000,
+    automationLevel: 'assisted',
+    waitForBreakpointTimeout: 5000,
+    allowStepOperations: false,
+    minifyResponses: true,
+    maxExpressionLength: 100,
+    expressionValidationLevel: 'moderate' as const,
+    ...overrides,
+  });
+}
+
 // Mock ToolRegistry
 function createMockToolRegistry(): ToolRegistry {
   return {
@@ -218,15 +235,8 @@ describe('ToolRouter', () => {
       });
 
       it('should route evaluate_expression correctly', async () => {
-        vi.spyOn(mockConfigManager, 'getConfig').mockReturnValue({
-          enabled: true,
-          port: 3000,
-          automationLevel: 'assisted',
-          waitForBreakpointTimeout: 5000,
-          allowStepOperations: false,
-          minifyResponses: true,
-          maxExpressionLength: 100,
-          expressionValidationLevel: 'disabled' as const,
+        mockConfig(mockConfigManager, {
+          expressionValidationLevel: 'disabled',
         });
 
         const result = await toolRouter.routeToolCall(TOOL_NAMES.evaluateExpression, {
@@ -237,6 +247,203 @@ describe('ToolRouter', () => {
           expression: 'myVar',
         });
         expect(result.success).toBe(true);
+      });
+
+      it('should bypass validation flow when disabled even if server is provided', async () => {
+        mockConfig(mockConfigManager, {
+          expressionValidationLevel: 'disabled',
+        });
+
+        const server = { elicitInput: vi.fn() } as any;
+
+        await toolRouter.routeToolCall(
+          TOOL_NAMES.evaluateExpression,
+          { expression: 'myVar' },
+          server
+        );
+
+        expect(mockToolRegistry.inspection.evaluateExpression).toHaveBeenCalledWith({
+          expression: 'myVar',
+        });
+        expect(server.elicitInput).not.toHaveBeenCalled();
+      });
+
+      it('should execute immediately when expression validation allows it', async () => {
+        const expressionValidator = (toolRouter as any).expressionValidator;
+        vi.spyOn(expressionValidator, 'validateExpression').mockReturnValue({
+          allowed: true,
+          riskLevel: 'low',
+          reason: 'Safe read-only expression',
+        });
+
+        const server = { elicitInput: vi.fn() } as any;
+
+        await toolRouter.routeToolCall(
+          TOOL_NAMES.evaluateExpression,
+          { expression: 'user.id' },
+          server
+        );
+
+        expect(mockToolRegistry.inspection.evaluateExpression).toHaveBeenCalledWith({
+          expression: 'user.id',
+        });
+        expect(server.elicitInput).not.toHaveBeenCalled();
+      });
+
+      it('should execute without elicitation when risk is below threshold', async () => {
+        const expressionValidator = (toolRouter as any).expressionValidator;
+        vi.spyOn(expressionValidator, 'validateExpression').mockReturnValue({
+          allowed: false,
+          riskLevel: 'medium',
+          reason: 'Unknown function call',
+        });
+        vi.spyOn(expressionValidator, 'shouldElicit').mockReturnValue(false);
+
+        const server = { elicitInput: vi.fn() } as any;
+
+        await toolRouter.routeToolCall(
+          TOOL_NAMES.evaluateExpression,
+          { expression: 'maybeSafe()' },
+          server
+        );
+
+        expect(mockToolRegistry.inspection.evaluateExpression).toHaveBeenCalledWith({
+          expression: 'maybeSafe()',
+        });
+        expect(server.elicitInput).not.toHaveBeenCalled();
+      });
+
+      it('should execute with warning when user accepts elicitation', async () => {
+        const expressionValidator = (toolRouter as any).expressionValidator;
+        vi.spyOn(expressionValidator, 'validateExpression').mockReturnValue({
+          allowed: false,
+          riskLevel: 'high',
+          reason: 'Potential side effects',
+        });
+        vi.spyOn(expressionValidator, 'shouldElicit').mockReturnValue(true);
+        vi.spyOn(expressionValidator, 'formatElicitationMessage').mockReturnValue(
+          'This expression may have side effects.'
+        );
+
+        const server = {
+          elicitInput: vi.fn().mockResolvedValue({
+            action: 'accept',
+            content: { understood: true },
+          }),
+        } as any;
+
+        const result = await toolRouter.routeToolCall(
+          TOOL_NAMES.evaluateExpression,
+          { expression: 'mutateState()' },
+          server
+        );
+
+        expect(server.elicitInput).toHaveBeenCalledTimes(1);
+        expect(result).toMatchObject({
+          success: true,
+          _warning: 'Expression executed with user approval despite validation failure',
+        });
+      });
+
+      it('should report declined elicitation without executing the expression', async () => {
+        const expressionValidator = (toolRouter as any).expressionValidator;
+        vi.spyOn(expressionValidator, 'validateExpression').mockReturnValue({
+          allowed: false,
+          riskLevel: 'high',
+          reason: 'Potential side effects',
+        });
+        vi.spyOn(expressionValidator, 'shouldElicit').mockReturnValue(true);
+        vi.spyOn(expressionValidator, 'formatElicitationMessage').mockReturnValue(
+          'This expression may have side effects.'
+        );
+
+        const server = {
+          elicitInput: vi.fn().mockResolvedValue({
+            action: 'decline',
+          }),
+        } as any;
+
+        const result = await toolRouter.routeToolCall(
+          TOOL_NAMES.evaluateExpression,
+          { expression: 'mutateState()' },
+          server
+        );
+
+        expect(result).toEqual({
+          success: false,
+          error: 'Expression validation failed: Potential side effects. User declined to proceed.',
+        });
+        expect(mockToolRegistry.inspection.evaluateExpression).not.toHaveBeenCalled();
+      });
+
+      it('should report cancelled elicitation without executing the expression', async () => {
+        const expressionValidator = (toolRouter as any).expressionValidator;
+        vi.spyOn(expressionValidator, 'validateExpression').mockReturnValue({
+          allowed: false,
+          riskLevel: 'high',
+          reason: 'Potential side effects',
+        });
+        vi.spyOn(expressionValidator, 'shouldElicit').mockReturnValue(true);
+        vi.spyOn(expressionValidator, 'formatElicitationMessage').mockReturnValue(
+          'This expression may have side effects.'
+        );
+
+        const server = {
+          elicitInput: vi.fn().mockResolvedValue({
+            action: 'cancel',
+          }),
+        } as any;
+
+        const result = await toolRouter.routeToolCall(
+          TOOL_NAMES.evaluateExpression,
+          { expression: 'mutateState()' },
+          server
+        );
+
+        expect(result).toEqual({
+          success: false,
+          error: 'Expression evaluation cancelled by user.',
+        });
+        expect(mockToolRegistry.inspection.evaluateExpression).not.toHaveBeenCalled();
+      });
+
+      it('should fall back to validation failure details when elicitation is unavailable', async () => {
+        const expressionValidator = (toolRouter as any).expressionValidator;
+        vi.spyOn(expressionValidator, 'validateExpression').mockReturnValue({
+          allowed: false,
+          riskLevel: 'high',
+          reason: 'Potential side effects',
+        });
+        vi.spyOn(expressionValidator, 'shouldElicit').mockReturnValue(true);
+        vi.spyOn(expressionValidator, 'formatElicitationMessage').mockReturnValue(
+          'This expression may have side effects.'
+        );
+
+        const warnSpy = vi.spyOn((toolRouter as any).logger, 'warn');
+        const server = {
+          elicitInput: vi.fn().mockRejectedValue(new Error('Client does not support elicitation')),
+        } as any;
+
+        const result = await toolRouter.routeToolCall(
+          TOOL_NAMES.evaluateExpression,
+          { expression: 'mutateState()' },
+          server
+        );
+
+        expect(result).toEqual({
+          success: false,
+          error:
+            'This expression may have side effects.\n\nClient does not support user confirmation (elicitation). To allow this expression, set debugssy.expressionValidationLevel to "disabled" in settings.',
+          validationFailure: {
+            reason: 'Potential side effects',
+            riskLevel: 'high',
+            expression: 'mutateState()',
+          },
+        });
+        expect(warnSpy).toHaveBeenCalledWith(
+          'Elicitation failed, blocking expression:',
+          'Client does not support elicitation'
+        );
       });
 
       it('should route get_threads correctly', async () => {
@@ -270,15 +477,9 @@ describe('ToolRouter', () => {
 
     describe('Debug Control Tools', () => {
       beforeEach(() => {
-        vi.spyOn(mockConfigManager, 'getConfig').mockReturnValue({
-          enabled: true,
-          port: 3000,
+        mockConfig(mockConfigManager, {
           automationLevel: 'full',
-          waitForBreakpointTimeout: 5000,
           allowStepOperations: true,
-          minifyResponses: true,
-          maxExpressionLength: 100,
-          expressionValidationLevel: 'moderate' as const,
         });
       });
 
@@ -341,15 +542,9 @@ describe('ToolRouter', () => {
       });
 
       it('should reject full automation tools in assisted mode even if called directly', async () => {
-        vi.spyOn(mockConfigManager, 'getConfig').mockReturnValue({
-          enabled: true,
-          port: 3000,
+        mockConfig(mockConfigManager, {
           automationLevel: 'assisted',
-          waitForBreakpointTimeout: 5000,
           allowStepOperations: true,
-          minifyResponses: true,
-          maxExpressionLength: 100,
-          expressionValidationLevel: 'moderate' as const,
         });
 
         await expect(toolRouter.routeToolCall(TOOL_NAMES.stopDebugging, {})).rejects.toThrow(
@@ -358,15 +553,9 @@ describe('ToolRouter', () => {
       });
 
       it('should reject step operations when disabled', async () => {
-        vi.spyOn(mockConfigManager, 'getConfig').mockReturnValue({
-          enabled: true,
-          port: 3000,
+        mockConfig(mockConfigManager, {
           automationLevel: 'full',
-          waitForBreakpointTimeout: 5000,
           allowStepOperations: false,
-          minifyResponses: true,
-          maxExpressionLength: 100,
-          expressionValidationLevel: 'moderate' as const,
         });
 
         await expect(toolRouter.routeToolCall(TOOL_NAMES.stepOver, {})).rejects.toThrow(
@@ -431,15 +620,8 @@ describe('ToolRouter', () => {
     });
 
     it('should reject start_debugging without name or configuration', async () => {
-      vi.spyOn(mockConfigManager, 'getConfig').mockReturnValue({
-        enabled: true,
-        port: 3000,
+      mockConfig(mockConfigManager, {
         automationLevel: 'full',
-        waitForBreakpointTimeout: 5000,
-        allowStepOperations: false,
-        minifyResponses: true,
-        maxExpressionLength: 100,
-        expressionValidationLevel: 'moderate' as const,
       });
 
       await expect(toolRouter.routeToolCall(TOOL_NAMES.startDebugging, {})).rejects.toThrow(
@@ -492,15 +674,8 @@ describe('ToolRouter', () => {
 
   describe('wait_for_breakpoint', () => {
     it('should pass automation level to waitForBreakpoint', async () => {
-      vi.spyOn(mockConfigManager, 'getConfig').mockReturnValue({
-        enabled: true,
-        port: 3000,
+      mockConfig(mockConfigManager, {
         automationLevel: 'full',
-        waitForBreakpointTimeout: 5000,
-        allowStepOperations: false,
-        minifyResponses: true,
-        maxExpressionLength: 100,
-        expressionValidationLevel: 'moderate' as const,
       });
 
       await toolRouter.routeToolCall(TOOL_NAMES.waitForBreakpoint, {});
@@ -512,15 +687,8 @@ describe('ToolRouter', () => {
     });
 
     it('should pass custom timeout to waitForBreakpoint', async () => {
-      vi.spyOn(mockConfigManager, 'getConfig').mockReturnValue({
-        enabled: true,
-        port: 3000,
+      mockConfig(mockConfigManager, {
         automationLevel: 'full',
-        waitForBreakpointTimeout: 5000,
-        allowStepOperations: false,
-        minifyResponses: true,
-        maxExpressionLength: 100,
-        expressionValidationLevel: 'moderate' as const,
       });
 
       await toolRouter.routeToolCall(TOOL_NAMES.waitForBreakpoint, { timeout: 10000 });

@@ -56,14 +56,8 @@ jobs:
             echo "Make sure to update version appropriately (major version bump)"
           fi
 
-      - name: Lint code
-        run: npm run lint
-
-      - name: Check code formatting
-        run: npm run format:check
-
-      - name: Run tests
-        run: npm test
+      - name: Run shared verification suite
+        run: npm run verify
 
       - name: Build and package extension
         run: npm run package

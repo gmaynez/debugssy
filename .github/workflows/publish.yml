@@ -57,14 +57,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint code
-        run: npm run lint
-
-      - name: Check code formatting
-        run: npm run format:check
-
-      - name: Run tests with coverage
-        run: npm run test:coverage
+      - name: Run shared verification suite
+        run: npm run verify
 
       - name: Prepare marketplace README
         run: npm run prepare-publish
