@@ -27,7 +27,13 @@ import {
   ValidatorKey,
 } from './types/toolArguments';
 import type { ToolSchema, EvaluationResult } from './types/toolResults';
-import { UnknownToolError, InvalidArgumentsError, ExpressionUserDeclinedError } from '../errors';
+import {
+  UnknownToolError,
+  InvalidArgumentsError,
+  ExpressionUserDeclinedError,
+  AutomationLevelRestrictedError,
+  StepOperationsDisabledError,
+} from '../errors';
 import { TOOL_NAMES } from './toolNames';
 
 /**
@@ -106,6 +112,8 @@ export class ToolRouter {
       throw new UnknownToolError(toolName, Array.from(this.toolHandlers.keys()));
     }
 
+    this.ensureToolEnabled(toolName);
+
     // Validate input against Zod schema if available (type-safe lookup)
     let validatedArgs = args;
     if (toolName in Validators) {
@@ -136,6 +144,20 @@ export class ToolRouter {
     }
 
     return await handler(validatedArgs);
+  }
+
+  private ensureToolEnabled(toolName: string): void {
+    const { automationLevel, allowStepOperations } = this.configManager.getConfig();
+    const fullAutomationTools = new Set<string>(debugControlSchemas.map((schema) => schema.name));
+    const stepOperationTools = new Set<string>(stepOperationSchemas.map((schema) => schema.name));
+
+    if ((fullAutomationTools.has(toolName) || stepOperationTools.has(toolName)) && automationLevel !== 'full') {
+      throw new AutomationLevelRestrictedError(toolName, automationLevel, 'full');
+    }
+
+    if (stepOperationTools.has(toolName) && !allowStepOperations) {
+      throw new StepOperationsDisabledError(toolName);
+    }
   }
 
   /**

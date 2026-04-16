@@ -29,7 +29,13 @@ export class DebugControlTools implements vscode.Disposable {
 
     this.disposables.push(
       vscode.debug.onDidTerminateDebugSession(() => {
-        this.activeSession = undefined;
+        this.activeSession = vscode.debug.activeDebugSession;
+      })
+    );
+
+    this.disposables.push(
+      vscode.debug.onDidChangeActiveDebugSession((session) => {
+        this.activeSession = session;
       })
     );
   }
@@ -132,14 +138,15 @@ export class DebugControlTools implements vscode.Disposable {
 
   async stopDebugging(): Promise<DebugControlResult> {
     try {
-      if (!this.activeSession) {
+      const session = this.getCurrentSession();
+      if (!session) {
         return {
           success: false,
           error: 'No active debug session',
         };
       }
 
-      await vscode.debug.stopDebugging(this.activeSession);
+      await vscode.debug.stopDebugging(session);
       return {
         success: true,
         message: 'Debug session stopped',
@@ -201,7 +208,7 @@ export class DebugControlTools implements vscode.Disposable {
   }
 
   getActiveSession(): vscode.DebugSession | undefined {
-    return this.activeSession;
+    return this.getCurrentSession();
   }
 
   private async executeCommandWithAutomationCheck(
@@ -224,7 +231,7 @@ export class DebugControlTools implements vscode.Disposable {
     successMessage: string
   ): Promise<DebugControlResult> {
     try {
-      if (!this.activeSession) {
+      if (!this.getCurrentSession()) {
         return {
           success: false,
           error: 'No active debug session',
@@ -242,5 +249,9 @@ export class DebugControlTools implements vscode.Disposable {
         error: formatErrorMessage(error),
       };
     }
+  }
+
+  private getCurrentSession(): vscode.DebugSession | undefined {
+    return vscode.debug.activeDebugSession ?? this.activeSession;
   }
 }

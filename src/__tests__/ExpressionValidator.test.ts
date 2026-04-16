@@ -80,9 +80,8 @@ describe('ExpressionValidator', () => {
     });
 
     it('should allow logical operators', () => {
-      // Note: The current implementation has an edge case where && and ||
-      // trigger the bitwise operator check because the regex /[&|^~](?![&|])/
-      // matches the second character in && or ||. This is documented behavior.
+      expect(validator.validateExpression('a && b').allowed).toBe(true);
+      expect(validator.validateExpression('a || b').allowed).toBe(true);
       expect(validator.validateExpression('!a').allowed).toBe(true);
     });
 

@@ -5,11 +5,7 @@ import * as vscode from 'vscode';
 import { DAPClient } from '../dap/Client';
 import { ConfigManager } from '../Config';
 import { formatErrorMessage } from '../errors';
-import {
-  DEFAULT_CONSOLE_OUTPUT_LIMIT,
-  DEFAULT_MAX_STACK_DEPTH,
-  MAX_CONSOLE_OUTPUT_LIMIT,
-} from '../constants';
+import { DEFAULT_CONSOLE_OUTPUT_LIMIT, DEFAULT_MAX_STACK_DEPTH } from '../constants';
 
 export interface InspectionResult {
   success: boolean;
@@ -434,7 +430,7 @@ export class InspectionTools {
       // Default to DEFAULT_CONSOLE_OUTPUT_LIMIT entries to reduce verbosity
       const limit = args?.limit ?? DEFAULT_CONSOLE_OUTPUT_LIMIT;
 
-      const output = this.dapClient.getConsoleOutput({
+      const { entries, totalCount } = this.dapClient.getConsoleOutputSnapshot({
         category: args?.category,
         limit: limit,
         since: args?.since,
@@ -444,15 +440,15 @@ export class InspectionTools {
       return {
         success: true,
         data: {
-          entries: output.map((entry) => ({
+          entries: entries.map((entry) => ({
             category: entry.category,
             output: entry.output,
             timestamp: entry.timestamp,
             source: entry.source?.path || entry.source?.name,
             line: entry.line,
           })),
-          count: output.length,
-          truncated: limit < MAX_CONSOLE_OUTPUT_LIMIT, // Indicate if there might be more
+          count: entries.length,
+          truncated: totalCount > entries.length,
         },
       };
     } catch (error: unknown) {

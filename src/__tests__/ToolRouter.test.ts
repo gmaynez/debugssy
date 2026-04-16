@@ -269,6 +269,19 @@ describe('ToolRouter', () => {
     });
 
     describe('Debug Control Tools', () => {
+      beforeEach(() => {
+        vi.spyOn(mockConfigManager, 'getConfig').mockReturnValue({
+          enabled: true,
+          port: 3000,
+          automationLevel: 'full',
+          waitForBreakpointTimeout: 5000,
+          allowStepOperations: true,
+          minifyResponses: true,
+          maxExpressionLength: 100,
+          expressionValidationLevel: 'moderate' as const,
+        });
+      });
+
       it('should route start_debugging correctly', async () => {
         const result = await toolRouter.routeToolCall(TOOL_NAMES.startDebugging, {
           name: 'Launch Program',
@@ -325,6 +338,40 @@ describe('ToolRouter', () => {
 
         expect(mockToolRegistry.debugControl.stepOut).toHaveBeenCalled();
         expect(result.success).toBe(true);
+      });
+
+      it('should reject full automation tools in assisted mode even if called directly', async () => {
+        vi.spyOn(mockConfigManager, 'getConfig').mockReturnValue({
+          enabled: true,
+          port: 3000,
+          automationLevel: 'assisted',
+          waitForBreakpointTimeout: 5000,
+          allowStepOperations: true,
+          minifyResponses: true,
+          maxExpressionLength: 100,
+          expressionValidationLevel: 'moderate' as const,
+        });
+
+        await expect(toolRouter.routeToolCall(TOOL_NAMES.stopDebugging, {})).rejects.toThrow(
+          /requires 'full' automation level/i
+        );
+      });
+
+      it('should reject step operations when disabled', async () => {
+        vi.spyOn(mockConfigManager, 'getConfig').mockReturnValue({
+          enabled: true,
+          port: 3000,
+          automationLevel: 'full',
+          waitForBreakpointTimeout: 5000,
+          allowStepOperations: false,
+          minifyResponses: true,
+          maxExpressionLength: 100,
+          expressionValidationLevel: 'moderate' as const,
+        });
+
+        await expect(toolRouter.routeToolCall(TOOL_NAMES.stepOver, {})).rejects.toThrow(
+          /step operation 'step_over' is disabled/i
+        );
       });
     });
 
@@ -384,6 +431,17 @@ describe('ToolRouter', () => {
     });
 
     it('should reject start_debugging without name or configuration', async () => {
+      vi.spyOn(mockConfigManager, 'getConfig').mockReturnValue({
+        enabled: true,
+        port: 3000,
+        automationLevel: 'full',
+        waitForBreakpointTimeout: 5000,
+        allowStepOperations: false,
+        minifyResponses: true,
+        maxExpressionLength: 100,
+        expressionValidationLevel: 'moderate' as const,
+      });
+
       await expect(toolRouter.routeToolCall(TOOL_NAMES.startDebugging, {})).rejects.toThrow(
         /name|configuration/i
       );

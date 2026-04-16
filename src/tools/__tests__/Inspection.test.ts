@@ -658,13 +658,16 @@ describe('InspectionTools', () => {
 
   describe('getConsoleOutput', () => {
     it('should get console output with default limit', async () => {
-      vi.spyOn(dapClient, 'getConsoleOutput').mockReturnValue([
-        {
-          category: 'console',
-          output: 'Test log',
-          timestamp: Date.now(),
-        },
-      ]);
+      vi.spyOn(dapClient, 'getConsoleOutputSnapshot').mockReturnValue({
+        entries: [
+          {
+            category: 'console',
+            output: 'Test log',
+            timestamp: Date.now(),
+          },
+        ],
+        totalCount: 1,
+      });
 
       const result = await tools.getConsoleOutput();
 
@@ -674,57 +677,81 @@ describe('InspectionTools', () => {
         category: 'console',
         output: 'Test log',
       });
-      expect(dapClient.getConsoleOutput).toHaveBeenCalledWith(
+      expect((result.data as any)?.truncated).toBe(false);
+      expect(dapClient.getConsoleOutputSnapshot).toHaveBeenCalledWith(
         expect.objectContaining({ limit: 50 })
       );
     });
 
     it('should filter by category', async () => {
-      vi.spyOn(dapClient, 'getConsoleOutput').mockReturnValue([
-        { category: 'stderr', output: 'Error', timestamp: Date.now() },
-      ]);
+      vi.spyOn(dapClient, 'getConsoleOutputSnapshot').mockReturnValue({
+        entries: [{ category: 'stderr', output: 'Error', timestamp: Date.now() }],
+        totalCount: 1,
+      });
 
       const result = await tools.getConsoleOutput({ category: 'stderr' });
 
       expect(result.success).toBe(true);
-      expect(dapClient.getConsoleOutput).toHaveBeenCalledWith(
+      expect(dapClient.getConsoleOutputSnapshot).toHaveBeenCalledWith(
         expect.objectContaining({ category: 'stderr' })
       );
     });
 
     it('should apply custom limit', async () => {
-      vi.spyOn(dapClient, 'getConsoleOutput').mockReturnValue([]);
+      vi.spyOn(dapClient, 'getConsoleOutputSnapshot').mockReturnValue({
+        entries: [],
+        totalCount: 0,
+      });
 
       await tools.getConsoleOutput({ limit: 100 });
 
-      expect(dapClient.getConsoleOutput).toHaveBeenCalledWith(
+      expect(dapClient.getConsoleOutputSnapshot).toHaveBeenCalledWith(
         expect.objectContaining({ limit: 100 })
       );
     });
 
     it('should filter by timestamp', async () => {
       const timestamp = Date.now() - 1000;
-      vi.spyOn(dapClient, 'getConsoleOutput').mockReturnValue([]);
+      vi.spyOn(dapClient, 'getConsoleOutputSnapshot').mockReturnValue({
+        entries: [],
+        totalCount: 0,
+      });
 
       await tools.getConsoleOutput({ since: timestamp });
 
-      expect(dapClient.getConsoleOutput).toHaveBeenCalledWith(
+      expect(dapClient.getConsoleOutputSnapshot).toHaveBeenCalledWith(
         expect.objectContaining({ since: timestamp })
       );
     });
 
     it('should clear buffer after reading', async () => {
-      vi.spyOn(dapClient, 'getConsoleOutput').mockReturnValue([]);
+      vi.spyOn(dapClient, 'getConsoleOutputSnapshot').mockReturnValue({
+        entries: [],
+        totalCount: 0,
+      });
 
       await tools.getConsoleOutput({ clear: true });
 
-      expect(dapClient.getConsoleOutput).toHaveBeenCalledWith(
+      expect(dapClient.getConsoleOutputSnapshot).toHaveBeenCalledWith(
         expect.objectContaining({ clear: true })
       );
     });
 
+    it('should mark console output as truncated only when entries were omitted', async () => {
+      vi.spyOn(dapClient, 'getConsoleOutputSnapshot').mockReturnValue({
+        entries: [{ category: 'console', output: 'Newest log', timestamp: Date.now() }],
+        totalCount: 3,
+      });
+
+      const result = await tools.getConsoleOutput({ limit: 1 });
+
+      expect(result.success).toBe(true);
+      expect((result.data as any)?.count).toBe(1);
+      expect((result.data as any)?.truncated).toBe(true);
+    });
+
     it('should handle errors gracefully', async () => {
-      vi.spyOn(dapClient, 'getConsoleOutput').mockImplementation(() => {
+      vi.spyOn(dapClient, 'getConsoleOutputSnapshot').mockImplementation(() => {
         throw new Error('Console error');
       });
 

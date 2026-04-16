@@ -48,6 +48,46 @@ describe('DebugControlTools', () => {
 
       expect(tools.getActiveSession()).toBeUndefined();
     });
+
+    it('should track active session changes explicitly', () => {
+      const session = createMockDebugSession('active', 'node');
+      const changeHandler = (vscode.debug.onDidChangeActiveDebugSession as any).mock.calls[0][0];
+
+      changeHandler(session);
+
+      expect(tools.getActiveSession()).toBe(session);
+    });
+
+    it('should fall back to the current active VS Code session when internal state is stale', async () => {
+      const staleSession = createMockDebugSession('stale', 'node');
+      const liveSession = createMockDebugSession('live', 'node');
+      const startHandler = (vscode.debug.onDidStartDebugSession as any).mock.calls[0][0];
+      const terminateHandler = (vscode.debug.onDidTerminateDebugSession as any).mock.calls[0][0];
+
+      startHandler(staleSession);
+      vscode.debug.activeDebugSession = liveSession;
+      terminateHandler(staleSession);
+
+      vi.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined);
+      vi.spyOn(configManager, 'getConfig').mockReturnValue({
+        enabled: true,
+        port: 3000,
+        automationLevel: 'full',
+        waitForBreakpointTimeout: 5000,
+        allowStepOperations: false,
+        minifyResponses: true,
+        maxExpressionLength: 100,
+        expressionValidationLevel: 'moderate',
+      });
+
+      const result = await tools.continueExecution();
+
+      expect(result.success).toBe(true);
+      expect(tools.getActiveSession()).toBe(liveSession);
+      expect(vscode.commands.executeCommand).toHaveBeenCalledWith(
+        'workbench.action.debug.continue'
+      );
+    });
   });
 
   describe('startDebugging', () => {

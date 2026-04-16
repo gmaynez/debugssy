@@ -149,7 +149,7 @@ export function createMockResponse() {
  * Creates a mock Express next function
  */
 export function createMockNext() {
-  return function next() {};
+  return vi.fn();
 }
 
 /**

@@ -279,8 +279,7 @@ describe('McpRequestValidator', () => {
       const next = createMockNext();
 
       middleware(req, res, next);
-      // Middleware should call next when validations pass
-      // In a real scenario, next would be called
+      expect(next).toHaveBeenCalledTimes(1);
     });
 
     it('should not call next() when host validation fails', () => {
@@ -293,7 +292,7 @@ describe('McpRequestValidator', () => {
 
       middleware(req, res, next);
       expect(res.statusCode).toBe(403);
-      // next should not be called
+      expect(next).not.toHaveBeenCalled();
     });
 
     it('should not call next() when origin validation fails', () => {
@@ -309,7 +308,7 @@ describe('McpRequestValidator', () => {
 
       middleware(req, res, next);
       expect(res.statusCode).toBe(403);
-      // next should not be called
+      expect(next).not.toHaveBeenCalled();
     });
 
     it('should not call next() when protocol validation fails', () => {
@@ -325,7 +324,7 @@ describe('McpRequestValidator', () => {
 
       middleware(req, res, next);
       expect(res.statusCode).toBe(400);
-      // next should not be called
+      expect(next).not.toHaveBeenCalled();
     });
   });
 

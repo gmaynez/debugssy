@@ -585,6 +585,24 @@ describe('DAPClient', () => {
       expect(limited[4]?.output).toBe('Log 9');
     });
 
+    it('should report total filtered count separately from limited entries', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
+
+      for (let i = 0; i < 3; i++) {
+        tracker.onDidSendMessage({
+          type: 'event',
+          event: 'output',
+          body: { category: 'console', output: `Log ${i}` },
+        });
+      }
+
+      const snapshot = client.getConsoleOutputSnapshot({ limit: 1 });
+
+      expect(snapshot.entries).toHaveLength(1);
+      expect(snapshot.entries[0]?.output).toBe('Log 2');
+      expect(snapshot.totalCount).toBe(3);
+    });
+
     it('should clear console output buffer', () => {
       const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
 

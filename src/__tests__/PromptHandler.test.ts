@@ -384,7 +384,9 @@ describe('PromptHandler', () => {
         });
 
         expect(result.messages[0].content.text).toContain('"truncated": true');
-        expect(result.messages[0].content.text).toContain('"state": "paused"');
+        expect(result.messages[0].content.text).toContain('"executionState": "paused"');
+        expect(result.messages[0].content.text).toContain('"currentLocation"');
+        expect(result.messages[0].content.text).toContain('"stoppedInfo"');
       });
     });
   });

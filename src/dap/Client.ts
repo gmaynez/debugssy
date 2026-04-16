@@ -244,6 +244,15 @@ export class DAPClient {
     since?: number;
     clear?: boolean;
   }): ConsoleOutput[] {
+    return this.getConsoleOutputSnapshot(options).entries;
+  }
+
+  getConsoleOutputSnapshot(options?: {
+    category?: string;
+    limit?: number;
+    since?: number;
+    clear?: boolean;
+  }): { entries: ConsoleOutput[]; totalCount: number } {
     let output = [...this.consoleOutputBuffer];
 
     // Filter by category if specified
@@ -257,6 +266,8 @@ export class DAPClient {
       output = output.filter((o) => o.timestamp >= sinceTimestamp);
     }
 
+    const totalCount = output.length;
+
     // Limit results if specified
     if (options?.limit && options.limit > 0) {
       output = output.slice(-options.limit); // Get last N entries
@@ -267,7 +278,7 @@ export class DAPClient {
       this.consoleOutputBuffer = [];
     }
 
-    return output;
+    return { entries: output, totalCount };
   }
 
   clearConsoleOutput(): void {

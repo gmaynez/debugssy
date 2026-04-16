@@ -64,7 +64,7 @@ export class PromptHandler {
 
 1. ALWAYS call get_debug_state FIRST before any inspection operations
    - Verifies debugger is paused and shows current location
-   - Returns: {"state": "paused"|"running"|"stopped", "currentFile": "...", "currentLine": N, "stopReason": "..."}
+   - Returns: {"executionState": "paused"|"running"|"not_started"|"terminated", "currentLocation": {...}, "stoppedInfo": {...}}
 
 2. Use filters and limits to reduce output verbosity:
    - get_variables: ALWAYS specify scope: "Local" to see only relevant variables
@@ -81,8 +81,8 @@ export class PromptHandler {
    - Adjust maxDepth/limit parameters or use more specific filters
 
 5. Common tool response patterns:
-   - get_debug_state → Check "state" field before proceeding
-   - get_variables → Variables grouped by scope (e.g., "Local: functionName")
+   - get_debug_state → Check "executionState" first, then inspect "currentLocation" and "stoppedInfo"
+   - get_variables → Returns {"frameId": N, "scopes": [{"name": "...", "variables": [...]}]}
    - get_call_stack → Array of frames with "totalFrames" count
    - evaluate_expression → Returns "result" and "type" fields
 
@@ -315,9 +315,9 @@ ${automationLevel === 'full' ? '  - After calling start_debugging, wait for it t
 
 STEP 3 - Verify Paused State (CRITICAL):
 Call get_debug_state() to confirm execution paused at the breakpoint:
-  Expected response: {"state": "paused", "stopReason": "breakpoint", "currentFile": "...", "currentLine": N}
-  - If state is "running", the breakpoint hasn't been hit yet
-  - If state is "stopped", debugging hasn't started
+  Expected response: {"executionState": "paused", "stoppedInfo": {"reason": "breakpoint"}, "currentLocation": {"file": "...", "line": N}}
+  - If executionState is "running", the breakpoint hasn't been hit yet
+  - If executionState is "not_started" or "terminated", debugging isn't currently paused
 
 STEP 4 - Get Call Stack:
 Call get_call_stack to see the execution path leading to the error:
@@ -331,7 +331,7 @@ STEP 5 - Inspect Local Variables:
 Call get_variables to examine values at the point of failure:
   Example: {"scope": "Local"}
   CRITICAL: ALWAYS use scope filter to reduce output verbosity
-  Response: {"variables": {"Local: functionName": [{name, value, type}, ...]}}
+  Response: {"frameId": N, "scopes": [{"name": "Local: functionName", "variables": [{name, value, type}, ...]}]}
   - Look for null/undefined values that might cause the error
   - Check if objects have expected properties
 
@@ -407,7 +407,7 @@ STEP 3 - First Breakpoint - Verify Initial State (CRITICAL):
 When execution pauses at the first breakpoint:
 
 a. Call get_debug_state() to verify pause:
-   Expected: {"state": "paused", "stopReason": "breakpoint"}
+   Expected: {"executionState": "paused", "stoppedInfo": {"reason": "breakpoint"}}
 
 b. Call get_variables to see current value:
    Example: {"scope": "Local"}
@@ -511,7 +511,7 @@ STEP 3 - Verify Function Entry (CRITICAL):
 When breakpoint hits:
 
 a. Call get_debug_state():
-   Expected: {"state": "paused", "currentFile": "${filePath}", "currentLine": N}
+   Expected: {"executionState": "paused", "currentLocation": {"file": "${filePath}", "line": N}}
    - Confirms we're paused at function entry
 
 b. Call get_call_stack({"maxDepth": 5}):
@@ -625,7 +625,7 @@ STEP 3 - Verify Conditional Breakpoint Hit (CRITICAL):
 When the breakpoint hits (meaning condition is true):
 
 a. Call get_debug_state():
-   Expected: {"state": "paused", "stopReason": "breakpoint"}
+   Expected: {"executionState": "paused", "stoppedInfo": {"reason": "breakpoint"}}
    - Confirms we caught the problematic iteration
 
 b. Call get_call_stack({"maxDepth": 10}):
@@ -771,7 +771,7 @@ STEP 6 - Inspect State at Breakpoint (CRITICAL PATTERN):
 At EACH breakpoint, follow this inspection pattern:
 
 a. Call get_debug_state():
-   Verify: {"state": "paused", "currentFile": "...", "currentLine": N, "stopReason": "breakpoint"}
+   Verify: {"executionState": "paused", "currentLocation": {"file": "...", "line": N}, "stoppedInfo": {"reason": "breakpoint"}}
 
 b. Call get_call_stack({"maxDepth": 10}):
    Response: {"frames": [...], "totalFrames": N, "truncated": true/false}
@@ -779,7 +779,7 @@ b. Call get_call_stack({"maxDepth": 10}):
    - Helps understand how we got here
 
 c. Call get_variables({"scope": "Local"}):
-   Response: {"variables": {"Local: functionName": [{name, value, type}, ...]}}
+   Response: {"frameId": N, "scopes": [{"name": "Local: functionName", "variables": [{name, value, type}, ...]}]}
    CRITICAL: Use scope filter to reduce verbosity
    - Examine values for correctness
    - Look for null/undefined/unexpected values

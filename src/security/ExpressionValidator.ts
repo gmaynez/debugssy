@@ -984,7 +984,7 @@ export class ExpressionValidator {
     }
 
     // MEDIUM RISK: Bitwise operators (unusual in debugging, could be obfuscation)
-    if (/[&|^~](?![&|])/.test(expression) || /(<<|>>)/.test(expression)) {
+    if (/(?<![&|])[&|](?![&|=])|\^(?![=])|~/.test(expression) || /(<<|>>)/.test(expression)) {
       return {
         allowed: false,
         reason: 'Unusual Pattern: bitwise operators (rare in debugging)',
