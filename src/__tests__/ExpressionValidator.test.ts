@@ -1516,16 +1516,18 @@ describe('ExpressionValidator', () => {
       expect(validator.validateExpression('"hello".toUpperCase()', jsSession).allowed).toBe(true);
     });
 
-    it('should handle very long expressions', () => {
+    it('should handle very long expressions without false positives', () => {
       const longExpr = 'x.'.repeat(1000) + 'property';
       const result = validator.validateExpression(longExpr);
-      expect(result).toBeDefined();
+      // Long property chain is read-only access, should be allowed
+      expect(result.allowed).toBe(true);
     });
 
-    it('should handle expressions with special characters', () => {
+    it('should handle expressions with regex special characters', () => {
       const expr = "str.replace(/[^a-z]/gi, '')";
       const result = validator.validateExpression(expr);
-      expect(result).toBeDefined();
+      // Regex with whitelisted string method should be allowed
+      expect(result.allowed).toBe(true);
     });
 
     it('should handle multi-line expressions', () => {

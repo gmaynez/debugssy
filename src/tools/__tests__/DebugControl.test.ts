@@ -656,24 +656,70 @@ describe('DebugControlTools', () => {
       expect(() => tools.dispose()).not.toThrow();
     });
 
+    it('should dispose all registered event listeners', () => {
+      const mockDisposables = [
+        { dispose: vi.fn() },
+        { dispose: vi.fn() },
+        { dispose: vi.fn() },
+      ];
+      let callIndex = 0;
+      (vscode.debug.onDidStartDebugSession as any).mockImplementation(() => mockDisposables[callIndex++]);
+      (vscode.debug.onDidTerminateDebugSession as any).mockImplementation(() => mockDisposables[callIndex++]);
+      (vscode.debug.onDidChangeActiveDebugSession as any).mockImplementation(() => mockDisposables[callIndex++]);
+
+      const instance = new DebugControlTools(configManager);
+      instance.dispose();
+
+      expect(mockDisposables[0]!.dispose).toHaveBeenCalledTimes(1);
+      expect(mockDisposables[1]!.dispose).toHaveBeenCalledTimes(1);
+      expect(mockDisposables[2]!.dispose).toHaveBeenCalledTimes(1);
+    });
+
     it('should dispose event listeners when called multiple times', () => {
-      // Should not throw even if called multiple times
-      tools.dispose();
-      expect(() => tools.dispose()).not.toThrow();
+      const disposeSpy = vi.fn();
+      (vscode.debug.onDidStartDebugSession as any).mockReturnValue({ dispose: disposeSpy });
+      (vscode.debug.onDidTerminateDebugSession as any).mockReturnValue({ dispose: disposeSpy });
+      (vscode.debug.onDidChangeActiveDebugSession as any).mockReturnValue({ dispose: disposeSpy });
+
+      const instance = new DebugControlTools(configManager);
+      instance.dispose();
+      instance.dispose();
+
+      // Each disposable.dispose() called twice (once per dispose() call)
+      expect(disposeSpy).toHaveBeenCalledTimes(6);
     });
 
     it('should prevent memory leaks when creating multiple instances', () => {
-      // Create multiple instances and dispose them
+      const allDisposables: Array<{ dispose: ReturnType<typeof vi.fn> }> = [];
+      (vscode.debug.onDidStartDebugSession as any).mockImplementation(() => {
+        const d = { dispose: vi.fn() };
+        allDisposables.push(d);
+        return d;
+      });
+      (vscode.debug.onDidTerminateDebugSession as any).mockImplementation(() => {
+        const d = { dispose: vi.fn() };
+        allDisposables.push(d);
+        return d;
+      });
+      (vscode.debug.onDidChangeActiveDebugSession as any).mockImplementation(() => {
+        const d = { dispose: vi.fn() };
+        allDisposables.push(d);
+        return d;
+      });
+
       const instance1 = new DebugControlTools(configManager);
       const instance2 = new DebugControlTools(configManager);
       const instance3 = new DebugControlTools(configManager);
 
-      // Should be able to dispose all without issues
-      expect(() => {
-        instance1.dispose();
-        instance2.dispose();
-        instance3.dispose();
-      }).not.toThrow();
+      instance1.dispose();
+      instance2.dispose();
+      instance3.dispose();
+
+      // 3 instances × 3 event subscriptions = 9 disposables
+      expect(allDisposables).toHaveLength(9);
+      for (const d of allDisposables) {
+        expect(d.dispose).toHaveBeenCalledTimes(1);
+      }
     });
   });
 });

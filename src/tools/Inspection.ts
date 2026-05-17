@@ -30,7 +30,7 @@ export class InspectionTools {
    * @returns InspectionResult containing session state, execution state (running/paused),
    *          current location if paused, and stop reason
    */
-  async getDebugState(): Promise<InspectionResult> {
+  async getDebugState(_args?: Record<string, unknown>): Promise<InspectionResult> {
     try {
       const session = vscode.debug.activeDebugSession;
       const executionState = this.dapClient.getExecutionState();
@@ -383,7 +383,7 @@ export class InspectionTools {
    *
    * @returns InspectionResult with array of thread information
    */
-  async getThreads(): Promise<InspectionResult> {
+  async getThreads(_args?: Record<string, unknown>): Promise<InspectionResult> {
     try {
       const session = vscode.debug.activeDebugSession;
       if (!session) {
@@ -464,7 +464,7 @@ export class InspectionTools {
    *
    * @returns InspectionResult with success message
    */
-  async clearConsoleOutput(): Promise<InspectionResult> {
+  async clearConsoleOutput(_args?: Record<string, unknown>): Promise<InspectionResult> {
     try {
       this.dapClient.clearConsoleOutput();
       return {

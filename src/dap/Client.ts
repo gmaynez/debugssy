@@ -109,6 +109,7 @@ export class DAPClient {
   private executionState: ExecutionState = 'not_started';
   private stoppedInfo: StoppedInfo | undefined;
   private consoleOutputBuffer: ConsoleOutput[] = [];
+  private breakpointHitStats = new Map<number, { hitCount: number; lastHitTimestamp: number }>();
   private stateChangeEmitter = new vscode.EventEmitter<ExecutionState>();
   public readonly onStateChange = this.stateChangeEmitter.event;
   private logger: Logger;
@@ -234,6 +235,19 @@ export class DAPClient {
     return this.stoppedInfo;
   }
 
+  getBreakpointHitStats(
+    breakpointId: number
+  ): { hitCount: number; lastHitTimestamp?: number } | undefined {
+    const stats = this.breakpointHitStats.get(breakpointId);
+    if (!stats) {
+      return undefined;
+    }
+    return {
+      hitCount: stats.hitCount,
+      lastHitTimestamp: stats.lastHitTimestamp,
+    };
+  }
+
   isReadyForEvaluation(): boolean {
     return this.executionState === 'paused' && this.stoppedInfo !== undefined;
   }
@@ -291,6 +305,7 @@ export class DAPClient {
     this.executionState = 'not_started';
     this.stoppedInfo = undefined;
     this.consoleOutputBuffer = [];
+    this.breakpointHitStats.clear();
     this.lastKnownThreadId = undefined;
   }
 
@@ -344,13 +359,24 @@ export class DAPClient {
         case 'stopped': {
           const body = message.body as DAPStoppedEventBody | undefined;
           this.executionState = 'paused';
+          const hitBreakpointIds = body?.hitBreakpointIds;
+          if (hitBreakpointIds?.length) {
+            const timestamp = Date.now();
+            for (const breakpointId of hitBreakpointIds) {
+              const previous = this.breakpointHitStats.get(breakpointId);
+              this.breakpointHitStats.set(breakpointId, {
+                hitCount: (previous?.hitCount ?? 0) + 1,
+                lastHitTimestamp: timestamp,
+              });
+            }
+          }
           this.stoppedInfo = {
             threadId: body?.threadId ?? DEFAULT_THREAD_ID,
             reason: body?.reason ?? 'unknown',
             description: body?.description,
             text: body?.text,
             allThreadsStopped: body?.allThreadsStopped,
-            hitBreakpointIds: body?.hitBreakpointIds,
+            hitBreakpointIds,
           };
           if (typeof body?.threadId === 'number') {
             this.lastKnownThreadId = body.threadId;

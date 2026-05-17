@@ -19,7 +19,7 @@ export function createToolRegistry(
   configManager: ConfigManager
 ): ToolRegistry {
   const debugControl = new DebugControlTools(configManager);
-  const breakpoints = new BreakpointTools();
+  const breakpoints = new BreakpointTools(dapClient);
   const inspection = new InspectionTools(dapClient, configManager);
 
   return {

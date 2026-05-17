@@ -31,6 +31,12 @@ export const ToggleBreakpointArgsSchema = z.object({
 });
 export type ToggleBreakpointArgs = z.infer<typeof ToggleBreakpointArgsSchema>;
 
+export const InspectBreakpointArgsSchema = z.object({
+  filePath: z.string().min(1),
+  line: z.number().int().positive(),
+});
+export type InspectBreakpointArgs = z.infer<typeof InspectBreakpointArgsSchema>;
+
 export const GetVariablesArgsSchema = z.object({
   scope: z.string().optional(),
   frameId: z.number().int().nonnegative().optional(),
@@ -90,6 +96,7 @@ export type ToolArgs =
   | SetBreakpointArgs
   | RemoveBreakpointArgs
   | ToggleBreakpointArgs
+  | InspectBreakpointArgs
   | GetVariablesArgs
   | EvaluateExpressionArgs
   | WaitForBreakpointArgs
@@ -102,6 +109,7 @@ export const Validators = {
   [TOOL_NAMES.setBreakpoint]: SetBreakpointArgsSchema,
   [TOOL_NAMES.removeBreakpoint]: RemoveBreakpointArgsSchema,
   [TOOL_NAMES.listBreakpoints]: z.object({}),
+  [TOOL_NAMES.inspectBreakpoint]: InspectBreakpointArgsSchema,
   [TOOL_NAMES.toggleBreakpoint]: ToggleBreakpointArgsSchema,
   [TOOL_NAMES.removeAllBreakpoints]: z.object({}),
   [TOOL_NAMES.getVariables]: GetVariablesArgsSchema,

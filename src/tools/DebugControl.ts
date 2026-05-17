@@ -136,7 +136,7 @@ export class DebugControlTools implements vscode.Disposable {
     }
   }
 
-  async stopDebugging(): Promise<DebugControlResult> {
+  async stopDebugging(_args?: Record<string, unknown>): Promise<DebugControlResult> {
     try {
       const session = this.getCurrentSession();
       if (!session) {
@@ -159,7 +159,7 @@ export class DebugControlTools implements vscode.Disposable {
     }
   }
 
-  async continueExecution(): Promise<DebugControlResult> {
+  async continueExecution(_args?: Record<string, unknown>): Promise<DebugControlResult> {
     return this.executeCommandWithAutomationCheck(
       'workbench.action.debug.continue',
       'Execution continued',
@@ -167,7 +167,7 @@ export class DebugControlTools implements vscode.Disposable {
     );
   }
 
-  async stepOver(): Promise<DebugControlResult> {
+  async stepOver(_args?: Record<string, unknown>): Promise<DebugControlResult> {
     return this.executeCommandWithAutomationCheck(
       'workbench.action.debug.stepOver',
       'Stepped over',
@@ -175,7 +175,7 @@ export class DebugControlTools implements vscode.Disposable {
     );
   }
 
-  async stepInto(): Promise<DebugControlResult> {
+  async stepInto(_args?: Record<string, unknown>): Promise<DebugControlResult> {
     return this.executeCommandWithAutomationCheck(
       'workbench.action.debug.stepInto',
       'Stepped into',
@@ -183,7 +183,7 @@ export class DebugControlTools implements vscode.Disposable {
     );
   }
 
-  async stepOut(): Promise<DebugControlResult> {
+  async stepOut(_args?: Record<string, unknown>): Promise<DebugControlResult> {
     return this.executeCommandWithAutomationCheck(
       'workbench.action.debug.stepOut',
       'Stepped out',
@@ -191,7 +191,7 @@ export class DebugControlTools implements vscode.Disposable {
     );
   }
 
-  async pause(): Promise<DebugControlResult> {
+  async pause(_args?: Record<string, unknown>): Promise<DebugControlResult> {
     return this.executeCommandWithAutomationCheck(
       'workbench.action.debug.pause',
       'Execution paused',
@@ -199,7 +199,7 @@ export class DebugControlTools implements vscode.Disposable {
     );
   }
 
-  async restart(): Promise<DebugControlResult> {
+  async restart(_args?: Record<string, unknown>): Promise<DebugControlResult> {
     return this.executeCommandWithAutomationCheck(
       'workbench.action.debug.restart',
       'Debug session restarted',

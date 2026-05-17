@@ -213,6 +213,7 @@ export function createMockToolRegistry(): ToolRegistry {
       setBreakpoint: vi.fn(),
       removeBreakpoint: vi.fn(),
       listBreakpoints: vi.fn(),
+      inspectBreakpoint: vi.fn(),
       toggleBreakpoint: vi.fn(),
       removeAllBreakpoints: vi.fn(),
     } as any,

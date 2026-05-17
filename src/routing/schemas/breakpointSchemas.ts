@@ -66,6 +66,25 @@ export const breakpointSchemas = [
     },
   },
   {
+    name: TOOL_NAMES.inspectBreakpoint,
+    description:
+      'Inspect a specific breakpoint and return structured facts plus deterministic signal IDs. This tool does not generate natural-language diagnosis text.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        filePath: {
+          type: 'string',
+          description: 'Absolute path to the file',
+        },
+        line: {
+          type: 'number',
+          description: 'Line number (1-based)',
+        },
+      },
+      required: ['filePath', 'line'],
+    },
+  },
+  {
     name: TOOL_NAMES.toggleBreakpoint,
     description: 'Toggle a breakpoint enabled/disabled state',
     inputSchema: {

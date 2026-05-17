@@ -5,6 +5,7 @@ export const TOOL_NAMES = {
   setBreakpoint: 'set_breakpoint',
   removeBreakpoint: 'remove_breakpoint',
   listBreakpoints: 'list_breakpoints',
+  inspectBreakpoint: 'inspect_breakpoint',
   toggleBreakpoint: 'toggle_breakpoint',
   removeAllBreakpoints: 'remove_all_breakpoints',
   getVariables: 'get_variables',

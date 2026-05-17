@@ -24,6 +24,7 @@ function createMockToolRegistry(): ToolRegistry {
       setBreakpoint: vi.fn().mockResolvedValue({ success: true }),
       removeBreakpoint: vi.fn().mockResolvedValue({ success: true }),
       listBreakpoints: vi.fn().mockResolvedValue({ success: true }),
+      inspectBreakpoint: vi.fn().mockResolvedValue({ success: true }),
       toggleBreakpoint: vi.fn().mockResolvedValue({ success: true }),
       removeAllBreakpoints: vi.fn().mockResolvedValue({ success: true }),
     } as any,

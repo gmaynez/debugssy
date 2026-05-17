@@ -17,6 +17,7 @@ import {
   SetBreakpointArgs,
   RemoveBreakpointArgs,
   ToggleBreakpointArgs,
+  InspectBreakpointArgs,
   GetVariablesArgs,
   EvaluateExpressionArgs,
   WaitForBreakpointArgs,
@@ -178,12 +179,22 @@ export class ToolRouter {
         TOOL_NAMES.removeBreakpoint,
         (args: RemoveBreakpointArgs) => this.toolRegistry.breakpoints.removeBreakpoint(args),
       ],
-      [TOOL_NAMES.listBreakpoints, () => this.toolRegistry.breakpoints.listBreakpoints()],
+      [
+        TOOL_NAMES.listBreakpoints,
+        (args: Record<string, unknown>) => this.toolRegistry.breakpoints.listBreakpoints(args),
+      ],
+      [
+        TOOL_NAMES.inspectBreakpoint,
+        (args: InspectBreakpointArgs) => this.toolRegistry.breakpoints.inspectBreakpoint(args),
+      ],
       [
         TOOL_NAMES.toggleBreakpoint,
         (args: ToggleBreakpointArgs) => this.toolRegistry.breakpoints.toggleBreakpoint(args),
       ],
-      [TOOL_NAMES.removeAllBreakpoints, () => this.toolRegistry.breakpoints.removeAllBreakpoints()],
+      [
+        TOOL_NAMES.removeAllBreakpoints,
+        (args: Record<string, unknown>) => this.toolRegistry.breakpoints.removeAllBreakpoints(args),
+      ],
 
       // Inspection tools
       [
@@ -198,23 +209,44 @@ export class ToolRouter {
         TOOL_NAMES.evaluateExpression,
         (args: EvaluateExpressionArgs) => this.toolRegistry.inspection.evaluateExpression(args),
       ],
-      [TOOL_NAMES.getThreads, () => this.toolRegistry.inspection.getThreads()],
-      [TOOL_NAMES.getDebugState, () => this.toolRegistry.inspection.getDebugState()],
+      [
+        TOOL_NAMES.getThreads,
+        (args: Record<string, unknown>) => this.toolRegistry.inspection.getThreads(args),
+      ],
+      [
+        TOOL_NAMES.getDebugState,
+        (args: Record<string, unknown>) => this.toolRegistry.inspection.getDebugState(args),
+      ],
       [
         TOOL_NAMES.getConsoleOutput,
         (args: GetConsoleOutputArgs) => this.toolRegistry.inspection.getConsoleOutput(args),
       ],
-      [TOOL_NAMES.clearConsoleOutput, () => this.toolRegistry.inspection.clearConsoleOutput()],
+      [
+        TOOL_NAMES.clearConsoleOutput,
+        (args: Record<string, unknown>) => this.toolRegistry.inspection.clearConsoleOutput(args),
+      ],
 
       // Debug control tools (full automation only)
       [
         TOOL_NAMES.startDebugging,
         (args: StartDebuggingArgs) => this.toolRegistry.debugControl.startDebugging(args),
       ],
-      [TOOL_NAMES.stopDebugging, () => this.toolRegistry.debugControl.stopDebugging()],
-      [TOOL_NAMES.continueExecution, () => this.toolRegistry.debugControl.continueExecution()],
-      [TOOL_NAMES.pause, () => this.toolRegistry.debugControl.pause()],
-      [TOOL_NAMES.restart, () => this.toolRegistry.debugControl.restart()],
+      [
+        TOOL_NAMES.stopDebugging,
+        (args: Record<string, unknown>) => this.toolRegistry.debugControl.stopDebugging(args),
+      ],
+      [
+        TOOL_NAMES.continueExecution,
+        (args: Record<string, unknown>) => this.toolRegistry.debugControl.continueExecution(args),
+      ],
+      [
+        TOOL_NAMES.pause,
+        (args: Record<string, unknown>) => this.toolRegistry.debugControl.pause(args),
+      ],
+      [
+        TOOL_NAMES.restart,
+        (args: Record<string, unknown>) => this.toolRegistry.debugControl.restart(args),
+      ],
       [
         TOOL_NAMES.waitForBreakpoint,
         (args: WaitForBreakpointArgs) => {
@@ -227,9 +259,18 @@ export class ToolRouter {
       ],
 
       // Step operations (opt-in)
-      [TOOL_NAMES.stepOver, () => this.toolRegistry.debugControl.stepOver()],
-      [TOOL_NAMES.stepInto, () => this.toolRegistry.debugControl.stepInto()],
-      [TOOL_NAMES.stepOut, () => this.toolRegistry.debugControl.stepOut()],
+      [
+        TOOL_NAMES.stepOver,
+        (args: Record<string, unknown>) => this.toolRegistry.debugControl.stepOver(args),
+      ],
+      [
+        TOOL_NAMES.stepInto,
+        (args: Record<string, unknown>) => this.toolRegistry.debugControl.stepInto(args),
+      ],
+      [
+        TOOL_NAMES.stepOut,
+        (args: Record<string, unknown>) => this.toolRegistry.debugControl.stepOut(args),
+      ],
     ]);
   }
 

@@ -4,6 +4,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { BreakpointTools } from '../Breakpoints';
 import { vscode } from '../../__tests__/setup';
+import { DAPClient } from '../../dap/Client';
 import {
   MockUri,
   MockPosition,
@@ -14,10 +15,17 @@ import {
 
 describe('BreakpointTools', () => {
   let tools: BreakpointTools;
+  let dapClient: DAPClient;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    tools = new BreakpointTools();
+    dapClient = {
+      getExecutionState: vi.fn().mockReturnValue('not_started'),
+      getStoppedInfo: vi.fn().mockReturnValue(undefined),
+      getStackTrace: vi.fn().mockResolvedValue({ stackFrames: [] }),
+      getBreakpointHitStats: vi.fn().mockReturnValue(undefined),
+    } as any;
+    tools = new BreakpointTools(dapClient);
     // Reset breakpoints array
     vscode.debug.breakpoints = [];
   });
@@ -67,6 +75,9 @@ describe('BreakpointTools', () => {
 
       expect(result.success).toBe(true);
       expect(vscode.debug.addBreakpoints).toHaveBeenCalledTimes(1);
+
+      const addedBreakpoint = (vscode.debug.addBreakpoints as any).mock.calls[0][0][0];
+      expect(addedBreakpoint.hitCondition).toBe('3');
     });
 
     it('should set a logpoint', async () => {
@@ -80,6 +91,9 @@ describe('BreakpointTools', () => {
 
       expect(result.success).toBe(true);
       expect(vscode.debug.addBreakpoints).toHaveBeenCalledTimes(1);
+
+      const addedBreakpoint = (vscode.debug.addBreakpoints as any).mock.calls[0][0][0];
+      expect(addedBreakpoint.logMessage).toBe('Value is {x}');
     });
 
     it('should handle errors when setting breakpoint', async () => {
@@ -340,8 +354,12 @@ describe('BreakpointTools', () => {
       });
 
       expect(result.success).toBe(true);
-      // The new breakpoint should be created with the same condition, hitCondition, logMessage
       expect(vscode.debug.addBreakpoints).toHaveBeenCalledTimes(1);
+
+      const addedBreakpoint = (vscode.debug.addBreakpoints as any).mock.calls[0][0][0];
+      expect(addedBreakpoint.condition).toBe('x > 10');
+      expect(addedBreakpoint.hitCondition).toBe('5');
+      expect(addedBreakpoint.logMessage).toBe('Value is {x}');
     });
 
     it('should return error when no breakpoint found to toggle', async () => {
@@ -376,6 +394,163 @@ describe('BreakpointTools', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('Failed to toggle breakpoint');
+    });
+  });
+
+  describe('inspectBreakpoint', () => {
+    it('should return structured facts for an editor breakpoint without a session', async () => {
+      const uri = MockUri.file('/test/file.js');
+      const position = new MockPosition(9, 0);
+      const range = new MockRange(position, position);
+      const location = new MockLocation(uri, range);
+      const bp = new MockSourceBreakpoint(location, false, 'x > 10', '5', 'Value is {x}');
+
+      vscode.debug.breakpoints = [bp as any];
+
+      const result = await tools.inspectBreakpoint({
+        filePath: '/test/file.js',
+        line: 10,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data).toMatchObject({
+        requestedLocation: { filePath: '/test/file.js', line: 10 },
+        editorBreakpoint: {
+          exists: true,
+          id: bp.id,
+          enabled: false,
+          condition: 'x > 10',
+          hitCondition: '5',
+          logMessage: 'Value is {x}',
+        },
+        session: {
+          hasActiveSession: false,
+          executionState: 'not_started',
+        },
+        adapterBreakpoint: {
+          available: false,
+        },
+        history: {
+          available: false,
+          hitCount: 0,
+        },
+      });
+      expect(result.data?.signals).toEqual(
+        expect.arrayContaining([
+          { id: 'BREAKPOINT_EXISTS' },
+          { id: 'BREAKPOINT_DISABLED' },
+          { id: 'CONDITION_PRESENT' },
+          { id: 'HIT_CONDITION_PRESENT' },
+          { id: 'LOGPOINT_CONFIGURED' },
+          { id: 'NO_ACTIVE_SESSION' },
+        ])
+      );
+    });
+
+    it('should include adapter and hit history details when a session is active', async () => {
+      const uri = MockUri.file('/test/file.js');
+      const position = new MockPosition(9, 0);
+      const range = new MockRange(position, position);
+      const location = new MockLocation(uri, range);
+      const bp = new MockSourceBreakpoint(location, true);
+      const session = {
+        name: 'node',
+        type: 'pwa-node',
+        configuration: { name: 'Launch Program' },
+        getDebugProtocolBreakpoint: vi.fn().mockResolvedValue({
+          id: 7,
+          verified: false,
+          line: 12,
+          source: { path: '/test/out/file.js' },
+          message: 'Unbound breakpoint',
+        }),
+      };
+
+      vscode.debug.breakpoints = [bp as any];
+      vscode.debug.activeDebugSession = session as any;
+      vi.mocked(dapClient.getExecutionState).mockReturnValue('paused');
+      vi.mocked(dapClient.getStoppedInfo).mockReturnValue({
+        threadId: 1,
+        reason: 'breakpoint',
+        description: 'Paused on breakpoint',
+        hitBreakpointIds: [7],
+      });
+      vi.mocked(dapClient.getBreakpointHitStats).mockReturnValue({
+        hitCount: 2,
+        lastHitTimestamp: 1234,
+      });
+      vi.mocked(dapClient.getStackTrace).mockResolvedValue({
+        stackFrames: [
+          {
+            id: 1,
+            name: 'main',
+            source: { path: '/test/file.js' },
+            line: 10,
+            column: 0,
+          },
+        ],
+      });
+
+      const result = await tools.inspectBreakpoint({
+        filePath: '/test/file.js',
+        line: 10,
+      });
+
+      expect(session.getDebugProtocolBreakpoint).toHaveBeenCalledWith(bp);
+      expect(result.success).toBe(true);
+      expect(result.data).toMatchObject({
+        session: {
+          hasActiveSession: true,
+          sessionName: 'node',
+          sessionType: 'pwa-node',
+          executionState: 'paused',
+          configurationName: 'Launch Program',
+        },
+        adapterBreakpoint: {
+          available: true,
+          id: 7,
+          verified: false,
+          line: 12,
+          sourcePath: '/test/out/file.js',
+          message: 'Unbound breakpoint',
+        },
+        history: {
+          available: true,
+          hitCount: 2,
+          lastHitTimestamp: 1234,
+        },
+        currentLocation: {
+          file: '/test/file.js',
+          line: 10,
+          column: 0,
+          functionName: 'main',
+        },
+      });
+      expect(result.data?.signals).toEqual(
+        expect.arrayContaining([
+          { id: 'ACTIVE_SESSION_PRESENT' },
+          { id: 'SESSION_PAUSED' },
+          { id: 'ADAPTER_BREAKPOINT_AVAILABLE' },
+          { id: 'ADAPTER_BREAKPOINT_UNVERIFIED' },
+          { id: 'ADAPTER_BREAKPOINT_RELOCATED' },
+          { id: 'BREAKPOINT_WAS_HIT_PREVIOUSLY' },
+          { id: 'BREAKPOINT_HIT_IN_CURRENT_STOP' },
+          { id: 'CURRENT_FRAME_AT_REQUESTED_LOCATION' },
+        ])
+      );
+    });
+
+    it('should report when no editor breakpoint exists at the requested location', async () => {
+      const result = await tools.inspectBreakpoint({
+        filePath: '/test/file.js',
+        line: 10,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data?.editorBreakpoint.exists).toBe(false);
+      expect(result.data?.signals).toEqual(
+        expect.arrayContaining([{ id: 'BREAKPOINT_NOT_FOUND' }, { id: 'NO_ACTIVE_SESSION' }])
+      );
     });
   });
 

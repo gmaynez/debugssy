@@ -32,6 +32,7 @@ function createMockToolRegistry(): ToolRegistry {
       setBreakpoint: vi.fn().mockResolvedValue({ success: true, message: 'Breakpoint set' }),
       removeBreakpoint: vi.fn().mockResolvedValue({ success: true, message: 'Breakpoint removed' }),
       listBreakpoints: vi.fn().mockResolvedValue({ success: true, breakpoints: [] }),
+      inspectBreakpoint: vi.fn().mockResolvedValue({ success: true, data: {} }),
       toggleBreakpoint: vi.fn().mockResolvedValue({ success: true, message: 'Toggled' }),
       removeAllBreakpoints: vi.fn().mockResolvedValue({ success: true, message: 'All removed' }),
     } as any,
@@ -182,14 +183,17 @@ describe('ToolRouter', () => {
           line: 10,
         });
 
-        expect(mockToolRegistry.breakpoints.removeBreakpoint).toHaveBeenCalled();
+        expect(mockToolRegistry.breakpoints.removeBreakpoint).toHaveBeenCalledWith({
+          filePath: '/test/file.js',
+          line: 10,
+        });
         expect(result.success).toBe(true);
       });
 
       it('should route list_breakpoints correctly', async () => {
         const result = await toolRouter.routeToolCall(TOOL_NAMES.listBreakpoints, {});
 
-        expect(mockToolRegistry.breakpoints.listBreakpoints).toHaveBeenCalled();
+        expect(mockToolRegistry.breakpoints.listBreakpoints).toHaveBeenCalledWith({});
         expect(result.success).toBe(true);
       });
 
@@ -199,14 +203,30 @@ describe('ToolRouter', () => {
           line: 10,
         });
 
-        expect(mockToolRegistry.breakpoints.toggleBreakpoint).toHaveBeenCalled();
+        expect(mockToolRegistry.breakpoints.toggleBreakpoint).toHaveBeenCalledWith({
+          filePath: '/test/file.js',
+          line: 10,
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it('should route inspect_breakpoint correctly', async () => {
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.inspectBreakpoint, {
+          filePath: '/test/file.js',
+          line: 10,
+        });
+
+        expect(mockToolRegistry.breakpoints.inspectBreakpoint).toHaveBeenCalledWith({
+          filePath: '/test/file.js',
+          line: 10,
+        });
         expect(result.success).toBe(true);
       });
 
       it('should route remove_all_breakpoints correctly', async () => {
         const result = await toolRouter.routeToolCall(TOOL_NAMES.removeAllBreakpoints, {});
 
-        expect(mockToolRegistry.breakpoints.removeAllBreakpoints).toHaveBeenCalled();
+        expect(mockToolRegistry.breakpoints.removeAllBreakpoints).toHaveBeenCalledWith({});
         expect(result.success).toBe(true);
       });
     });
@@ -215,7 +235,7 @@ describe('ToolRouter', () => {
       it('should route get_variables correctly', async () => {
         const result = await toolRouter.routeToolCall(TOOL_NAMES.getVariables, {});
 
-        expect(mockToolRegistry.inspection.getVariables).toHaveBeenCalled();
+        expect(mockToolRegistry.inspection.getVariables).toHaveBeenCalledWith({});
         expect(result.success).toBe(true);
       });
 
@@ -230,7 +250,7 @@ describe('ToolRouter', () => {
       it('should route get_call_stack correctly', async () => {
         const result = await toolRouter.routeToolCall(TOOL_NAMES.getCallStack, {});
 
-        expect(mockToolRegistry.inspection.getCallStack).toHaveBeenCalled();
+        expect(mockToolRegistry.inspection.getCallStack).toHaveBeenCalledWith({});
         expect(result.success).toBe(true);
       });
 
@@ -449,28 +469,28 @@ describe('ToolRouter', () => {
       it('should route get_threads correctly', async () => {
         const result = await toolRouter.routeToolCall(TOOL_NAMES.getThreads, {});
 
-        expect(mockToolRegistry.inspection.getThreads).toHaveBeenCalled();
+        expect(mockToolRegistry.inspection.getThreads).toHaveBeenCalledWith({});
         expect(result.success).toBe(true);
       });
 
       it('should route get_debug_state correctly', async () => {
         const result = await toolRouter.routeToolCall(TOOL_NAMES.getDebugState, {});
 
-        expect(mockToolRegistry.inspection.getDebugState).toHaveBeenCalled();
+        expect(mockToolRegistry.inspection.getDebugState).toHaveBeenCalledWith({});
         expect(result.success).toBe(true);
       });
 
       it('should route get_console_output correctly', async () => {
         const result = await toolRouter.routeToolCall(TOOL_NAMES.getConsoleOutput, {});
 
-        expect(mockToolRegistry.inspection.getConsoleOutput).toHaveBeenCalled();
+        expect(mockToolRegistry.inspection.getConsoleOutput).toHaveBeenCalledWith({});
         expect(result.success).toBe(true);
       });
 
       it('should route clear_console_output correctly', async () => {
         const result = await toolRouter.routeToolCall(TOOL_NAMES.clearConsoleOutput, {});
 
-        expect(mockToolRegistry.inspection.clearConsoleOutput).toHaveBeenCalled();
+        expect(mockToolRegistry.inspection.clearConsoleOutput).toHaveBeenCalledWith({});
         expect(result.success).toBe(true);
       });
     });
@@ -488,56 +508,58 @@ describe('ToolRouter', () => {
           name: 'Launch Program',
         });
 
-        expect(mockToolRegistry.debugControl.startDebugging).toHaveBeenCalled();
+        expect(mockToolRegistry.debugControl.startDebugging).toHaveBeenCalledWith({
+          name: 'Launch Program',
+        });
         expect(result.success).toBe(true);
       });
 
       it('should route stop_debugging correctly', async () => {
         const result = await toolRouter.routeToolCall(TOOL_NAMES.stopDebugging, {});
 
-        expect(mockToolRegistry.debugControl.stopDebugging).toHaveBeenCalled();
+        expect(mockToolRegistry.debugControl.stopDebugging).toHaveBeenCalledWith({});
         expect(result.success).toBe(true);
       });
 
       it('should route continue correctly', async () => {
         const result = await toolRouter.routeToolCall(TOOL_NAMES.continueExecution, {});
 
-        expect(mockToolRegistry.debugControl.continueExecution).toHaveBeenCalled();
+        expect(mockToolRegistry.debugControl.continueExecution).toHaveBeenCalledWith({});
         expect(result.success).toBe(true);
       });
 
       it('should route pause correctly', async () => {
         const result = await toolRouter.routeToolCall(TOOL_NAMES.pause, {});
 
-        expect(mockToolRegistry.debugControl.pause).toHaveBeenCalled();
+        expect(mockToolRegistry.debugControl.pause).toHaveBeenCalledWith({});
         expect(result.success).toBe(true);
       });
 
       it('should route restart correctly', async () => {
         const result = await toolRouter.routeToolCall(TOOL_NAMES.restart, {});
 
-        expect(mockToolRegistry.debugControl.restart).toHaveBeenCalled();
+        expect(mockToolRegistry.debugControl.restart).toHaveBeenCalledWith({});
         expect(result.success).toBe(true);
       });
 
       it('should route step_over correctly', async () => {
         const result = await toolRouter.routeToolCall(TOOL_NAMES.stepOver, {});
 
-        expect(mockToolRegistry.debugControl.stepOver).toHaveBeenCalled();
+        expect(mockToolRegistry.debugControl.stepOver).toHaveBeenCalledWith({});
         expect(result.success).toBe(true);
       });
 
       it('should route step_into correctly', async () => {
         const result = await toolRouter.routeToolCall(TOOL_NAMES.stepInto, {});
 
-        expect(mockToolRegistry.debugControl.stepInto).toHaveBeenCalled();
+        expect(mockToolRegistry.debugControl.stepInto).toHaveBeenCalledWith({});
         expect(result.success).toBe(true);
       });
 
       it('should route step_out correctly', async () => {
         const result = await toolRouter.routeToolCall(TOOL_NAMES.stepOut, {});
 
-        expect(mockToolRegistry.debugControl.stepOut).toHaveBeenCalled();
+        expect(mockToolRegistry.debugControl.stepOut).toHaveBeenCalledWith({});
         expect(result.success).toBe(true);
       });
 
@@ -583,6 +605,87 @@ describe('ToolRouter', () => {
         ).rejects.toThrow('Tool failed');
       });
     });
+
+    describe('End-to-end argument forwarding', () => {
+      it('should forward all arguments and return handler result unchanged', async () => {
+        const handlerResult = {
+          success: true,
+          message: 'Breakpoint set at /app/main.ts:42',
+          breakpoint: {
+            id: 'bp-123',
+            filePath: '/app/main.ts',
+            line: 42,
+            condition: 'x > 10',
+          },
+        };
+        (mockToolRegistry.breakpoints.setBreakpoint as any).mockResolvedValue(handlerResult);
+
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.setBreakpoint, {
+          filePath: '/app/main.ts',
+          line: 42,
+          condition: 'x > 10',
+        });
+
+        expect(result).toEqual(handlerResult);
+        expect(result.breakpoint?.id).toBe('bp-123');
+        expect(result.breakpoint?.condition).toBe('x > 10');
+      });
+
+      it('should pass through handler failure result without masking it', async () => {
+        const handlerResult = {
+          success: false,
+          error: 'No active debug session',
+        };
+        (mockToolRegistry.inspection.getVariables as any).mockResolvedValue(handlerResult);
+
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.getVariables, {
+          scope: 'Locals',
+        });
+
+        expect(result).toEqual(handlerResult);
+        expect(result.success).toBe(false);
+        expect(result.error).toBe('No active debug session');
+      });
+
+      it('should route multiple sequential calls independently', async () => {
+        (mockToolRegistry.breakpoints.listBreakpoints as any).mockResolvedValue({
+          success: true,
+          breakpoints: [{ id: 'bp-1' }],
+        });
+        (mockToolRegistry.inspection.getDebugState as any).mockResolvedValue({
+          success: true,
+          state: 'paused',
+        });
+
+        const bpResult = await toolRouter.routeToolCall(TOOL_NAMES.listBreakpoints, {});
+        const stateResult = await toolRouter.routeToolCall(TOOL_NAMES.getDebugState, {});
+
+        expect(bpResult.breakpoints).toEqual([{ id: 'bp-1' }]);
+        expect(stateResult.state).toBe('paused');
+        expect(mockToolRegistry.breakpoints.listBreakpoints).toHaveBeenCalledTimes(1);
+        expect(mockToolRegistry.inspection.getDebugState).toHaveBeenCalledTimes(1);
+      });
+
+      it('should reject concurrent calls with different invalid args independently', async () => {
+        const call1 = toolRouter.routeToolCall(TOOL_NAMES.setBreakpoint, {
+          filePath: '/test.js',
+          line: -1,
+        });
+        const call2 = toolRouter.routeToolCall(TOOL_NAMES.setBreakpoint, {
+          filePath: '/test2.js',
+          line: -2,
+        });
+
+        await expect(call1).rejects.toThrow(/line/i);
+        await expect(call2).rejects.toThrow(/line/i);
+      });
+
+      it('should handle tool name as exact match not substring', async () => {
+        await expect(toolRouter.routeToolCall('set_breakpoint_extra', {})).rejects.toThrow(
+          /Unknown tool/i
+        );
+      });
+    });
   });
 
   describe('Input Validation', () => {
@@ -607,6 +710,14 @@ describe('ToolRouter', () => {
         toolRouter.routeToolCall(TOOL_NAMES.setBreakpoint, {
           filePath: '/test/file.js',
           line: -1,
+        })
+      ).rejects.toThrow(/line/i);
+    });
+
+    it('should reject inspect_breakpoint with missing line', async () => {
+      await expect(
+        toolRouter.routeToolCall(TOOL_NAMES.inspectBreakpoint, {
+          filePath: '/test/file.js',
         })
       ).rejects.toThrow(/line/i);
     });

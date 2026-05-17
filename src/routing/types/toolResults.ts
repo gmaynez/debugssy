@@ -72,6 +72,67 @@ export type ListBreakpointsResult = ToolResult<{
   breakpoints: BreakpointInfo[];
 }>;
 
+export interface BreakpointInspectionSignal {
+  id: string;
+}
+
+export interface BreakpointInspectionEditorState {
+  exists: boolean;
+  id?: string;
+  enabled?: boolean;
+  condition?: string;
+  hitCondition?: string;
+  logMessage?: string;
+}
+
+export interface BreakpointInspectionSessionState {
+  hasActiveSession: boolean;
+  sessionName?: string;
+  sessionType?: string;
+  executionState: 'not_started' | 'running' | 'paused' | 'terminated';
+  configurationName?: string;
+}
+
+export interface BreakpointInspectionAdapterState {
+  available: boolean;
+  id?: number;
+  verified?: boolean;
+  message?: string;
+  sourcePath?: string;
+  line?: number;
+  column?: number;
+}
+
+export interface BreakpointInspectionHistory {
+  available: boolean;
+  hitCount: number;
+  lastHitTimestamp?: number;
+}
+
+export type InspectBreakpointResult = ToolResult<{
+  requestedLocation: {
+    filePath: string;
+    line: number;
+  };
+  editorBreakpoint: BreakpointInspectionEditorState;
+  session: BreakpointInspectionSessionState;
+  adapterBreakpoint: BreakpointInspectionAdapterState;
+  currentLocation?: {
+    file?: string;
+    line: number;
+    column: number;
+    functionName: string;
+  };
+  currentStop?: {
+    reason: string;
+    description?: string;
+    threadId?: number;
+    hitBreakpointIds?: number[];
+  };
+  history: BreakpointInspectionHistory;
+  signals: BreakpointInspectionSignal[];
+}>;
+
 // ============================================
 // Inspection Tool Results
 // ============================================
