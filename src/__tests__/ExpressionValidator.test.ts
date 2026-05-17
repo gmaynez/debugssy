@@ -108,6 +108,7 @@ describe('ExpressionValidator', () => {
         const result = validator.validateExpression(`x ${op} 5`);
         expect(result.allowed).toBe(false);
         expect(result.riskLevel).toBe('high');
+        expect(result.reason).toContain('State Mutation');
       }
     });
 
@@ -129,6 +130,7 @@ describe('ExpressionValidator', () => {
       const result = validator.validateExpression('++x');
       expect(result.allowed).toBe(false);
       expect(result.riskLevel).toBe('high');
+      expect(result.reason).toContain('increment');
     });
 
     it('should not reject equality operators as assignments', () => {
@@ -170,16 +172,32 @@ describe('ExpressionValidator', () => {
     });
 
     it('should reject Map/Set mutation methods with session context', () => {
-      expect(validator.validateExpression('map.set("key", value)', jsSession).allowed).toBe(false);
-      expect(validator.validateExpression('set.add(value)', jsSession).allowed).toBe(false);
-      expect(validator.validateExpression('map.delete("key")', jsSession).allowed).toBe(false);
-      expect(validator.validateExpression('set.clear()', jsSession).allowed).toBe(false);
+      const setResult = validator.validateExpression('map.set("key", value)', jsSession);
+      expect(setResult.allowed).toBe(false);
+      expect(setResult.riskLevel).toBe('high');
+      expect(setResult.reason).toContain('set');
+
+      const addResult = validator.validateExpression('set.add(value)', jsSession);
+      expect(addResult.allowed).toBe(false);
+      expect(addResult.riskLevel).toBe('high');
+      expect(addResult.reason).toContain('add');
+
+      const deleteResult = validator.validateExpression('map.delete("key")', jsSession);
+      expect(deleteResult.allowed).toBe(false);
+      expect(deleteResult.riskLevel).toBe('high');
+      expect(deleteResult.reason).toContain('delete');
+
+      const clearResult = validator.validateExpression('set.clear()', jsSession);
+      expect(clearResult.allowed).toBe(false);
+      expect(clearResult.riskLevel).toBe('high');
+      expect(clearResult.reason).toContain('clear');
     });
 
     it('should reject mutation with optional chaining', () => {
       const result = validator.validateExpression('arr?.push(item)', jsSession);
       expect(result.allowed).toBe(false);
       expect(result.riskLevel).toBe('high');
+      expect(result.reason).toContain('push');
     });
 
     it('should flag unknown mutations as medium risk without session', () => {
@@ -187,6 +205,7 @@ describe('ExpressionValidator', () => {
       const result = validator.validateExpression('arr.push()');
       expect(result.allowed).toBe(false);
       expect(result.riskLevel).toBe('medium');
+      expect(result.reason).toContain('User-Defined Function');
     });
   });
 
@@ -322,6 +341,58 @@ describe('ExpressionValidator', () => {
       const result = validator.validateExpression('new Function("return 1")', jsSession);
       expect(result.allowed).toBe(false);
       expect(result.riskLevel).toBe('high');
+      expect(result.reason).toContain('Function');
+    });
+
+    it('should reject eval via comma operator', () => {
+      const result = validator.validateExpression('(0, eval)("code")', jsSession);
+      expect(result.allowed).toBe(false);
+      expect(result.riskLevel).toBe('high');
+      expect(result.reason).toContain('eval');
+    });
+
+    it('should reject eval via array extraction', () => {
+      const result = validator.validateExpression('[eval][0]("code")', jsSession);
+      expect(result.allowed).toBe(false);
+      expect(result.riskLevel).toBe('high');
+      expect(result.reason).toContain('eval');
+    });
+
+    it('should reject eval as tagged template', () => {
+      const result = validator.validateExpression('eval`code`', jsSession);
+      expect(result.allowed).toBe(false);
+      expect(result.riskLevel).toBe('high');
+      expect(result.reason).toContain('eval');
+    });
+
+    it('should reject Function as tagged template', () => {
+      const result = validator.validateExpression('Function`return 1`', jsSession);
+      expect(result.allowed).toBe(false);
+      expect(result.riskLevel).toBe('high');
+      expect(result.reason).toContain('Function');
+    });
+
+    it('should reject eval using fullwidth Unicode characters (NFKC confusables)', () => {
+      // Fullwidth ｅｖａｌ (U+FF45 U+FF56 U+FF41 U+FF4C) normalizes to eval under NFKC
+      const result = validator.validateExpression('\uff45\uff56\uff41\uff4c("code")', jsSession);
+      expect(result.allowed).toBe(false);
+      expect(result.riskLevel).toBe('high');
+      expect(result.reason).toContain('eval');
+    });
+
+    it('should flag eval as medium risk without session', () => {
+      // Without session, unknown functions are medium risk
+      const result = validator.validateExpression('eval("code")');
+      expect(result.allowed).toBe(false);
+      expect(result.riskLevel).toBe('medium');
+      expect(result.reason).toContain('User-Defined Function');
+    });
+
+    it('should reject setTimeout with string', () => {
+      // setTimeout is not in whitelist, so should be flagged
+      const result = validator.validateExpression('setTimeout("code", 100)');
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toContain('User-Defined Function');
     });
 
     it('should reject eval via comma operator', () => {
@@ -386,6 +457,7 @@ describe('ExpressionValidator', () => {
           const result = validator.validateExpression(op);
           expect(result.allowed).toBe(false);
           expect(result.riskLevel).toBe('critical');
+          expect(result.reason).toContain('File System Operation');
         }
       });
 
@@ -402,30 +474,60 @@ describe('ExpressionValidator', () => {
           const result = validator.validateExpression(op);
           expect(result.allowed).toBe(false);
           expect(result.riskLevel).toBe('critical');
+          expect(result.reason).toContain('Process Execution');
         }
       });
 
       it('should reject process control', () => {
-        expect(validator.validateExpression('process.exit(0)').riskLevel).toBe('critical');
-        expect(validator.validateExpression('process.kill(pid)').riskLevel).toBe('critical');
-        expect(validator.validateExpression('process.abort()').riskLevel).toBe('critical');
+        const exitResult = validator.validateExpression('process.exit(0)');
+        expect(exitResult.riskLevel).toBe('critical');
+        expect(exitResult.reason).toContain('Process');
+
+        const killResult = validator.validateExpression('process.kill(pid)');
+        expect(killResult.riskLevel).toBe('critical');
+        expect(killResult.reason).toContain('Process');
+
+        const abortResult = validator.validateExpression('process.abort()');
+        expect(abortResult.riskLevel).toBe('critical');
+        expect(abortResult.reason).toContain('Process');
       });
 
       it('should reject network operations', () => {
-        expect(validator.validateExpression('fetch("url")').riskLevel).toBe('critical');
-        expect(validator.validateExpression('axios.get("url")').riskLevel).toBe('critical');
-        expect(validator.validateExpression('http.get("url")').riskLevel).toBe('critical');
+        const fetchResult = validator.validateExpression('fetch("url")');
+        expect(fetchResult.riskLevel).toBe('critical');
+        expect(fetchResult.reason).toContain('Network Operation');
+
+        const axiosResult = validator.validateExpression('axios.get("url")');
+        expect(axiosResult.riskLevel).toBe('critical');
+        expect(axiosResult.reason).toContain('Network Operation');
+
+        const httpResult = validator.validateExpression('http.get("url")');
+        expect(httpResult.riskLevel).toBe('critical');
+        expect(httpResult.reason).toContain('Network Operation');
       });
 
       it('should reject dangerous require statements', () => {
-        expect(validator.validateExpression("require('fs')").riskLevel).toBe('critical');
-        expect(validator.validateExpression("require('child_process')").riskLevel).toBe('critical');
-        expect(validator.validateExpression("require('net')").riskLevel).toBe('critical');
+        const fsRequire = validator.validateExpression("require('fs')");
+        expect(fsRequire.riskLevel).toBe('critical');
+        expect(fsRequire.reason).toContain('System Module Loading');
+
+        const cpRequire = validator.validateExpression("require('child_process')");
+        expect(cpRequire.riskLevel).toBe('critical');
+        expect(cpRequire.reason).toContain('System Module Loading');
+
+        const netRequire = validator.validateExpression("require('net')");
+        expect(netRequire.riskLevel).toBe('critical');
+        expect(netRequire.reason).toContain('System Module Loading');
       });
 
       it('should reject bracket notation for critical operations', () => {
-        expect(validator.validateExpression('fs["unlink"]("/path")').riskLevel).toBe('critical');
-        expect(validator.validateExpression("process['exit'](0)").riskLevel).toBe('critical');
+        const fsResult = validator.validateExpression('fs["unlink"]("/path")');
+        expect(fsResult.riskLevel).toBe('critical');
+        expect(fsResult.reason).toContain('File System');
+
+        const processResult = validator.validateExpression("process['exit'](0)");
+        expect(processResult.riskLevel).toBe('critical');
+        expect(processResult.reason).toContain('Process');
       });
     });
 

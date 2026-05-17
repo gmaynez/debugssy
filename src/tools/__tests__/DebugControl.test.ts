@@ -329,6 +329,73 @@ describe('DebugControlTools', () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain('Failed to start');
     });
+
+    it('should select workspace folder by name', async () => {
+      vi.spyOn(configManager, 'getConfig').mockReturnValue({
+        enabled: true,
+        port: 3000,
+        automationLevel: 'full',
+        waitForBreakpointTimeout: 5000,
+        allowStepOperations: false,
+        minifyResponses: true,
+        maxExpressionLength: 100,
+        expressionValidationLevel: 'moderate',
+      });
+
+      const mockFolder1 = {
+        uri: { fsPath: '/workspace1', toString: () => '/workspace1' },
+        name: 'workspace1',
+        index: 0,
+      };
+      const mockFolder2 = {
+        uri: { fsPath: '/workspace2', toString: () => '/workspace2' },
+        name: 'workspace2',
+        index: 1,
+      };
+      vscode.workspace.workspaceFolders = [mockFolder1 as any, mockFolder2 as any];
+
+      vi.spyOn(vscode.debug, 'startDebugging').mockResolvedValue(true as any);
+
+      const result = await tools.startDebugging({
+        workspaceFolder: 'workspace2',
+        configuration: { type: 'node', request: 'launch', name: 'test' },
+      });
+
+      expect(result.success).toBe(true);
+      expect(vscode.debug.startDebugging).toHaveBeenCalledWith(
+        mockFolder2,
+        expect.anything()
+      );
+    });
+
+    it('should reject configuration missing required fields', async () => {
+      vi.spyOn(configManager, 'getConfig').mockReturnValue({
+        enabled: true,
+        port: 3000,
+        automationLevel: 'full',
+        waitForBreakpointTimeout: 5000,
+        allowStepOperations: false,
+        minifyResponses: true,
+        maxExpressionLength: 100,
+        expressionValidationLevel: 'moderate',
+      });
+
+      const mockFolder = {
+        uri: { fsPath: '/workspace', toString: () => '/workspace' },
+        name: 'workspace',
+        index: 0,
+      };
+      vscode.workspace.workspaceFolders = [mockFolder as any];
+
+      const result = await tools.startDebugging({
+        configuration: { name: 'test' }, // missing type and request
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Invalid debug configuration');
+      expect(result.error).toContain('type');
+      expect(result.error).toContain('request');
+    });
   });
 
   describe('stopDebugging', () => {
@@ -657,15 +724,17 @@ describe('DebugControlTools', () => {
     });
 
     it('should dispose all registered event listeners', () => {
-      const mockDisposables = [
-        { dispose: vi.fn() },
-        { dispose: vi.fn() },
-        { dispose: vi.fn() },
-      ];
+      const mockDisposables = [{ dispose: vi.fn() }, { dispose: vi.fn() }, { dispose: vi.fn() }];
       let callIndex = 0;
-      (vscode.debug.onDidStartDebugSession as any).mockImplementation(() => mockDisposables[callIndex++]);
-      (vscode.debug.onDidTerminateDebugSession as any).mockImplementation(() => mockDisposables[callIndex++]);
-      (vscode.debug.onDidChangeActiveDebugSession as any).mockImplementation(() => mockDisposables[callIndex++]);
+      (vscode.debug.onDidStartDebugSession as any).mockImplementation(
+        () => mockDisposables[callIndex++]
+      );
+      (vscode.debug.onDidTerminateDebugSession as any).mockImplementation(
+        () => mockDisposables[callIndex++]
+      );
+      (vscode.debug.onDidChangeActiveDebugSession as any).mockImplementation(
+        () => mockDisposables[callIndex++]
+      );
 
       const instance = new DebugControlTools(configManager);
       instance.dispose();

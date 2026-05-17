@@ -194,7 +194,9 @@ export class BreakpointTools {
           sessionType: session?.type,
           executionState,
           configurationName:
-            typeof session?.configuration?.name === 'string' ? session.configuration.name : undefined,
+            typeof session?.configuration?.name === 'string'
+              ? session.configuration.name
+              : undefined,
         },
         adapterBreakpoint: {
           available: false,
@@ -239,10 +241,7 @@ export class BreakpointTools {
             functionName: currentFrame.name,
           };
 
-          if (
-            currentFrame.source?.path === args.filePath &&
-            currentFrame.line === args.line
-          ) {
+          if (currentFrame.source?.path === args.filePath && currentFrame.line === args.line) {
             signals.add('CURRENT_FRAME_AT_REQUESTED_LOCATION');
           }
         }
@@ -280,7 +279,8 @@ export class BreakpointTools {
 
           const relocatedPath = protocolBreakpoint.source?.path;
           if (
-            (typeof protocolBreakpoint.line === 'number' && protocolBreakpoint.line !== args.line) ||
+            (typeof protocolBreakpoint.line === 'number' &&
+              protocolBreakpoint.line !== args.line) ||
             (relocatedPath && relocatedPath !== args.filePath)
           ) {
             signals.add('ADAPTER_BREAKPOINT_RELOCATED');

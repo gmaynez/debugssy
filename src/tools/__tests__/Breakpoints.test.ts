@@ -552,6 +552,187 @@ describe('BreakpointTools', () => {
         expect.arrayContaining([{ id: 'BREAKPOINT_NOT_FOUND' }, { id: 'NO_ACTIVE_SESSION' }])
       );
     });
+
+    it('should report enabled breakpoint without optional fields', async () => {
+      const uri = MockUri.file('/test/file.js');
+      const position = new MockPosition(9, 0);
+      const range = new MockRange(position, position);
+      const location = new MockLocation(uri, range);
+      const bp = new MockSourceBreakpoint(location, true); // enabled, no condition/hitCondition/logMessage
+
+      vscode.debug.breakpoints = [bp as any];
+
+      const result = await tools.inspectBreakpoint({
+        filePath: '/test/file.js',
+        line: 10,
+      });
+
+      expect(result.data?.signals).toEqual(
+        expect.arrayContaining([
+          { id: 'BREAKPOINT_EXISTS' },
+          { id: 'BREAKPOINT_ENABLED' },
+        ])
+      );
+      // Should NOT have these signals
+      expect(result.data?.signals).not.toEqual(
+        expect.arrayContaining([
+          { id: 'CONDITION_PRESENT' },
+          { id: 'HIT_CONDITION_PRESENT' },
+          { id: 'LOGPOINT_CONFIGURED' },
+        ])
+      );
+    });
+
+    it('should handle running session state', async () => {
+      const uri = MockUri.file('/test/file.js');
+      const position = new MockPosition(9, 0);
+      const range = new MockRange(position, position);
+      const location = new MockLocation(uri, range);
+      const bp = new MockSourceBreakpoint(location, true);
+      const session = {
+        name: 'node',
+        type: 'pwa-node',
+        configuration: { name: 'Launch Program' },
+        getDebugProtocolBreakpoint: vi.fn().mockResolvedValue(undefined),
+      };
+
+      vscode.debug.breakpoints = [bp as any];
+      vscode.debug.activeDebugSession = session as any;
+      vi.mocked(dapClient.getExecutionState).mockReturnValue('running');
+      vi.mocked(dapClient.getStoppedInfo).mockReturnValue(undefined);
+
+      const result = await tools.inspectBreakpoint({
+        filePath: '/test/file.js',
+        line: 10,
+      });
+
+      expect(result.data?.signals).toEqual(
+        expect.arrayContaining([
+          { id: 'ACTIVE_SESSION_PRESENT' },
+          { id: 'SESSION_RUNNING' },
+        ])
+      );
+    });
+
+    it('should handle terminated session state', async () => {
+      const uri = MockUri.file('/test/file.js');
+      const position = new MockPosition(9, 0);
+      const range = new MockRange(position, position);
+      const location = new MockLocation(uri, range);
+      const bp = new MockSourceBreakpoint(location, true);
+      const session = {
+        name: 'node',
+        type: 'pwa-node',
+        configuration: { name: 'Launch Program' },
+        getDebugProtocolBreakpoint: vi.fn().mockResolvedValue(undefined),
+      };
+
+      vscode.debug.breakpoints = [bp as any];
+      vscode.debug.activeDebugSession = session as any;
+      vi.mocked(dapClient.getExecutionState).mockReturnValue('terminated');
+      vi.mocked(dapClient.getStoppedInfo).mockReturnValue(undefined);
+
+      const result = await tools.inspectBreakpoint({
+        filePath: '/test/file.js',
+        line: 10,
+      });
+
+      expect(result.data?.signals).toEqual(
+        expect.arrayContaining([
+          { id: 'ACTIVE_SESSION_PRESENT' },
+          { id: 'SESSION_TERMINATED' },
+        ])
+      );
+    });
+
+    it('should handle verified adapter breakpoint without relocation', async () => {
+      const uri = MockUri.file('/test/file.js');
+      const position = new MockPosition(9, 0);
+      const range = new MockRange(position, position);
+      const location = new MockLocation(uri, range);
+      const bp = new MockSourceBreakpoint(location, true);
+      const session = {
+        name: 'node',
+        type: 'pwa-node',
+        configuration: { name: 'Launch Program' },
+        getDebugProtocolBreakpoint: vi.fn().mockResolvedValue({
+          id: 7,
+          verified: true,
+          line: 10,
+          source: { path: '/test/file.js' },
+        }),
+      };
+
+      vscode.debug.breakpoints = [bp as any];
+      vscode.debug.activeDebugSession = session as any;
+      vi.mocked(dapClient.getExecutionState).mockReturnValue('paused');
+      vi.mocked(dapClient.getStoppedInfo).mockReturnValue(undefined);
+      vi.mocked(dapClient.getBreakpointHitStats).mockReturnValue({ hitCount: 0 });
+
+      const result = await tools.inspectBreakpoint({
+        filePath: '/test/file.js',
+        line: 10,
+      });
+
+      expect(result.data?.adapterBreakpoint).toMatchObject({
+        available: true,
+        verified: true,
+      });
+      expect(result.data?.signals).toEqual(
+        expect.arrayContaining([
+          { id: 'ADAPTER_BREAKPOINT_VERIFIED' },
+          { id: 'BREAKPOINT_NEVER_HIT_IN_SESSION' },
+        ])
+      );
+      // Should NOT be relocated
+      expect(result.data?.signals).not.toEqual(
+        expect.arrayContaining([{ id: 'ADAPTER_BREAKPOINT_RELOCATED' }])
+      );
+    });
+
+    it('should handle frame not at requested location', async () => {
+      const uri = MockUri.file('/test/file.js');
+      const position = new MockPosition(9, 0);
+      const range = new MockRange(position, position);
+      const location = new MockLocation(uri, range);
+      const bp = new MockSourceBreakpoint(location, true);
+      const session = {
+        name: 'node',
+        type: 'pwa-node',
+        configuration: { name: 'Launch Program' },
+        getDebugProtocolBreakpoint: vi.fn().mockResolvedValue(undefined),
+      };
+
+      vscode.debug.breakpoints = [bp as any];
+      vscode.debug.activeDebugSession = session as any;
+      vi.mocked(dapClient.getExecutionState).mockReturnValue('paused');
+      vi.mocked(dapClient.getStoppedInfo).mockReturnValue(undefined);
+      vi.mocked(dapClient.getStackTrace).mockResolvedValue({
+        stackFrames: [
+          {
+            id: 1,
+            name: 'other',
+            source: { path: '/other/file.js' },
+            line: 99,
+            column: 0,
+          },
+        ],
+      });
+
+      const result = await tools.inspectBreakpoint({
+        filePath: '/test/file.js',
+        line: 10,
+      });
+
+      expect(result.data?.currentLocation).toMatchObject({
+        file: '/other/file.js',
+        line: 99,
+      });
+      // Should NOT have this signal
+      expect(result.data?.signals).not.toEqual(
+        expect.arrayContaining([{ id: 'CURRENT_FRAME_AT_REQUESTED_LOCATION' }])
+      );
+    });
   });
 
   describe('removeAllBreakpoints', () => {
