@@ -2,6 +2,28 @@
 
 All notable changes to the "Debugssy" extension will be documented in this file.
 
+## [1.6.1] - 2026-05-31
+
+### Security
+
+- Resolved all `npm audit` advisories (`fast-uri`, `ip-address`, `qs`,
+  `brace-expansion`, `tmp`, `uuid`). Pinned `qs` via `overrides` to `^6.15.2` to
+  work around Stryker's nested `typed-rest-client@2.3.1` hard-pin.
+
+### Fixed
+
+- ToolRouter silently dropped validated arguments in 12 of 20 tool handlers;
+  routing now consistently forwards all validated arguments.
+
+### Changed
+
+- Updated direct dependencies to latest (TypeScript 6.0.3, ESLint 10.4.1, Vitest
+  4.1.7, Zod 4.4.3, Hono 4.12.23, MCP SDK 1.29.0, and others). `@types/vscode`
+  and `@types/node` remain pinned to the minimum supported VS Code version.
+- Added `ignoreDeprecations: "6.0"` to `tsconfig.json` for TypeScript 6.0
+  compatibility.
+- Strengthened test assertions for better mutation-test resilience.
+
 ## [1.6.0] - 2026-03-31
 
 ### Added
