@@ -568,10 +568,7 @@ describe('BreakpointTools', () => {
       });
 
       expect(result.data?.signals).toEqual(
-        expect.arrayContaining([
-          { id: 'BREAKPOINT_EXISTS' },
-          { id: 'BREAKPOINT_ENABLED' },
-        ])
+        expect.arrayContaining([{ id: 'BREAKPOINT_EXISTS' }, { id: 'BREAKPOINT_ENABLED' }])
       );
       // Should NOT have these signals
       expect(result.data?.signals).not.toEqual(
@@ -607,10 +604,7 @@ describe('BreakpointTools', () => {
       });
 
       expect(result.data?.signals).toEqual(
-        expect.arrayContaining([
-          { id: 'ACTIVE_SESSION_PRESENT' },
-          { id: 'SESSION_RUNNING' },
-        ])
+        expect.arrayContaining([{ id: 'ACTIVE_SESSION_PRESENT' }, { id: 'SESSION_RUNNING' }])
       );
     });
 
@@ -638,10 +632,7 @@ describe('BreakpointTools', () => {
       });
 
       expect(result.data?.signals).toEqual(
-        expect.arrayContaining([
-          { id: 'ACTIVE_SESSION_PRESENT' },
-          { id: 'SESSION_TERMINATED' },
-        ])
+        expect.arrayContaining([{ id: 'ACTIVE_SESSION_PRESENT' }, { id: 'SESSION_TERMINATED' }])
       );
     });
 

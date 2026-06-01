@@ -7,7 +7,8 @@
     "outDir": "out",
     "sourceMap": true,
     "rootDir": "src",
-    "moduleResolution": "node", // Standard for CommonJS projects
+    "moduleResolution": "node", // Standard for CommonJS projects (deprecated in TS 6; silenced via ignoreDeprecations below)
+    "ignoreDeprecations": "6.0", // TS 6.0: keep CommonJS/"node" resolution until migration to node16/nodenext
 
     // Type Checking - Strict Mode
     "strict": true, // Enables all strict type checking options

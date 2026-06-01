@@ -362,10 +362,7 @@ describe('DebugControlTools', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(vscode.debug.startDebugging).toHaveBeenCalledWith(
-        mockFolder2,
-        expect.anything()
-      );
+      expect(vscode.debug.startDebugging).toHaveBeenCalledWith(mockFolder2, expect.anything());
     });
 
     it('should reject configuration missing required fields', async () => {
