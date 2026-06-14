@@ -520,8 +520,8 @@ export class CompletionProvider {
 
       // Prefer inexpensive scopes (locals/closures) and keep query count bounded
       const normalizedScopes = scopesResponse.scopes
-        .filter((scope: any) => scope && typeof scope.variablesReference === 'number')
-        .sort((a: any, b: any) => {
+        .filter((scope: DAPScope) => scope && typeof scope.variablesReference === 'number')
+        .sort((a: DAPScope, b: DAPScope) => {
           const aExpensive = Boolean(a?.expensive);
           const bExpensive = Boolean(b?.expensive);
           if (aExpensive === bExpensive) {
@@ -536,7 +536,7 @@ export class CompletionProvider {
       }
 
       const scopeVariables = await Promise.all(
-        scopesToQuery.map(async (scope: any) => {
+        scopesToQuery.map(async (scope: DAPScope) => {
           try {
             const response = await session.customRequest('variables', {
               variablesReference: scope.variablesReference,
@@ -555,8 +555,8 @@ export class CompletionProvider {
       const variableNames = new Set<string>();
       for (const variables of scopeVariables) {
         for (const variable of variables) {
-          if (variable?.name) {
-            variableNames.add(variable.name);
+          if ((variable as DAPVariable).name) {
+            variableNames.add((variable as DAPVariable).name as string);
           }
         }
       }
@@ -674,4 +674,16 @@ export class CompletionProvider {
       }
     }
   }
+}
+
+// Minimal DAP response shapes for the fields used during debug variable completions.
+// VS Code's customRequest returns `any`, so these interfaces only guard what we touch.
+interface DAPScope {
+  variablesReference: number;
+  name?: string;
+  expensive?: boolean;
+}
+
+interface DAPVariable {
+  name?: string;
 }

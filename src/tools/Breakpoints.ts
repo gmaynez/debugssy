@@ -8,16 +8,12 @@ import type {
   BreakpointData,
   BreakpointInfo,
   InspectBreakpointResult,
+  ListBreakpointsResult,
+  SetBreakpointResult,
+  ToolResult,
 } from '../routing/types/toolResults';
 
 export type { BreakpointData, BreakpointInfo };
-
-export interface BreakpointResult {
-  success: boolean;
-  message?: string;
-  error?: string;
-  breakpoint?: BreakpointData;
-}
 
 export class BreakpointTools {
   constructor(private dapClient: DAPClient) {}
@@ -28,7 +24,7 @@ export class BreakpointTools {
     condition?: string;
     hitCondition?: string;
     logMessage?: string;
-  }): Promise<BreakpointResult> {
+  }): Promise<SetBreakpointResult> {
     try {
       const uri = vscode.Uri.file(args.filePath);
       const location = new vscode.Location(uri, new vscode.Position(args.line - 1, 0));
@@ -54,14 +50,16 @@ export class BreakpointTools {
       return {
         success: true,
         message: `Breakpoint set at ${args.filePath}:${args.line}`,
-        breakpoint: {
-          id: addedBreakpoint?.id,
-          filePath: args.filePath,
-          line: args.line,
-          enabled: true,
-          condition: args.condition,
-          hitCondition: args.hitCondition,
-          logMessage: args.logMessage,
+        data: {
+          breakpoint: {
+            id: addedBreakpoint?.id,
+            filePath: args.filePath,
+            line: args.line,
+            enabled: true,
+            condition: args.condition,
+            hitCondition: args.hitCondition,
+            logMessage: args.logMessage,
+          },
         },
       };
     } catch (error: unknown) {
@@ -72,7 +70,7 @@ export class BreakpointTools {
     }
   }
 
-  async removeBreakpoint(args: { filePath: string; line: number }): Promise<BreakpointResult> {
+  async removeBreakpoint(args: { filePath: string; line: number }): Promise<ToolResult> {
     try {
       const uri = vscode.Uri.file(args.filePath);
       const breakpoints = vscode.debug.breakpoints;
@@ -107,11 +105,7 @@ export class BreakpointTools {
     }
   }
 
-  async listBreakpoints(_args?: Record<string, unknown>): Promise<{
-    success: boolean;
-    breakpoints: BreakpointInfo[];
-    error?: string;
-  }> {
+  async listBreakpoints(_args?: Record<string, unknown>): Promise<ListBreakpointsResult> {
     try {
       const breakpoints = vscode.debug.breakpoints;
       const result: BreakpointInfo[] = [];
@@ -132,12 +126,16 @@ export class BreakpointTools {
 
       return {
         success: true,
-        breakpoints: result,
+        data: {
+          breakpoints: result,
+        },
       };
     } catch (error: unknown) {
       return {
         success: false,
-        breakpoints: [],
+        data: {
+          breakpoints: [],
+        },
         error: formatErrorMessage(error),
       };
     }
@@ -325,7 +323,7 @@ export class BreakpointTools {
     }
   }
 
-  async toggleBreakpoint(args: { filePath: string; line: number }): Promise<BreakpointResult> {
+  async toggleBreakpoint(args: { filePath: string; line: number }): Promise<ToolResult> {
     try {
       const uri = vscode.Uri.file(args.filePath);
       const breakpoints = vscode.debug.breakpoints;
@@ -371,7 +369,7 @@ export class BreakpointTools {
     }
   }
 
-  async removeAllBreakpoints(_args?: Record<string, unknown>): Promise<BreakpointResult> {
+  async removeAllBreakpoints(_args?: Record<string, unknown>): Promise<ToolResult> {
     try {
       const breakpoints = vscode.debug.breakpoints;
       vscode.debug.removeBreakpoints(breakpoints);

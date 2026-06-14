@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2025 Guillermo Garcia Maynez
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { GetPromptResult } from '@modelcontextprotocol/sdk/types.js';
 import { PromptHandler } from '../routing/PromptHandler';
 import { ConfigManager } from '../Config';
 import {
@@ -9,6 +10,11 @@ import {
   TOOL_RESPONSE_EXAMPLES,
   formatJsonExample,
 } from '../routing/toolResponseExamples';
+
+function getPromptText(result: GetPromptResult): string {
+  const content = result.messages[0]?.content;
+  return content?.type === 'text' ? content.text : '';
+}
 
 describe('PromptHandler', () => {
   let promptHandler: PromptHandler;
@@ -32,7 +38,7 @@ describe('PromptHandler', () => {
       expect(promptNames).toContain('inspect-function');
       expect(promptNames).toContain('debug-loop');
 
-      const debugCrashPrompt = schemas.find((s: any) => s.name === 'debug-crash');
+      const debugCrashPrompt = (schemas as any[]).find((s: any) => s.name === 'debug-crash');
       expect(debugCrashPrompt.description).toBe(
         'Debug a crash or exception by setting breakpoints and inspecting the call stack'
       );
@@ -66,7 +72,7 @@ describe('PromptHandler', () => {
       expect(promptNames).toContain('debug-loop');
       expect(promptNames).toContain('auto-debug-session');
 
-      const autoDebugPrompt = schemas.find((s: any) => s.name === 'auto-debug-session');
+      const autoDebugPrompt = (schemas as any[]).find((s: any) => s.name === 'auto-debug-session');
       expect(autoDebugPrompt.description).toContain('full automation mode only');
       expect(autoDebugPrompt.arguments).toHaveLength(2);
     });
@@ -74,7 +80,7 @@ describe('PromptHandler', () => {
     it('should include proper argument descriptions', () => {
       const schemas = promptHandler.getPromptSchemas();
 
-      const traceVariablePrompt = schemas.find((s: any) => s.name === 'trace-variable');
+      const traceVariablePrompt = (schemas as any[]).find((s: any) => s.name === 'trace-variable');
       expect(traceVariablePrompt.arguments).toHaveLength(3);
 
       const varNameArg = traceVariablePrompt.arguments.find((a: any) => a.name === 'variableName');
@@ -98,14 +104,14 @@ describe('PromptHandler', () => {
 
         expect(result).toHaveProperty('messages');
         expect(result.messages).toHaveLength(1);
-        expect(result.messages[0].role).toBe('user');
-        expect(result.messages[0].content.type).toBe('text');
-        expect(result.messages[0].content.text).toContain('TypeError');
-        expect(result.messages[0].content.text).toContain('/src/app.js');
-        expect(result.messages[0].content.text).toContain('STEP 1 - Set Breakpoint');
-        expect(result.messages[0].content.text).toContain('STEP 2 - Start Debugging');
-        expect(result.messages[0].content.text).toContain('STEP 3 - Verify Paused State');
-        expect(result.messages[0].content.text).toContain('BEST PRACTICES');
+        expect(result.messages[0]?.role).toBe('user');
+        expect(result.messages[0]?.content.type).toBe('text');
+        expect(getPromptText(result)).toContain('TypeError');
+        expect(getPromptText(result)).toContain('/src/app.js');
+        expect(getPromptText(result)).toContain('STEP 1 - Set Breakpoint');
+        expect(getPromptText(result)).toContain('STEP 2 - Start Debugging');
+        expect(getPromptText(result)).toContain('STEP 3 - Verify Paused State');
+        expect(getPromptText(result)).toContain('BEST PRACTICES');
       });
 
       it('should generate debug-crash prompt with only errorMessage', () => {
@@ -113,8 +119,8 @@ describe('PromptHandler', () => {
           errorMessage: 'Error: Something went wrong',
         });
 
-        expect(result.messages[0].content.text).toContain('Error: Something went wrong');
-        expect(result.messages[0].content.text).not.toContain('in /path/to/file');
+        expect(getPromptText(result)).toContain('Error: Something went wrong');
+        expect(getPromptText(result)).not.toContain('in /path/to/file');
       });
 
       it('should include assisted mode instructions when in assisted mode', () => {
@@ -134,10 +140,10 @@ describe('PromptHandler', () => {
         });
 
         // In assisted mode, user controls VS Code manually (F5)
-        expect(result.messages[0].content.text).toContain('Start debugging in VS Code');
-        expect(result.messages[0].content.text).toContain('press F5');
+        expect(getPromptText(result)).toContain('Start debugging in VS Code');
+        expect(getPromptText(result)).toContain('press F5');
         // Should NOT include automation commands
-        expect(result.messages[0].content.text).not.toContain('Call start_debugging');
+        expect(getPromptText(result)).not.toContain('Call start_debugging');
       });
 
       it('should include full automation instructions when in full mode', () => {
@@ -156,8 +162,8 @@ describe('PromptHandler', () => {
           errorMessage: 'Test error',
         });
 
-        expect(result.messages[0].content.text).toContain('Call start_debugging');
-        expect(result.messages[0].content.text).toContain('STEP 0 - Read Debug Configuration');
+        expect(getPromptText(result)).toContain('Call start_debugging');
+        expect(getPromptText(result)).toContain('STEP 0 - Read Debug Configuration');
       });
     });
 
@@ -169,11 +175,11 @@ describe('PromptHandler', () => {
           actualValue: 'null',
         });
 
-        expect(result.messages[0].content.text).toContain('"user"');
-        expect(result.messages[0].content.text).toContain('expected: { id: 1, name: "test" }');
-        expect(result.messages[0].content.text).toContain('but is actually null');
-        expect(result.messages[0].content.text).toContain('STEP 1 - Identify Modification Points');
-        expect(result.messages[0].content.text).toContain('STEP 3 - First Breakpoint');
+        expect(getPromptText(result)).toContain('"user"');
+        expect(getPromptText(result)).toContain('expected: { id: 1, name: "test" }');
+        expect(getPromptText(result)).toContain('but is actually null');
+        expect(getPromptText(result)).toContain('STEP 1 - Identify Modification Points');
+        expect(getPromptText(result)).toContain('STEP 3 - First Breakpoint');
       });
 
       it('should generate trace-variable prompt with only variableName', () => {
@@ -181,8 +187,8 @@ describe('PromptHandler', () => {
           variableName: 'counter',
         });
 
-        expect(result.messages[0].content.text).toContain('"counter"');
-        expect(result.messages[0].content.text).not.toContain('expected:');
+        expect(getPromptText(result)).toContain('"counter"');
+        expect(getPromptText(result)).not.toContain('expected:');
       });
     });
 
@@ -194,15 +200,11 @@ describe('PromptHandler', () => {
           issue: 'Returns undefined for empty arrays',
         });
 
-        expect(result.messages[0].content.text).toContain('processData');
-        expect(result.messages[0].content.text).toContain('/src/utils.js');
-        expect(result.messages[0].content.text).toContain(
-          'Issue: Returns undefined for empty arrays'
-        );
-        expect(result.messages[0].content.text).toContain(
-          'STEP 1 - Set Breakpoint at Function Entry'
-        );
-        expect(result.messages[0].content.text).toContain('STEP 4 - Inspect Input Parameters');
+        expect(getPromptText(result)).toContain('processData');
+        expect(getPromptText(result)).toContain('/src/utils.js');
+        expect(getPromptText(result)).toContain('Issue: Returns undefined for empty arrays');
+        expect(getPromptText(result)).toContain('STEP 1 - Set Breakpoint at Function Entry');
+        expect(getPromptText(result)).toContain('STEP 4 - Inspect Input Parameters');
       });
 
       it('should generate inspect-function prompt without issue', () => {
@@ -211,9 +213,9 @@ describe('PromptHandler', () => {
           filePath: '/src/math.js',
         });
 
-        expect(result.messages[0].content.text).toContain('calculate');
-        expect(result.messages[0].content.text).toContain('/src/math.js');
-        expect(result.messages[0].content.text).not.toContain('Issue:');
+        expect(getPromptText(result)).toContain('calculate');
+        expect(getPromptText(result)).toContain('/src/math.js');
+        expect(getPromptText(result)).not.toContain('Issue:');
       });
     });
 
@@ -224,10 +226,10 @@ describe('PromptHandler', () => {
           expectedIterations: 10,
         });
 
-        expect(result.messages[0].content.text).toContain('src/array.js line 45');
-        expect(result.messages[0].content.text).toContain('It should run 10 times');
-        expect(result.messages[0].content.text).toContain('STEP 1 - Set Conditional Breakpoint');
-        expect(result.messages[0].content.text).toContain('STEP 5 - Check Loop Condition');
+        expect(getPromptText(result)).toContain('src/array.js line 45');
+        expect(getPromptText(result)).toContain('It should run 10 times');
+        expect(getPromptText(result)).toContain('STEP 1 - Set Conditional Breakpoint');
+        expect(getPromptText(result)).toContain('STEP 5 - Check Loop Condition');
       });
 
       it('should generate debug-loop prompt without expectedIterations', () => {
@@ -235,8 +237,8 @@ describe('PromptHandler', () => {
           loopLocation: 'src/main.ts infinite loop',
         });
 
-        expect(result.messages[0].content.text).toContain('src/main.ts infinite loop');
-        expect(result.messages[0].content.text).not.toContain('It should run');
+        expect(getPromptText(result)).toContain('src/main.ts infinite loop');
+        expect(getPromptText(result)).not.toContain('It should run');
       });
 
       it('should include hitCondition example in prompt', () => {
@@ -245,8 +247,8 @@ describe('PromptHandler', () => {
           expectedIterations: 10,
         });
 
-        expect(result.messages[0].content.text).toContain('hitCondition');
-        expect(result.messages[0].content.text).toContain('> 10');
+        expect(getPromptText(result)).toContain('hitCondition');
+        expect(getPromptText(result)).toContain('> 10');
       });
     });
 
@@ -268,12 +270,12 @@ describe('PromptHandler', () => {
           entryPoint: 'src/index.ts',
         });
 
-        expect(result.messages[0].content.text).toContain('Application crashes on startup');
-        expect(result.messages[0].content.text).toContain('starting from src/index.ts');
-        expect(result.messages[0].content.text).toContain('FULL AUTOMATION MODE');
-        expect(result.messages[0].content.text).toContain('STEP 1 - Find Debug Configuration');
-        expect(result.messages[0].content.text).toContain('list_resources()');
-        expect(result.messages[0].content.text).toContain('read_resource');
+        expect(getPromptText(result)).toContain('Application crashes on startup');
+        expect(getPromptText(result)).toContain('starting from src/index.ts');
+        expect(getPromptText(result)).toContain('FULL AUTOMATION MODE');
+        expect(getPromptText(result)).toContain('STEP 1 - Find Debug Configuration');
+        expect(getPromptText(result)).toContain('list_resources()');
+        expect(getPromptText(result)).toContain('read_resource');
       });
 
       it('should throw error for auto-debug-session in assisted mode', () => {
@@ -311,8 +313,8 @@ describe('PromptHandler', () => {
           issue: 'Button click does nothing',
         });
 
-        expect(result.messages[0].content.text).toContain('Button click does nothing');
-        expect(result.messages[0].content.text).not.toContain('starting from');
+        expect(getPromptText(result)).toContain('Button click does nothing');
+        expect(getPromptText(result)).not.toContain('starting from');
       });
     });
 
@@ -357,8 +359,8 @@ describe('PromptHandler', () => {
             loopLocation: 'test',
           } as any);
 
-          expect(result.messages[0].content.text).toContain('DEBUGGING BEST PRACTICES');
-          expect(result.messages[0].content.text).toContain('ALWAYS call get_debug_state FIRST');
+          expect(getPromptText(result)).toContain('DEBUGGING BEST PRACTICES');
+          expect(getPromptText(result)).toContain('ALWAYS call get_debug_state FIRST');
         });
       });
 
@@ -367,10 +369,10 @@ describe('PromptHandler', () => {
           errorMessage: 'test',
         });
 
-        expect(result.messages[0].content.text).toContain('set_breakpoint');
-        expect(result.messages[0].content.text).toContain('get_call_stack');
-        expect(result.messages[0].content.text).toContain('get_variables');
-        expect(result.messages[0].content.text).toContain('evaluate_expression');
+        expect(getPromptText(result)).toContain('set_breakpoint');
+        expect(getPromptText(result)).toContain('get_call_stack');
+        expect(getPromptText(result)).toContain('get_variables');
+        expect(getPromptText(result)).toContain('evaluate_expression');
       });
 
       it('should include error recovery guidance', () => {
@@ -378,9 +380,9 @@ describe('PromptHandler', () => {
           errorMessage: 'test',
         });
 
-        expect(result.messages[0].content.text).toContain('COMMON ISSUES');
-        expect(result.messages[0].content.text).toContain('No active debug session');
-        expect(result.messages[0].content.text).toContain('Execution not paused');
+        expect(getPromptText(result)).toContain('COMMON ISSUES');
+        expect(getPromptText(result)).toContain('No active debug session');
+        expect(getPromptText(result)).toContain('Execution not paused');
       });
 
       it('should include tool response patterns', () => {
@@ -388,13 +390,13 @@ describe('PromptHandler', () => {
           errorMessage: 'test',
         });
 
-        expect(result.messages[0].content.text).toContain(
+        expect(getPromptText(result)).toContain(
           formatJsonExample(TOOL_RESPONSE_EXAMPLES.getDebugStatePaused)
         );
-        expect(result.messages[0].content.text).toContain(
+        expect(getPromptText(result)).toContain(
           formatJsonExample(TOOL_RESPONSE_EXAMPLES.getVariablesLocalScope)
         );
-        expect(result.messages[0].content.text).toContain(
+        expect(getPromptText(result)).toContain(
           formatJsonExample(TOOL_RESPONSE_EXAMPLES.getCallStack)
         );
       });
@@ -415,10 +417,10 @@ describe('PromptHandler', () => {
           issue: 'test',
         });
 
-        expect(result.messages[0].content.text).toContain(
+        expect(getPromptText(result)).toContain(
           formatJsonExample(RESOURCE_RESPONSE_EXAMPLES.listResources)
         );
-        expect(result.messages[0].content.text).toContain(
+        expect(getPromptText(result)).toContain(
           formatJsonExample(RESOURCE_RESPONSE_EXAMPLES.readLaunchJson)
         );
       });

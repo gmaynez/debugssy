@@ -611,11 +611,13 @@ describe('ToolRouter', () => {
         const handlerResult = {
           success: true,
           message: 'Breakpoint set at /app/main.ts:42',
-          breakpoint: {
-            id: 'bp-123',
-            filePath: '/app/main.ts',
-            line: 42,
-            condition: 'x > 10',
+          data: {
+            breakpoint: {
+              id: 'bp-123',
+              filePath: '/app/main.ts',
+              line: 42,
+              condition: 'x > 10',
+            },
           },
         };
         (mockToolRegistry.breakpoints.setBreakpoint as any).mockResolvedValue(handlerResult);
@@ -627,8 +629,8 @@ describe('ToolRouter', () => {
         });
 
         expect(result).toEqual(handlerResult);
-        expect(result.breakpoint?.id).toBe('bp-123');
-        expect(result.breakpoint?.condition).toBe('x > 10');
+        expect((result as any).data?.breakpoint?.id).toBe('bp-123');
+        expect((result as any).data?.breakpoint?.condition).toBe('x > 10');
       });
 
       it('should pass through handler failure result without masking it', async () => {
@@ -650,18 +652,22 @@ describe('ToolRouter', () => {
       it('should route multiple sequential calls independently', async () => {
         (mockToolRegistry.breakpoints.listBreakpoints as any).mockResolvedValue({
           success: true,
-          breakpoints: [{ id: 'bp-1' }],
+          data: {
+            breakpoints: [{ id: 'bp-1' }],
+          },
         });
         (mockToolRegistry.inspection.getDebugState as any).mockResolvedValue({
           success: true,
-          state: 'paused',
+          data: {
+            state: 'paused',
+          },
         });
 
         const bpResult = await toolRouter.routeToolCall(TOOL_NAMES.listBreakpoints, {});
         const stateResult = await toolRouter.routeToolCall(TOOL_NAMES.getDebugState, {});
 
-        expect(bpResult.breakpoints).toEqual([{ id: 'bp-1' }]);
-        expect(stateResult.state).toBe('paused');
+        expect((bpResult as any).data?.breakpoints).toEqual([{ id: 'bp-1' }]);
+        expect((stateResult as any).data?.state).toBe('paused');
         expect(mockToolRegistry.breakpoints.listBreakpoints).toHaveBeenCalledTimes(1);
         expect(mockToolRegistry.inspection.getDebugState).toHaveBeenCalledTimes(1);
       });

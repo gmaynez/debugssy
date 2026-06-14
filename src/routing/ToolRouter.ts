@@ -27,7 +27,7 @@ import {
   Validators,
   ValidatorKey,
 } from './types/toolArguments';
-import type { ToolSchema, EvaluationResult } from './types/toolResults';
+import type { ToolSchema, EvaluationResult, ToolResult } from './types/toolResults';
 import {
   UnknownToolError,
   InvalidArgumentsError,
@@ -40,15 +40,15 @@ import { TOOL_NAMES } from './toolNames';
 /**
  * Type for tool handler functions.
  *
- * Note: Uses 'any' for args and result for compatibility with diverse handler signatures.
- * Type safety is enforced at two levels:
+ * Args are typed as `unknown` because the registry stores handlers with
+ * heterogeneous signatures. Type safety is enforced at two levels:
  * 1. Input validation: All args are validated by Zod schemas before reaching handlers
- * 2. Output structure: All handlers return { success, message?, error?, ...data } pattern
+ * 2. Output structure: All handlers return { success, message?, error?, data? } pattern
  *
  * See routing/types/toolArguments.ts for Zod schemas and specific arg types.
  * See individual tool files (Breakpoints.ts, etc.) for result types.
  */
-type ToolHandler = (args: any) => Promise<any>;
+type ToolHandler<Result extends ToolResult = ToolResult> = (args: unknown) => Promise<Result>;
 
 /**
  * Handles tool registration and routing for the MCP server.
@@ -106,7 +106,7 @@ export class ToolRouter {
    * For evaluate_expression, applies security validation and uses elicitation
    * to request user approval if the expression may have side effects.
    */
-  async routeToolCall(toolName: string, args: unknown, server?: Server): Promise<any> {
+  async routeToolCall(toolName: string, args: unknown, server?: Server): Promise<ToolResult> {
     const handler = this.toolHandlers.get(toolName);
 
     if (!handler) {
@@ -165,6 +165,17 @@ export class ToolRouter {
   }
 
   /**
+   * Wraps a typed tool implementation into a generic handler.
+   * The cast is safe because inputs are Zod-validated in routeToolCall
+   * before reaching the handler.
+   */
+  private handler<Args, Result extends ToolResult>(
+    fn: (args: Args) => Promise<Result>
+  ): ToolHandler<Result> {
+    return (args: unknown) => fn(args as Args);
+  }
+
+  /**
    * Initializes the tool handler registry with all available tool handlers.
    * Uses a Map-based approach for O(1) lookup and better maintainability.
    */
@@ -173,103 +184,139 @@ export class ToolRouter {
       // Breakpoint tools
       [
         TOOL_NAMES.setBreakpoint,
-        (args: SetBreakpointArgs) => this.toolRegistry.breakpoints.setBreakpoint(args),
+        this.handler((args: SetBreakpointArgs) =>
+          this.toolRegistry.breakpoints.setBreakpoint(args)
+        ),
       ],
       [
         TOOL_NAMES.removeBreakpoint,
-        (args: RemoveBreakpointArgs) => this.toolRegistry.breakpoints.removeBreakpoint(args),
+        this.handler((args: RemoveBreakpointArgs) =>
+          this.toolRegistry.breakpoints.removeBreakpoint(args)
+        ),
       ],
       [
         TOOL_NAMES.listBreakpoints,
-        (args: Record<string, unknown>) => this.toolRegistry.breakpoints.listBreakpoints(args),
+        this.handler((args: Record<string, unknown>) =>
+          this.toolRegistry.breakpoints.listBreakpoints(args)
+        ),
       ],
       [
         TOOL_NAMES.inspectBreakpoint,
-        (args: InspectBreakpointArgs) => this.toolRegistry.breakpoints.inspectBreakpoint(args),
+        this.handler((args: InspectBreakpointArgs) =>
+          this.toolRegistry.breakpoints.inspectBreakpoint(args)
+        ),
       ],
       [
         TOOL_NAMES.toggleBreakpoint,
-        (args: ToggleBreakpointArgs) => this.toolRegistry.breakpoints.toggleBreakpoint(args),
+        this.handler((args: ToggleBreakpointArgs) =>
+          this.toolRegistry.breakpoints.toggleBreakpoint(args)
+        ),
       ],
       [
         TOOL_NAMES.removeAllBreakpoints,
-        (args: Record<string, unknown>) => this.toolRegistry.breakpoints.removeAllBreakpoints(args),
+        this.handler((args: Record<string, unknown>) =>
+          this.toolRegistry.breakpoints.removeAllBreakpoints(args)
+        ),
       ],
 
       // Inspection tools
       [
         TOOL_NAMES.getVariables,
-        (args: GetVariablesArgs) => this.toolRegistry.inspection.getVariables(args),
+        this.handler((args: GetVariablesArgs) => this.toolRegistry.inspection.getVariables(args)),
       ],
       [
         TOOL_NAMES.getCallStack,
-        (args: GetCallStackArgs) => this.toolRegistry.inspection.getCallStack(args),
+        this.handler((args: GetCallStackArgs) => this.toolRegistry.inspection.getCallStack(args)),
       ],
       [
         TOOL_NAMES.evaluateExpression,
-        (args: EvaluateExpressionArgs) => this.toolRegistry.inspection.evaluateExpression(args),
+        this.handler((args: EvaluateExpressionArgs) =>
+          this.toolRegistry.inspection.evaluateExpression(args)
+        ),
       ],
       [
         TOOL_NAMES.getThreads,
-        (args: Record<string, unknown>) => this.toolRegistry.inspection.getThreads(args),
+        this.handler((args: Record<string, unknown>) =>
+          this.toolRegistry.inspection.getThreads(args)
+        ),
       ],
       [
         TOOL_NAMES.getDebugState,
-        (args: Record<string, unknown>) => this.toolRegistry.inspection.getDebugState(args),
+        this.handler((args: Record<string, unknown>) =>
+          this.toolRegistry.inspection.getDebugState(args)
+        ),
       ],
       [
         TOOL_NAMES.getConsoleOutput,
-        (args: GetConsoleOutputArgs) => this.toolRegistry.inspection.getConsoleOutput(args),
+        this.handler((args: GetConsoleOutputArgs) =>
+          this.toolRegistry.inspection.getConsoleOutput(args)
+        ),
       ],
       [
         TOOL_NAMES.clearConsoleOutput,
-        (args: Record<string, unknown>) => this.toolRegistry.inspection.clearConsoleOutput(args),
+        this.handler((args: Record<string, unknown>) =>
+          this.toolRegistry.inspection.clearConsoleOutput(args)
+        ),
       ],
 
       // Debug control tools (full automation only)
       [
         TOOL_NAMES.startDebugging,
-        (args: StartDebuggingArgs) => this.toolRegistry.debugControl.startDebugging(args),
+        this.handler((args: StartDebuggingArgs) =>
+          this.toolRegistry.debugControl.startDebugging(args)
+        ),
       ],
       [
         TOOL_NAMES.stopDebugging,
-        (args: Record<string, unknown>) => this.toolRegistry.debugControl.stopDebugging(args),
+        this.handler((args: Record<string, unknown>) =>
+          this.toolRegistry.debugControl.stopDebugging(args)
+        ),
       ],
       [
         TOOL_NAMES.continueExecution,
-        (args: Record<string, unknown>) => this.toolRegistry.debugControl.continueExecution(args),
+        this.handler((args: Record<string, unknown>) =>
+          this.toolRegistry.debugControl.continueExecution(args)
+        ),
       ],
       [
         TOOL_NAMES.pause,
-        (args: Record<string, unknown>) => this.toolRegistry.debugControl.pause(args),
+        this.handler((args: Record<string, unknown>) => this.toolRegistry.debugControl.pause(args)),
       ],
       [
         TOOL_NAMES.restart,
-        (args: Record<string, unknown>) => this.toolRegistry.debugControl.restart(args),
+        this.handler((args: Record<string, unknown>) =>
+          this.toolRegistry.debugControl.restart(args)
+        ),
       ],
       [
         TOOL_NAMES.waitForBreakpoint,
-        (args: WaitForBreakpointArgs) => {
+        this.handler((args: WaitForBreakpointArgs) => {
           const automationLevel = this.configManager.getConfig().automationLevel;
           return this.toolRegistry.inspection.waitForBreakpoint({
             timeout: args?.timeout,
             automationLevel,
           });
-        },
+        }),
       ],
 
       // Step operations (opt-in)
       [
         TOOL_NAMES.stepOver,
-        (args: Record<string, unknown>) => this.toolRegistry.debugControl.stepOver(args),
+        this.handler((args: Record<string, unknown>) =>
+          this.toolRegistry.debugControl.stepOver(args)
+        ),
       ],
       [
         TOOL_NAMES.stepInto,
-        (args: Record<string, unknown>) => this.toolRegistry.debugControl.stepInto(args),
+        this.handler((args: Record<string, unknown>) =>
+          this.toolRegistry.debugControl.stepInto(args)
+        ),
       ],
       [
         TOOL_NAMES.stepOut,
-        (args: Record<string, unknown>) => this.toolRegistry.debugControl.stepOut(args),
+        this.handler((args: Record<string, unknown>) =>
+          this.toolRegistry.debugControl.stepOut(args)
+        ),
       ],
     ]);
   }

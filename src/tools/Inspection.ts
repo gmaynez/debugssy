@@ -6,6 +6,7 @@ import { DAPClient } from '../dap/Client';
 import { ConfigManager } from '../Config';
 import { formatErrorMessage } from '../errors';
 import { DEFAULT_CONSOLE_OUTPUT_LIMIT, DEFAULT_MAX_STACK_DEPTH } from '../constants';
+import type { DebugStateData, GetVariablesResult } from '../routing/types/toolResults';
 
 export interface InspectionResult {
   success: boolean;
@@ -46,7 +47,7 @@ export class InspectionTools {
         };
       }
 
-      const result: any = {
+      const result: DebugStateData = {
         hasActiveSession: true,
         sessionName: session.name,
         sessionType: session.type,
@@ -216,7 +217,7 @@ export class InspectionTools {
       // Get scopes for the frame
       const scopes = await this.dapClient.getScopes(session, frameId);
 
-      const result: any = {
+      const result: GetVariablesResult['data'] = {
         frameId,
         scopes: [],
       };

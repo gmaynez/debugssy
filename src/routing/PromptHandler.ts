@@ -3,6 +3,7 @@
 
 import { ConfigManager } from '../Config';
 import { z } from 'zod';
+import type { GetPromptResult, Prompt } from '@modelcontextprotocol/sdk/types.js';
 import {
   RESOURCE_RESPONSE_EXAMPLES,
   TOOL_RESPONSE_EXAMPLES,
@@ -141,7 +142,7 @@ e. Use one of these configuration names in start_debugging:
   /**
    * Returns the list of available prompts based on automation level.
    */
-  getPromptSchemas(): any[] {
+  getPromptSchemas(): Prompt[] {
     const automationLevel = this.configManager.getConfig().automationLevel;
 
     const commonPrompts = [
@@ -254,7 +255,7 @@ e. Use one of these configuration names in start_debugging:
    * Generates prompt content based on the prompt name and arguments.
    * Validates arguments using Zod schemas per MCP security best practices.
    */
-  generatePrompt(promptName: string, args: PromptArguments = {}): any {
+  generatePrompt(promptName: string, args: PromptArguments = {}): GetPromptResult {
     const automationLevel = this.configManager.getConfig().automationLevel;
 
     switch (promptName) {
@@ -291,7 +292,7 @@ e. Use one of these configuration names in start_debugging:
     }
   }
 
-  private generateDebugCrashPrompt(args: DebugCrashArgs, automationLevel: string): any {
+  private generateDebugCrashPrompt(args: DebugCrashArgs, automationLevel: string): GetPromptResult {
     const errorMsg = args.errorMessage;
     const filePath = args.filePath ? ` in ${args.filePath}` : '';
     const filePathExample = args.filePath || '/path/to/file';
@@ -385,7 +386,10 @@ COMMON ISSUES:
     };
   }
 
-  private generateTraceVariablePrompt(args: TraceVariableArgs, automationLevel: string): any {
+  private generateTraceVariablePrompt(
+    args: TraceVariableArgs,
+    automationLevel: string
+  ): GetPromptResult {
     const varName = args.variableName;
     const expected = args.expectedValue ? ` (expected: ${args.expectedValue})` : '';
     const actual = args.actualValue ? ` but is actually ${args.actualValue}` : '';
@@ -498,7 +502,10 @@ COMMON ISSUES:
     };
   }
 
-  private generateInspectFunctionPrompt(args: InspectFunctionArgs, automationLevel: string): any {
+  private generateInspectFunctionPrompt(
+    args: InspectFunctionArgs,
+    automationLevel: string
+  ): GetPromptResult {
     const funcName = args.functionName;
     const filePath = args.filePath;
     const issue = args.issue ? `\nIssue: ${args.issue}` : '';
@@ -608,7 +615,7 @@ COMMON ISSUES:
     };
   }
 
-  private generateDebugLoopPrompt(args: DebugLoopArgs, automationLevel: string): any {
+  private generateDebugLoopPrompt(args: DebugLoopArgs, automationLevel: string): GetPromptResult {
     const location = args.loopLocation;
     const expected = args.expectedIterations
       ? ` It should run ${args.expectedIterations} times.`
@@ -725,7 +732,7 @@ COMMON ISSUES:
     };
   }
 
-  private generateAutoDebugSessionPrompt(args: AutoDebugSessionArgs): any {
+  private generateAutoDebugSessionPrompt(args: AutoDebugSessionArgs): GetPromptResult {
     const issue = args.issue;
     const entryPoint = args.entryPoint ? ` starting from ${args.entryPoint}` : '';
 

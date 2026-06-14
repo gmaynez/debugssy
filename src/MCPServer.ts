@@ -181,7 +181,7 @@ export class MCPServer {
           resolve();
         });
 
-        this.httpServer.on('error', async (error: any) => {
+        this.httpServer.on('error', async (error: Error & { code?: string }) => {
           this.isTransportReady = false;
 
           // Close transport that was connected before listen() failed

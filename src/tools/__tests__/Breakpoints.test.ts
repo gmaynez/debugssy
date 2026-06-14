@@ -41,7 +41,7 @@ describe('BreakpointTools', () => {
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('Breakpoint set at /test/file.js:10');
-      expect(result.breakpoint).toEqual({
+      expect(result.data?.breakpoint).toEqual({
         filePath: args.filePath,
         line: args.line,
         enabled: true,
@@ -60,7 +60,7 @@ describe('BreakpointTools', () => {
       const result = await tools.setBreakpoint(args);
 
       expect(result.success).toBe(true);
-      expect(result.breakpoint?.condition).toBe('x > 10');
+      expect(result.data?.breakpoint?.condition).toBe('x > 10');
       expect(vscode.debug.addBreakpoints).toHaveBeenCalledTimes(1);
     });
 
@@ -213,8 +213,8 @@ describe('BreakpointTools', () => {
       const result = await tools.listBreakpoints();
 
       expect(result.success).toBe(true);
-      expect(result.breakpoints).toHaveLength(2);
-      expect(result.breakpoints[0]).toEqual({
+      expect(result.data?.breakpoints).toHaveLength(2);
+      expect(result.data?.breakpoints[0]).toEqual({
         id: bp1.id,
         location: {
           uri: '/test/file1.js',
@@ -223,7 +223,7 @@ describe('BreakpointTools', () => {
         enabled: true,
         condition: undefined,
       });
-      expect(result.breakpoints[1]).toEqual({
+      expect(result.data?.breakpoints[1]).toEqual({
         id: bp2.id,
         location: {
           uri: '/test/file2.js',
@@ -240,7 +240,7 @@ describe('BreakpointTools', () => {
       const result = await tools.listBreakpoints();
 
       expect(result.success).toBe(true);
-      expect(result.breakpoints).toHaveLength(0);
+      expect(result.data?.breakpoints).toHaveLength(0);
     });
 
     it('should include condition in breakpoint info', async () => {
@@ -255,7 +255,7 @@ describe('BreakpointTools', () => {
       const result = await tools.listBreakpoints();
 
       expect(result.success).toBe(true);
-      expect(result.breakpoints[0]?.condition).toBe('x > 10');
+      expect(result.data?.breakpoints[0]?.condition).toBe('x > 10');
     });
 
     it('should filter out non-source breakpoints', async () => {
@@ -274,7 +274,7 @@ describe('BreakpointTools', () => {
       const result = await tools.listBreakpoints();
 
       expect(result.success).toBe(true);
-      expect(result.breakpoints).toHaveLength(1); // Only source breakpoint
+      expect(result.data?.breakpoints).toHaveLength(1); // Only source breakpoint
     });
 
     it('should handle errors when listing breakpoints', async () => {

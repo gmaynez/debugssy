@@ -181,7 +181,7 @@ describe('Contract Consistency', () => {
           promptSchema.name,
           buildPromptArgs(promptSchema)
         );
-        expect(result.messages[0].content.text.length).toBeGreaterThan(0);
+        expect((result.messages[0]?.content as any)?.text?.length).toBeGreaterThan(0);
       }
     });
 
@@ -197,7 +197,7 @@ describe('Contract Consistency', () => {
           promptSchema.name,
           buildPromptArgs(promptSchema)
         );
-        expect(result.messages[0].content.text.length).toBeGreaterThan(0);
+        expect((result.messages[0]?.content as any)?.text?.length).toBeGreaterThan(0);
       }
     });
   });
