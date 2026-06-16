@@ -3,7 +3,7 @@
 
 import * as vscode from 'vscode';
 import { DAPClient } from '../dap/Client';
-import { formatErrorMessage } from '../errors';
+import { BreakpointNotFoundError, formatErrorMessage } from '../errors';
 import type {
   BreakpointData,
   BreakpointInfo,
@@ -85,10 +85,7 @@ export class BreakpointTools {
       });
 
       if (toRemove.length === 0) {
-        return {
-          success: false,
-          error: `No breakpoint found at ${args.filePath}:${args.line}`,
-        };
+        throw new BreakpointNotFoundError(args.filePath, args.line);
       }
 
       vscode.debug.removeBreakpoints(toRemove);
@@ -356,10 +353,7 @@ export class BreakpointTools {
           message: `Breakpoint ${!existing.enabled ? 'enabled' : 'disabled'} at ${args.filePath}:${args.line}`,
         };
       } else {
-        return {
-          success: false,
-          error: `No breakpoint found at ${args.filePath}:${args.line}`,
-        };
+        throw new BreakpointNotFoundError(args.filePath, args.line);
       }
     } catch (error: unknown) {
       return {

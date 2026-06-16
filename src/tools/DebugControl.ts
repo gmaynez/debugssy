@@ -3,7 +3,7 @@
 
 import * as vscode from 'vscode';
 import { ConfigManager } from '../Config';
-import { formatErrorMessage } from '../errors';
+import { DebugNotActiveError, formatErrorMessage } from '../errors';
 
 export interface DebugControlResult {
   success: boolean;
@@ -140,10 +140,7 @@ export class DebugControlTools implements vscode.Disposable {
     try {
       const session = this.getCurrentSession();
       if (!session) {
-        return {
-          success: false,
-          error: 'No active debug session',
-        };
+        throw new DebugNotActiveError('stop_debugging');
       }
 
       await vscode.debug.stopDebugging(session);
@@ -232,10 +229,7 @@ export class DebugControlTools implements vscode.Disposable {
   ): Promise<DebugControlResult> {
     try {
       if (!this.getCurrentSession()) {
-        return {
-          success: false,
-          error: 'No active debug session',
-        };
+        throw new DebugNotActiveError(command);
       }
 
       await vscode.commands.executeCommand(command);

@@ -4,7 +4,7 @@
 import * as vscode from 'vscode';
 import { DAPClient } from '../dap/Client';
 import { ConfigManager } from '../Config';
-import { formatErrorMessage } from '../errors';
+import { DebugNotActiveError, formatErrorMessage } from '../errors';
 import { DEFAULT_CONSOLE_OUTPUT_LIMIT, DEFAULT_MAX_STACK_DEPTH } from '../constants';
 import type { DebugStateData, GetVariablesResult } from '../routing/types/toolResults';
 
@@ -116,10 +116,7 @@ export class InspectionTools {
       }
 
       if (!vscode.debug.activeDebugSession) {
-        return {
-          success: false,
-          error: 'No active debug session',
-        };
+        throw new DebugNotActiveError('wait_for_breakpoint');
       }
 
       // Use provided timeout, fallback to config, then default
@@ -197,10 +194,7 @@ export class InspectionTools {
     try {
       const session = vscode.debug.activeDebugSession;
       if (!session) {
-        return {
-          success: false,
-          error: 'No active debug session',
-        };
+        throw new DebugNotActiveError('get_variables');
       }
 
       // Get stack trace first - only need top frame if frameId not specified
@@ -264,10 +258,7 @@ export class InspectionTools {
     try {
       const session = vscode.debug.activeDebugSession;
       if (!session) {
-        return {
-          success: false,
-          error: 'No active debug session',
-        };
+        throw new DebugNotActiveError('get_call_stack');
       }
 
       // Default to DEFAULT_MAX_STACK_DEPTH frames to reduce verbosity
@@ -325,10 +316,7 @@ export class InspectionTools {
     try {
       const session = vscode.debug.activeDebugSession;
       if (!session) {
-        return {
-          success: false,
-          error: 'No active debug session',
-        };
+        throw new DebugNotActiveError('evaluate_expression');
       }
 
       // Security: Validate expression length to prevent prompt injection attacks
@@ -363,23 +351,6 @@ export class InspectionTools {
   }
 
   /**
-   * Gets watch expressions (not currently supported by VS Code API).
-   * Returns an error indicating limitation and suggesting alternative.
-   *
-   * @returns InspectionResult with error indicating limitation
-   */
-  async getWatches(): Promise<InspectionResult> {
-    // VS Code doesn't expose watch expressions via API directly
-    // We would need to track them separately or access internal state
-    // For now, return a message indicating this limitation
-    return {
-      success: false,
-      error:
-        'Watch expressions are not directly accessible via VS Code API. Use evaluate_expression instead.',
-    };
-  }
-
-  /**
    * Gets all threads in the current debug session.
    *
    * @returns InspectionResult with array of thread information
@@ -388,10 +359,7 @@ export class InspectionTools {
     try {
       const session = vscode.debug.activeDebugSession;
       if (!session) {
-        return {
-          success: false,
-          error: 'No active debug session',
-        };
+        throw new DebugNotActiveError('get_threads');
       }
 
       const response = await session.customRequest('threads');

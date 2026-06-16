@@ -784,14 +784,4 @@ describe('InspectionTools', () => {
       expect(result.error).toContain('Clear error');
     });
   });
-
-  describe('getWatches', () => {
-    it('should return error indicating limitation', async () => {
-      const result = await tools.getWatches();
-
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('not directly accessible');
-      expect(result.error).toContain('evaluate_expression');
-    });
-  });
 });

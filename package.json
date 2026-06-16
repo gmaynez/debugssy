@@ -178,7 +178,6 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "express": "^5.2.1",
-    "hono": "^4.12.23",
     "zod": "^4.4.3"
   },
   "overrides": {
