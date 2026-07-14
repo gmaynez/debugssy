@@ -160,7 +160,7 @@
     "@stryker-mutator/vitest-runner": "^9.6.1",
     "@types/express": "^5.0.6",
     "@types/node": "^22.19.15",
-    "@types/vscode": "^1.105.0",
+    "@types/vscode": "1.105.0",
     "@typescript-eslint/eslint-plugin": "^8.60.0",
     "@typescript-eslint/parser": "^8.60.0",
     "@vitest/coverage-v8": "^4.1.7",
