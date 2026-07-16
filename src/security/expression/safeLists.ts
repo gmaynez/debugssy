@@ -458,6 +458,9 @@ export const CSHARP_SAFE_METHODS = new Set<string>([
   'GetHashCode',
   'GetType',
   'Equals',
+  // Compile-time/read-only type inspection
+  'typeof',
+  'nameof',
 ]);
 
 export const CSHARP_SAFE_STATIC_FUNCTIONS = new Set<string>([
@@ -494,7 +497,8 @@ export const CSHARP_SAFE_STATIC_FUNCTIONS = new Set<string>([
   'Convert.ToBoolean',
   'Convert.ToDateTime',
   'Convert.ToBase64String',
-  'Convert.FromBase64String',
+  // Note: Convert.FromBase64String is deliberately excluded - base64 decoding
+  // can hide malicious code and is blocked by the C# validator.
   // String static methods
   'String.Join',
   'String.Concat',
@@ -654,14 +658,11 @@ export const CPP_SAFE_FUNCTIONS = new Set<string>([
   'strchr',
   'strrchr',
   'strstr',
-  'strcpy',
-  'strncpy',
-  'strcat',
-  'strncat',
+  // Note: strcpy/strncpy/strcat/strncat mutate destination buffers and
+  // strtok mutates static state - deliberately excluded.
   'strcspn',
   'strspn',
   'strpbrk',
-  'strtok',
   // Math functions (all pure)
   'abs',
   'fabs',
@@ -785,7 +786,8 @@ export const GO_SAFE_FUNCTIONS = new Set<string>([
   'json.Unmarshal',
   // Type checking
   'reflect.TypeOf',
-  'reflect.ValueOf',
+  // Note: reflect.ValueOf is deliberately excluded - it enables reflection
+  // call chains and is blocked by the Go validator.
 ]);
 
 export const RUST_SAFE_FUNCTIONS = new Set<string>([
@@ -1231,7 +1233,8 @@ export const PHP_SAFE_FUNCTIONS = new Set<string>([
   'print_r',
   'var_export',
   'serialize',
-  'unserialize',
+  // Note: unserialize is deliberately excluded - PHP object injection via
+  // __wakeup/__destruct is a classic exploit primitive.
   // Misc safe functions
   'defined',
   'constant',

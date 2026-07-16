@@ -34,8 +34,8 @@ export class InspectionTools {
   async getDebugState(_args?: Record<string, unknown>): Promise<InspectionResult> {
     try {
       const session = vscode.debug.activeDebugSession;
-      const executionState = this.dapClient.getExecutionState();
-      const stoppedInfo = this.dapClient.getStoppedInfo();
+      const executionState = this.dapClient.getExecutionState(session);
+      const stoppedInfo = this.dapClient.getStoppedInfo(session);
 
       if (!session) {
         return {
@@ -136,6 +136,12 @@ export class InspectionTools {
             if (state === 'paused') {
               // Get the current state info
               this.getDebugState().then(resolve);
+            } else if (state === 'terminated' || state === 'not_started') {
+              // Session ended while waiting - don't hang until timeout
+              resolve({
+                success: false,
+                error: 'Debug session ended while waiting for breakpoint',
+              });
             }
           });
         });

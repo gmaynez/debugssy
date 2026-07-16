@@ -4,6 +4,9 @@
 import type { ValidationResult } from '../types';
 import { CPP_SAFE_FUNCTIONS } from '../safeLists';
 
+// C/C++ functions live in a single whitelist; no separate static set is used.
+const NO_STATIC_FUNCTIONS = new Set<string>();
+
 /**
  * Detects critical C/C++ operations (system, file operations).
  */
@@ -76,8 +79,7 @@ export function validateCpp(
   // Check function calls against whitelist (C/C++ doesn't use separate static/method sets)
   if (/[\w_\]]\s*\(/.test(expression)) {
     const calls = extractFunctionCalls(expression);
-    // Use empty set for static functions since C/C++ functions are in cppSafeFunctions
-    const whitelistResult = checkAgainstWhitelists(calls, new Set(), CPP_SAFE_FUNCTIONS);
+    const whitelistResult = checkAgainstWhitelists(calls, NO_STATIC_FUNCTIONS, CPP_SAFE_FUNCTIONS);
     // If whitelist check returned a result (blocked), return it
     if (whitelistResult) {
       return whitelistResult;

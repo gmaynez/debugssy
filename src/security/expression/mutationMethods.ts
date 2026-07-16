@@ -60,7 +60,8 @@ export const MUTATION_METHODS = [
   'truncate',
   'swap_remove',
   // Ruby (passed inline to checkMutationMethods)
-  '<<',
+  // Note: the << append operator is checked inline in the Ruby validator
+  // since it is an operator, not a dot-method call.
   'push',
   'pop',
   'shift',

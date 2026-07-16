@@ -99,10 +99,21 @@ export function validateRuby(
     };
   }
 
+  // Block append operator (arr << x mutates the receiver).
+  // Checked inline because << is an operator, not a dot-method call.
+  // Excludes <<= (compound assignment, caught by generic checks) and
+  // heredocs (<<~, <<-).
+  if (/[\w\])]\s*<<(?![=~-])/.test(expression)) {
+    return {
+      allowed: false,
+      reason: 'State Mutation: << appends to collection (Ruby)',
+      riskLevel: 'high',
+    };
+  }
+
   // Block common mutation methods
   const mutationCheck = checkMutationMethods(expression, [
     'push',
-    '<<',
     'pop',
     'shift',
     'unshift',

@@ -666,17 +666,88 @@ describe('ExpressionValidator', () => {
       expect(result.riskLevel).toBe('medium');
     });
 
-    it('should reject arrow functions due to assignment-like syntax', () => {
-      // Arrow functions trigger assignment detection due to => containing =
+    it('should allow arrow function literals with whitelisted calls', () => {
+      // Creating an arrow function is side-effect free; => is not an assignment
       const result = validator.validateExpression('() => console.log("x")');
+      expect(result.allowed).toBe(true);
+    });
+
+    it('should reject arrow functions containing assignments', () => {
+      const result = validator.validateExpression('() => y = 1');
       expect(result.allowed).toBe(false);
-      // Gets caught by assignment or compound assignment detection
+      expect(result.riskLevel).toBe('high');
     });
 
     it('should reject bitwise operators', () => {
       const result = validator.validateExpression('a & b');
       expect(result.allowed).toBe(false);
       expect(result.reason).toContain('bitwise');
+    });
+  });
+
+  describe('Whitelisted Callback Side-Effect Screening', () => {
+    it('should reject assignments hidden in whitelisted JS callbacks', () => {
+      const jsSession = createMockDebugSession('test', 'node');
+      const result = validator.validateExpression('[1,2,3].map(x => y = x)', jsSession);
+      expect(result.allowed).toBe(false);
+      expect(result.riskLevel).toBe('high');
+    });
+
+    it('should reject increments hidden in whitelisted JS callbacks', () => {
+      const jsSession = createMockDebugSession('test', 'node');
+      const result = validator.validateExpression('arr.forEach(x => count++)', jsSession);
+      expect(result.allowed).toBe(false);
+      expect(result.riskLevel).toBe('high');
+    });
+
+    it('should reject compound assignments hidden in whitelisted Python callbacks', () => {
+      const pythonSession = createMockDebugSession('python-test', 'python');
+      const result = validator.validateExpression(
+        'sorted(items, key=lambda k: total.__iadd__(k))',
+        pythonSession
+      );
+      // __iadd__ is an unknown dunder call; sorted( must not whitelist the whole expression
+      expect(result.allowed).toBe(false);
+    });
+
+    it('should allow Python keyword arguments as parameter bindings', () => {
+      const pythonSession = createMockDebugSession('python-test', 'python');
+      expect(validator.validateExpression('sorted(items, key=len)', pythonSession).allowed).toBe(
+        true
+      );
+      expect(validator.validateExpression('json.dumps(obj, indent=2)', pythonSession).allowed).toBe(
+        true
+      );
+    });
+
+    it('should reject mutations in Python lambda key functions', () => {
+      const pythonSession = createMockDebugSession('python-test', 'python');
+      const result = validator.validateExpression(
+        'sorted(d, key=lambda k: items.pop())',
+        pythonSession
+      );
+      expect(result.allowed).toBe(false);
+      expect(result.riskLevel).toBe('high');
+    });
+
+    it('should reject assignments hidden in whitelisted Java lambdas', () => {
+      const javaSession = createMockDebugSession('java', 'java');
+      const result = validator.validateExpression('stream.forEach(x -> total = x)', javaSession);
+      expect(result.allowed).toBe(false);
+      expect(result.riskLevel).toBe('high');
+    });
+
+    it('should reject assignments hidden in whitelisted C# LINQ lambdas', () => {
+      const csharpSession = createMockDebugSession('csharp', 'coreclr');
+      const result = validator.validateExpression('list.Select(x => total = x)', csharpSession);
+      expect(result.allowed).toBe(false);
+      expect(result.riskLevel).toBe('high');
+    });
+
+    it('should still allow side-effect-free whitelisted callbacks', () => {
+      const jsSession = createMockDebugSession('test', 'node');
+      expect(validator.validateExpression('[1,2,3].map(x => x * 2)', jsSession).allowed).toBe(true);
+      expect(validator.validateExpression('arr.filter(x => x > 0)', jsSession).allowed).toBe(true);
     });
   });
 
@@ -1052,6 +1123,21 @@ describe('ExpressionValidator', () => {
         'high'
       );
     });
+
+    it('should allow read-only C# type inspection', () => {
+      expect(validator.validateExpression('obj.GetType()', csharpSession).allowed).toBe(true);
+      expect(validator.validateExpression('typeof(int)', csharpSession).allowed).toBe(true);
+      expect(validator.validateExpression('nameof(MyClass)', csharpSession).allowed).toBe(true);
+    });
+
+    it('should still block reflection chains starting from GetType', () => {
+      const result = validator.validateExpression(
+        'obj.GetType().GetProperty("Password")',
+        csharpSession
+      );
+      expect(result.allowed).toBe(false);
+      expect(result.riskLevel).toBe('high');
+    });
   });
 
   describe('Java Specific Validation', () => {
@@ -1156,6 +1242,11 @@ describe('ExpressionValidator', () => {
       ).toBe('high');
       expect(validator.validateExpression('unsafe.Pointer(ptr)', goSession).riskLevel).toBe('high');
     });
+
+    it('should block bare reflect.ValueOf while allowing reflect.TypeOf', () => {
+      expect(validator.validateExpression('reflect.ValueOf(x)', goSession).riskLevel).toBe('high');
+      expect(validator.validateExpression('reflect.TypeOf(x)', goSession).allowed).toBe(true);
+    });
   });
 
   describe('Rust Specific Validation', () => {
@@ -1216,6 +1307,17 @@ describe('ExpressionValidator', () => {
       expect(validator.validateExpression('require(path)', rubySession).riskLevel).toBe('high');
       expect(validator.validateExpression('items.push(1)', rubySession).riskLevel).toBe('high');
     });
+
+    it('should detect Ruby append operator as mutation', () => {
+      const result = validator.validateExpression('arr << 5', rubySession);
+      expect(result.allowed).toBe(false);
+      expect(result.riskLevel).toBe('high');
+      expect(result.reason).toContain('<<');
+    });
+
+    it('should detect Ruby append operator without spaces', () => {
+      expect(validator.validateExpression('arr<<5', rubySession).riskLevel).toBe('high');
+    });
   });
 
   describe('PHP Specific Validation', () => {
@@ -1248,6 +1350,11 @@ describe('ExpressionValidator', () => {
       expect(validator.validateExpression('array_push($items, 1)', phpSession).riskLevel).toBe(
         'high'
       );
+    });
+
+    it('should not whitelist unserialize (PHP object injection risk)', () => {
+      const result = validator.validateExpression('unserialize($data)', phpSession);
+      expect(result.allowed).toBe(false);
     });
   });
 
@@ -1298,6 +1405,29 @@ describe('ExpressionValidator', () => {
         'critical'
       );
       expect(validator.validateExpression('asm { nop }', cppSession).riskLevel).toBe('critical');
+    });
+
+    it('should not whitelist mutating C string functions', () => {
+      // strcpy/strcat/strtok write to their destination buffer (strtok also
+      // mutates static state), so they must not be auto-allowed.
+      for (const fn of ['strcpy(dst, src)', 'strcat(dst, src)', 'strtok(str, ",")']) {
+        const result = validator.validateExpression(fn, cppSession);
+        expect(result.allowed).toBe(false);
+      }
+      // Read-only string functions stay allowed
+      expect(validator.validateExpression('strlen(name)', cppSession).allowed).toBe(true);
+      expect(validator.validateExpression('strcmp(a, b)', cppSession).allowed).toBe(true);
+    });
+
+    it('should also detect Rust critical operations on lldb/gdb adapters', () => {
+      // lldb is mapped to cpp but is commonly used for Rust debugging
+      const lldbSession = createMockDebugSession('rust-via-lldb', 'lldb');
+      expect(
+        validator.validateExpression('std::process::Command::new("ls")', lldbSession).riskLevel
+      ).toBe('critical');
+      expect(validator.validateExpression('std::fs::remove_file("f")', lldbSession).riskLevel).toBe(
+        'critical'
+      );
     });
 
     it('should detect C++ file operations', () => {

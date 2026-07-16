@@ -73,8 +73,11 @@ based on `automationLevel`.
 4. Global access (`globalThis`, `window`, `global`, `self`)
 5. String obfuscation (`fromCharCode`, `atob`, `Buffer.from`)
 6. Meta-programming (`Proxy`, `Reflect`, `defineProperty`)
-7. Language-specific validation (mutations, eval, etc.)
-8. Generic pattern validation (assignments, increments, etc.)
+7. Mutation operators (assignments, compound assignments, `++`/`--`) - runs
+   before language validation so whitelisted callbacks can't smuggle side
+   effects; `=>` and keyword arguments (`key=value`) are excluded
+8. Language-specific validation (mutations, eval, etc.)
+9. Generic pattern validation (unknown functions, bitwise, lambdas, etc.)
 
 **DAP states:** `not_started` | `running` | `paused` | `terminated`
 

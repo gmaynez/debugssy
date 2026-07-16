@@ -236,6 +236,33 @@ describe('InspectionTools', () => {
       expect(result.error).toContain('Timeout');
     });
 
+    it('should fail fast when the session ends while waiting', async () => {
+      vscode.debug.activeDebugSession = mockSession;
+      vi.spyOn(dapClient, 'getExecutionState').mockReturnValue('running');
+
+      let stateChangeCallback: ((state: any) => void) | null = null;
+      vi.spyOn(dapClient, 'onStateChange').mockImplementation((callback) => {
+        stateChangeCallback = callback;
+        return { dispose: vi.fn() };
+      });
+
+      const resultPromise = tools.waitForBreakpoint({
+        automationLevel: 'full',
+        timeout: 5000,
+      });
+
+      setTimeout(() => {
+        if (stateChangeCallback) {
+          stateChangeCallback('terminated');
+        }
+      }, 50);
+
+      const result = await resultPromise;
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('session ended');
+    });
+
     it('should use default timeout from config', async () => {
       vscode.debug.activeDebugSession = mockSession;
       vi.spyOn(dapClient, 'getExecutionState').mockReturnValue('running');

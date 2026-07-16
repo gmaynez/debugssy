@@ -292,7 +292,8 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.debug.onDidTerminateDebugSession((session) => {
       logger.info('Debug session terminated:', session.name);
-      dapClient.reset();
+      // Reset only the terminated session's state so concurrent sessions are unaffected
+      dapClient.reset(session.id);
     })
   );
 

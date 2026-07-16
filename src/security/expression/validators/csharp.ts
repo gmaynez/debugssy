@@ -105,9 +105,11 @@ export function validateCSharp(
     return mutationCheck;
   }
 
-  // Block reflection and dynamic code execution
+  // Block reflection and dynamic code execution.
+  // Note: GetType(), typeof(), and nameof() are read-only type inspection
+  // and are allowed; reflection member access is blocked separately below.
   if (
-    /\b(Activator\s*\.\s*CreateInstance|Assembly\s*\.\s*(Load|LoadFrom|LoadFile)|\.Invoke\s*\(|\.GetType\s*\(\s*\)|typeof\s*\(|nameof\s*\()/i.test(
+    /\b(Activator\s*\.\s*CreateInstance|Assembly\s*\.\s*(Load|LoadFrom|LoadFile)|\.Invoke\s*\()/i.test(
       expression
     )
   ) {

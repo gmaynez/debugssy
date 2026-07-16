@@ -146,8 +146,8 @@ export class BreakpointTools {
       const requestedUri = vscode.Uri.file(args.filePath);
       const editorBreakpoint = this.findSourceBreakpoint(requestedUri.fsPath, args.line);
       const session = vscode.debug.activeDebugSession;
-      const executionState = this.dapClient.getExecutionState();
-      const stoppedInfo = this.dapClient.getStoppedInfo();
+      const executionState = this.dapClient.getExecutionState(session);
+      const stoppedInfo = this.dapClient.getStoppedInfo(session);
       const signals = new Set<string>();
 
       if (editorBreakpoint) {

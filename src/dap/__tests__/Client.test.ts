@@ -787,4 +787,241 @@ describe('DAPClient', () => {
       expect(() => disposable.dispose()).not.toThrow();
     });
   });
+
+  describe('Multi-Session State Isolation', () => {
+    let sessionA: any;
+    let sessionB: any;
+    let trackerA: any;
+    let trackerB: any;
+
+    beforeEach(() => {
+      sessionA = createMockDebugSession('session-a', 'node');
+      sessionB = createMockDebugSession('session-b', 'python');
+      trackerA = trackerFactory.createDebugAdapterTracker(sessionA);
+      trackerB = trackerFactory.createDebugAdapterTracker(sessionB);
+    });
+
+    it('should track execution state independently per session', () => {
+      trackerA.onDidSendMessage({
+        type: 'event',
+        event: 'stopped',
+        body: { threadId: 1, reason: 'breakpoint' },
+      });
+      trackerB.onDidSendMessage({
+        type: 'event',
+        event: 'continued',
+        body: {},
+      });
+
+      expect(client.getExecutionState(sessionA)).toBe('paused');
+      expect(client.getExecutionState(sessionB)).toBe('running');
+      expect(client.getStoppedInfo(sessionA)?.reason).toBe('breakpoint');
+      expect(client.getStoppedInfo(sessionB)).toBeUndefined();
+    });
+
+    it('should not corrupt the active session state when a background session sends events', () => {
+      vscode.debug.activeDebugSession = sessionA;
+
+      trackerA.onDidSendMessage({
+        type: 'event',
+        event: 'stopped',
+        body: { threadId: 1, reason: 'breakpoint' },
+      });
+      trackerB.onDidSendMessage({
+        type: 'event',
+        event: 'continued',
+        body: {},
+      });
+
+      expect(client.getExecutionState()).toBe('paused');
+      expect(client.getStoppedInfo()?.reason).toBe('breakpoint');
+    });
+
+    it('should not emit state changes for non-observed sessions', () => {
+      vscode.debug.activeDebugSession = sessionA;
+      const listener = vi.fn();
+      client.onStateChange(listener);
+
+      trackerB.onDidSendMessage({
+        type: 'event',
+        event: 'stopped',
+        body: { threadId: 2, reason: 'pause' },
+      });
+
+      expect(listener).not.toHaveBeenCalled();
+      expect(client.getExecutionState()).toBe('not_started');
+      expect(client.getExecutionState(sessionB)).toBe('paused');
+    });
+
+    it('should reset only the terminated session', () => {
+      trackerA.onDidSendMessage({
+        type: 'event',
+        event: 'stopped',
+        body: { threadId: 1, reason: 'breakpoint' },
+      });
+      trackerB.onDidSendMessage({
+        type: 'event',
+        event: 'stopped',
+        body: { threadId: 2, reason: 'pause' },
+      });
+
+      client.reset(sessionB.id);
+
+      expect(client.getExecutionState(sessionA)).toBe('paused');
+      expect(client.getStoppedInfo(sessionA)?.reason).toBe('breakpoint');
+      expect(client.getExecutionState(sessionB)).toBe('not_started');
+      expect(client.getStoppedInfo(sessionB)).toBeUndefined();
+    });
+
+    it('should keep other sessions console output when one session resets', () => {
+      trackerA.onDidSendMessage({
+        type: 'event',
+        event: 'output',
+        body: { category: 'stdout', output: 'from A' },
+      });
+      trackerB.onDidSendMessage({
+        type: 'event',
+        event: 'output',
+        body: { category: 'stdout', output: 'from B' },
+      });
+
+      client.reset(sessionB.id);
+
+      const output = client.getConsoleOutput();
+      expect(output).toHaveLength(1);
+      expect(output[0]?.output).toBe('from A');
+    });
+
+    it('should not attribute stack frames across sessions', () => {
+      trackerA.onDidSendMessage({
+        type: 'response',
+        command: 'stackTrace',
+        success: true,
+        body: { stackFrames: [{ id: 1, name: 'frameA', line: 1, column: 0 }] },
+      });
+      trackerB.onDidSendMessage({
+        type: 'response',
+        command: 'stackTrace',
+        success: true,
+        body: { stackFrames: [{ id: 9, name: 'frameB', line: 2, column: 0 }] },
+      });
+
+      expect(client.getCurrentFrameId(sessionA)).toBe(1);
+      expect(client.getCurrentFrameId(sessionB)).toBe(9);
+    });
+
+    it('should clear cached frame ID when execution continues', async () => {
+      trackerA.onDidSendMessage({
+        type: 'response',
+        command: 'stackTrace',
+        success: true,
+        body: { stackFrames: [{ id: 3, name: 'main', line: 1, column: 0 }] },
+      });
+      expect(client.getCurrentFrameId(sessionA)).toBe(3);
+
+      trackerA.onDidSendMessage({
+        type: 'event',
+        event: 'continued',
+        body: {},
+      });
+      expect(client.getCurrentFrameId(sessionA)).toBeUndefined();
+
+      // Evaluation must not target the dead frame
+      sessionA.customRequest.mockResolvedValue({ result: '1', type: 'number' });
+      await client.evaluateExpression(sessionA, 'x');
+      expect(sessionA.customRequest).toHaveBeenCalledWith('evaluate', {
+        expression: 'x',
+        frameId: undefined,
+        context: 'watch',
+      });
+    });
+
+    it('should clear cached frames when a new stop occurs', () => {
+      trackerA.onDidSendMessage({
+        type: 'response',
+        command: 'stackTrace',
+        success: true,
+        body: { stackFrames: [{ id: 3, name: 'main', line: 1, column: 0 }] },
+      });
+
+      trackerA.onDidSendMessage({
+        type: 'event',
+        event: 'stopped',
+        body: { threadId: 1, reason: 'breakpoint' },
+      });
+
+      // Frames from the previous stop are stale and must be dropped
+      expect(client.getCurrentFrameId(sessionA)).toBeUndefined();
+    });
+
+    it('should aggregate breakpoint hit stats across sessions', () => {
+      trackerA.onDidSendMessage({
+        type: 'event',
+        event: 'stopped',
+        body: { threadId: 1, reason: 'breakpoint', hitBreakpointIds: [5] },
+      });
+      trackerB.onDidSendMessage({
+        type: 'event',
+        event: 'stopped',
+        body: { threadId: 2, reason: 'breakpoint', hitBreakpointIds: [5] },
+      });
+
+      expect(client.getBreakpointHitStats(5)?.hitCount).toBe(2);
+    });
+
+    it('should notify listeners when the observed session is reset', () => {
+      vscode.debug.activeDebugSession = sessionA;
+      const listener = vi.fn();
+      client.onStateChange(listener);
+
+      trackerA.onDidSendMessage({
+        type: 'event',
+        event: 'stopped',
+        body: { threadId: 1, reason: 'breakpoint' },
+      });
+      expect(listener).toHaveBeenCalledWith('paused');
+
+      client.reset(sessionA.id);
+      expect(listener).toHaveBeenCalledWith('not_started');
+    });
+
+    it('should not notify listeners when a non-observed session is reset', () => {
+      vscode.debug.activeDebugSession = sessionA;
+      const listener = vi.fn();
+      client.onStateChange(listener);
+
+      trackerB.onDidSendMessage({
+        type: 'event',
+        event: 'stopped',
+        body: { threadId: 2, reason: 'pause' },
+      });
+      listener.mockClear();
+
+      client.reset(sessionB.id);
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('should fall back to the remaining session when the observed session ends', () => {
+      const listener = vi.fn();
+      client.onStateChange(listener);
+
+      trackerB.onDidSendMessage({
+        type: 'event',
+        event: 'continued',
+        body: {},
+      });
+      trackerA.onDidSendMessage({
+        type: 'event',
+        event: 'stopped',
+        body: { threadId: 1, reason: 'breakpoint' },
+      });
+      expect(client.getExecutionState()).toBe('paused');
+
+      client.reset(sessionA.id);
+
+      // A was observed; with A gone, B is the only remaining session
+      expect(client.getExecutionState()).toBe('running');
+      expect(listener).toHaveBeenCalledWith('running');
+    });
+  });
 });

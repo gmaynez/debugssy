@@ -149,6 +149,14 @@ export class ExpressionValidator {
       return metaCheck;
     }
 
+    // 1.9 Check for mutation operators (assignments, increments) in ALL expressions.
+    // This runs before language-specific validation so whitelisted callbacks
+    // (e.g. arr.map(x => y = x)) cannot smuggle side effects past the checks.
+    const mutationOpCheck = this.detectMutationOperators(trimmed);
+    if (mutationOpCheck) {
+      return mutationOpCheck;
+    }
+
     // 2. Try language-specific validation (HIGH risk: mutations, eval)
     if (language) {
       const languageResult = this.validateByLanguage(trimmed, language);
@@ -231,7 +239,9 @@ export class ExpressionValidator {
         case 'python':
           return detectPythonCritical(expression);
         case 'cpp':
-          return detectCppCritical(expression);
+          // lldb/gdb adapters are also used for Rust, so check both C++ and
+          // Rust critical patterns to avoid losing coverage on misdetection.
+          return detectCppCritical(expression) || detectRustCritical(expression);
         case 'csharp':
           return detectCSharpCritical(expression);
         case 'java':
@@ -904,14 +914,21 @@ export class ExpressionValidator {
   }
 
   /**
-   * Generic pattern-based validation that works across most languages.
-   * This is the fallback for languages without specific rules.
-   * Uses JavaScript whitelists as a reasonable default since many languages share similar syntax.
+   * Detects mutation operators (assignments, compound assignments,
+   * increment/decrement) that modify program state.
+   * Arrow functions (=>) are excluded from assignment detection so
+   * whitelisted callbacks like arr.map(x => x * 2) are not false-flagged.
+   * Keyword arguments (e.g. sorted(items, key=len)) are parameter bindings,
+   * not assignments, and are excluded as well.
    */
-  private validateGeneric(expression: string): ValidationResult {
+  private detectMutationOperators(expression: string): ValidationResult | null {
+    // Strip keyword-argument = (identifier directly after ( or ,) so it is
+    // not mistaken for an assignment below.
+    const withoutKeywordArgs = expression.replace(/([(,]\s*[A-Za-z_]\w*)\s*=(?![=>=])/g, '$1');
+
     // HIGH RISK: Assignment operators
-    // Match: = but not ==, !=, <=, >=, ===, !==
-    if (/(?<![=!<>])=(?!=)/.test(expression)) {
+    // Match: = but not ==, !=, <=, >=, ===, !==, or arrow functions (=>)
+    if (/(?<![=!<>])=(?![=>])/.test(withoutKeywordArgs)) {
       return {
         allowed: false,
         reason: 'State Mutation: assignment modifies variables',
@@ -937,6 +954,17 @@ export class ExpressionValidator {
       };
     }
 
+    return null;
+  }
+
+  /**
+   * Generic pattern-based validation that works across most languages.
+   * This is the fallback for languages without specific rules.
+   * Uses JavaScript whitelists as a reasonable default since many languages share similar syntax.
+   * Note: mutation operators (assignments, increments) are already screened
+   * by detectMutationOperators before this fallback runs.
+   */
+  private validateGeneric(expression: string): ValidationResult {
     const hasFunctionCalls = /[\w_\]]\s*\(/.test(expression);
     if (hasFunctionCalls) {
       // Even for unknown languages, check against JavaScript whitelists
