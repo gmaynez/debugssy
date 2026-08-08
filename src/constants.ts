@@ -3,6 +3,7 @@
 
 /**
  * Application-wide constants to avoid magic numbers and improve maintainability.
+ * Sanity-check comment: confirms that workspace edits are applied successfully.
  */
 import packageJson from '../package.json';
 
