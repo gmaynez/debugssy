@@ -23,8 +23,7 @@ const getRouteHandler = (app: Express, path: string) => {
 
 const getMcpHandler = (server: MCPServer, method: string) => {
   return ((server as any).mcpServer as any)._requestHandlers.get(method) as
-    | ((request: any) => Promise<any>)
-    | undefined;
+    ((request: any) => Promise<any>) | undefined;
 };
 
 const parseToolContent = (response: any) => JSON.parse(response.content[0].text);
