@@ -831,6 +831,50 @@ describe('ExpressionValidator', () => {
     });
   });
 
+  describe('Session Allowlist', () => {
+    const sessionWithId = (id: string) => ({ ...createMockDebugSession(), id });
+
+    it('should allow an expression approved for the session', () => {
+      const session = sessionWithId('s1');
+      validator.allowExpressionForSession('user.setName("x")', session);
+
+      const result = validator.validateExpression('user.setName("x")', session);
+
+      expect(result.allowed).toBe(true);
+      expect(result.reason).toBe('Approved by user for this session');
+    });
+
+    it('should not allow the same expression in a different session', () => {
+      validator.allowExpressionForSession('user.setName("x")', sessionWithId('s1'));
+
+      const result = validator.validateExpression('user.setName("x")', sessionWithId('s2'));
+
+      expect(result.allowed).toBe(false);
+    });
+
+    it('should match on the normalized expression form', () => {
+      const session = sessionWithId('s1');
+      validator.allowExpressionForSession('  foo.bar()  ', session);
+
+      expect(validator.validateExpression('foo.bar()', session).allowed).toBe(true);
+    });
+
+    it('should be a no-op without a session', () => {
+      validator.allowExpressionForSession('foo.bar()', undefined);
+
+      expect(validator.validateExpression('foo.bar()', sessionWithId('s1')).allowed).toBe(false);
+    });
+
+    it('should clear the allowlist on dispose', () => {
+      const session = sessionWithId('s1');
+      validator.allowExpressionForSession('foo.bar()', session);
+
+      validator.dispose();
+
+      expect(validator.validateExpression('foo.bar()', session).allowed).toBe(false);
+    });
+  });
+
   describe('shouldElicit', () => {
     it('should return false when validation level is disabled', () => {
       expect(validator.shouldElicit('critical', 'disabled')).toBe(false);

@@ -31,7 +31,6 @@ import type { ToolSchema, EvaluationResult, ToolResult } from './types/toolResul
 import {
   UnknownToolError,
   InvalidArgumentsError,
-  ExpressionUserDeclinedError,
   AutomationLevelRestrictedError,
   StepOperationsDisabledError,
 } from '../errors';
@@ -356,68 +355,42 @@ export class ToolRouter {
       return await this.toolRegistry.inspection.evaluateExpression(args);
     }
 
-    // Validation failed - request user approval via elicitation
-    // Use server.elicitInput() as shown in SDK examples
-    try {
-      const elicitationMessage = this.expressionValidator.formatElicitationMessage(
-        args.expression,
-        validationResult
-      );
+    // Validation failed - request user approval via elicitation.
+    // Uses an enum choice (MCP spec 2025-11-25) instead of a bare checkbox so
+    // the user can also approve the expression for the rest of the session.
+    const elicitationMessage = this.expressionValidator.formatElicitationMessage(
+      args.expression,
+      validationResult
+    );
 
-      // Send elicitation request to client using the SDK's elicitInput helper
-      const elicitResponse = await server.elicitInput({
+    let elicitResponse;
+    try {
+      elicitResponse = await server.elicitInput({
         message: elicitationMessage,
         requestedSchema: {
           type: 'object',
           properties: {
-            understood: {
-              type: 'boolean',
-              title: 'I understand the risks',
-              description: 'Check this box to confirm you understand the risks and want to proceed',
+            decision: {
+              type: 'string',
+              title: 'Decision',
+              description: 'Whether to execute this expression in the debuggee',
+              oneOf: [
+                { const: 'allow_once', title: 'Allow once' },
+                { const: 'allow_session', title: 'Always allow for this debug session' },
+                { const: 'deny', title: 'Deny' },
+              ],
+              default: 'deny',
             },
           },
-          required: ['understood'],
+          required: ['decision'],
         },
       });
-
-      // Handle user response
-      if (elicitResponse.action === 'accept' && elicitResponse.content?.understood) {
-        // User approved - execute the expression
-        const result = await this.toolRegistry.inspection.evaluateExpression(args);
-
-        // Add a warning to the result
-        return {
-          ...result,
-          _warning: 'Expression executed with user approval despite validation failure',
-        };
-      } else if (elicitResponse.action === 'decline') {
-        // User declined
-        throw new ExpressionUserDeclinedError(args.expression, validationResult.reason);
-      } else {
-        // User cancelled or other action
-        return {
-          success: false,
-          error: `Expression evaluation cancelled by user.`,
-        };
-      }
     } catch (error: unknown) {
-      // Re-throw our custom errors
-      if (error instanceof ExpressionUserDeclinedError) {
-        return {
-          success: false,
-          error: `Expression validation failed: ${validationResult.reason}. User declined to proceed.`,
-        };
-      }
-
       // Elicitation not supported by client or other error
       // Fall back to blocking the expression with detailed info
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.warn('Elicitation failed, blocking expression:', errorMessage);
 
-      const elicitationMessage = this.expressionValidator.formatElicitationMessage(
-        args.expression,
-        validationResult
-      );
       return {
         success: false,
         error: `${elicitationMessage}\n\nClient does not support user confirmation (elicitation). To allow this expression, set debugssy.expressionValidationLevel to "disabled" in settings.`,
@@ -428,5 +401,47 @@ export class ToolRouter {
         },
       };
     }
+
+    // Handle user response
+    if (elicitResponse.action === 'accept') {
+      const decision = elicitResponse.content?.decision as string | undefined;
+
+      if (decision === 'allow_once' || decision === 'allow_session') {
+        if (decision === 'allow_session') {
+          this.expressionValidator.allowExpressionForSession(args.expression, session);
+        }
+
+        // User approved - execute the expression
+        const result = await this.toolRegistry.inspection.evaluateExpression(args);
+
+        // Add a warning to the result
+        return {
+          ...result,
+          _warning:
+            decision === 'allow_session'
+              ? 'Expression executed and approved for the rest of this debug session despite validation failure'
+              : 'Expression executed with user approval despite validation failure',
+        };
+      }
+
+      // User explicitly chose "Deny" (or sent an unexpected value - fail closed)
+      return {
+        success: false,
+        error: `Expression validation failed: ${validationResult.reason}. User declined to proceed.`,
+      };
+    }
+
+    if (elicitResponse.action === 'decline') {
+      return {
+        success: false,
+        error: `Expression validation failed: ${validationResult.reason}. User declined to proceed.`,
+      };
+    }
+
+    // User cancelled or other action
+    return {
+      success: false,
+      error: `Expression evaluation cancelled by user.`,
+    };
   }
 }

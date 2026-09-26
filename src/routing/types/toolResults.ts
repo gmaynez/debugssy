@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2025 Guillermo Garcia Maynez
 
+import type { ToolAnnotations } from '@modelcontextprotocol/sdk/types.js';
+
 /**
  * Base result interface for all tool operations.
  * Follows the Result pattern for consistent error handling.
@@ -27,15 +29,22 @@ export interface EvaluationResult extends ToolResult {
 
 /**
  * Schema definition for MCP tool registration.
+ * `title` and `annotations` follow the MCP Tool interface: annotations drive
+ * client approval UX (readOnlyHint/destructiveHint/idempotentHint/openWorldHint).
+ * Note: when annotations are absent, MCP clients assume the safe defaults
+ * (readOnly: false, destructive: true, idempotent: false, openWorld: true),
+ * so every schema should set them explicitly.
  */
 export interface ToolSchema {
   name: string;
+  title?: string;
   description: string;
   inputSchema: {
     type: string;
     properties: Record<string, unknown>;
     required?: string[];
   };
+  annotations?: ToolAnnotations;
 }
 
 // ============================================

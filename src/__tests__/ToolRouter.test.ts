@@ -6,7 +6,8 @@ import { ToolRouter } from '../routing/ToolRouter';
 import type { ToolRegistry } from '../tools';
 import { ConfigManager } from '../Config';
 import { TOOL_NAMES } from '../routing/toolNames';
-import './setup';
+import { vscode } from './setup';
+import { createMockDebugSession } from './helpers/vscode-mock';
 
 function mockConfig(
   configManager: ConfigManager,
@@ -333,7 +334,7 @@ describe('ToolRouter', () => {
         expect(server.elicitInput).not.toHaveBeenCalled();
       });
 
-      it('should execute with warning when user accepts elicitation', async () => {
+      it('should execute with warning when user allows once', async () => {
         const expressionValidator = (toolRouter as any).expressionValidator;
         vi.spyOn(expressionValidator, 'validateExpression').mockReturnValue({
           allowed: false,
@@ -348,7 +349,7 @@ describe('ToolRouter', () => {
         const server = {
           elicitInput: vi.fn().mockResolvedValue({
             action: 'accept',
-            content: { understood: true },
+            content: { decision: 'allow_once' },
           }),
         } as any;
 
@@ -359,10 +360,122 @@ describe('ToolRouter', () => {
         );
 
         expect(server.elicitInput).toHaveBeenCalledTimes(1);
+        // Elicitation offers an enum decision (allow once / allow session / deny)
+        expect(server.elicitInput).toHaveBeenCalledWith(
+          expect.objectContaining({
+            requestedSchema: expect.objectContaining({
+              properties: expect.objectContaining({
+                decision: expect.objectContaining({
+                  oneOf: [
+                    { const: 'allow_once', title: 'Allow once' },
+                    { const: 'allow_session', title: 'Always allow for this debug session' },
+                    { const: 'deny', title: 'Deny' },
+                  ],
+                }),
+              }),
+            }),
+          })
+        );
         expect(result).toMatchObject({
           success: true,
           _warning: 'Expression executed with user approval despite validation failure',
         });
+      });
+
+      it('should register session approval when user chooses always allow', async () => {
+        const expressionValidator = (toolRouter as any).expressionValidator;
+        vi.spyOn(expressionValidator, 'validateExpression').mockReturnValue({
+          allowed: false,
+          riskLevel: 'high',
+          reason: 'Potential side effects',
+        });
+        vi.spyOn(expressionValidator, 'shouldElicit').mockReturnValue(true);
+        const allowSpy = vi.spyOn(expressionValidator, 'allowExpressionForSession');
+
+        const server = {
+          elicitInput: vi.fn().mockResolvedValue({
+            action: 'accept',
+            content: { decision: 'allow_session' },
+          }),
+        } as any;
+
+        const result = await toolRouter.routeToolCall(
+          TOOL_NAMES.evaluateExpression,
+          { expression: 'mutateState()' },
+          server
+        );
+
+        expect(allowSpy).toHaveBeenCalledWith('mutateState()', undefined);
+        expect(result).toMatchObject({
+          success: true,
+          _warning:
+            'Expression executed and approved for the rest of this debug session despite validation failure',
+        });
+      });
+
+      it('should treat accept with deny decision as declined', async () => {
+        const expressionValidator = (toolRouter as any).expressionValidator;
+        vi.spyOn(expressionValidator, 'validateExpression').mockReturnValue({
+          allowed: false,
+          riskLevel: 'high',
+          reason: 'Potential side effects',
+        });
+        vi.spyOn(expressionValidator, 'shouldElicit').mockReturnValue(true);
+        vi.spyOn(expressionValidator, 'formatElicitationMessage').mockReturnValue(
+          'This expression may have side effects.'
+        );
+
+        const server = {
+          elicitInput: vi.fn().mockResolvedValue({
+            action: 'accept',
+            content: { decision: 'deny' },
+          }),
+        } as any;
+
+        const result = await toolRouter.routeToolCall(
+          TOOL_NAMES.evaluateExpression,
+          { expression: 'mutateState()' },
+          server
+        );
+
+        expect(result).toEqual({
+          success: false,
+          error: 'Expression validation failed: Potential side effects. User declined to proceed.',
+        });
+        expect(mockToolRegistry.inspection.evaluateExpression).not.toHaveBeenCalled();
+      });
+
+      it('should skip elicitation for expressions approved for the session', async () => {
+        const session = createMockDebugSession();
+        (vscode.debug as any).activeDebugSession = session;
+
+        const server = {
+          elicitInput: vi.fn().mockResolvedValue({
+            action: 'accept',
+            content: { decision: 'allow_session' },
+          }),
+        } as any;
+
+        // 'foo.customFn()' fails validation (unknown function) at moderate level
+        const first = await toolRouter.routeToolCall(
+          TOOL_NAMES.evaluateExpression,
+          { expression: 'foo.customFn()' },
+          server
+        );
+
+        expect(first.success).toBe(true);
+        expect(server.elicitInput).toHaveBeenCalledTimes(1);
+
+        // Second call with the same expression is allowed without elicitation
+        const second = await toolRouter.routeToolCall(
+          TOOL_NAMES.evaluateExpression,
+          { expression: 'foo.customFn()' },
+          server
+        );
+
+        expect(second.success).toBe(true);
+        expect(server.elicitInput).toHaveBeenCalledTimes(1);
+        expect(mockToolRegistry.inspection.evaluateExpression).toHaveBeenCalledTimes(2);
       });
 
       it('should report declined elicitation without executing the expression', async () => {

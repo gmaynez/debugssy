@@ -57,6 +57,11 @@ export class ExpressionValidator {
   // Language detection cache per session to avoid redundant lookups
   private readonly languageCache: Map<string, string>;
 
+  // Per-session allowlist of normalized expressions the user approved via
+  // "Always allow for this debug session" during elicitation. Cleared when
+  // the session terminates so approvals never leak across sessions.
+  private readonly sessionAllowlist: Map<string, Set<string>>;
+
   // Disposable for the session termination listener
   private readonly sessionTerminationDisposable: vscode.Disposable | undefined;
 
@@ -72,11 +77,15 @@ export class ExpressionValidator {
     // Initialize language cache
     this.languageCache = new Map();
 
+    // Initialize session allowlist
+    this.sessionAllowlist = new Map();
+
     // Listen for debug session termination to clear cache entries
     // Store the disposable for proper cleanup when validator is disposed
     if (typeof vscode !== 'undefined') {
       this.sessionTerminationDisposable = vscode.debug.onDidTerminateDebugSession((session) => {
         this.languageCache.delete(session.id);
+        this.sessionAllowlist.delete(session.id);
       });
     }
   }
@@ -88,6 +97,26 @@ export class ExpressionValidator {
   dispose(): void {
     this.sessionTerminationDisposable?.dispose();
     this.languageCache.clear();
+    this.sessionAllowlist.clear();
+  }
+
+  /**
+   * Records an expression as user-approved for the given debug session.
+   * Subsequent validateExpression calls for the same normalized expression
+   * and session will pass without further elicitation.
+   * No-op when there is no session to scope the approval to.
+   */
+  allowExpressionForSession(expression: string, session?: vscode.DebugSession): void {
+    if (!session) {
+      return;
+    }
+    const normalized = expression.trim().normalize('NFKC');
+    let approved = this.sessionAllowlist.get(session.id);
+    if (!approved) {
+      approved = new Set();
+      this.sessionAllowlist.set(session.id, approved);
+    }
+    approved.add(normalized);
   }
 
   /**
@@ -107,6 +136,13 @@ export class ExpressionValidator {
 
     if (!trimmed) {
       return { allowed: false, reason: 'Empty expression', riskLevel: 'low' };
+    }
+
+    // Expressions the user explicitly approved via "Always allow for this debug
+    // session" bypass validation for the remainder of that session. Exact-match
+    // on the normalized form, so confusable-character variants are covered too.
+    if (session && this.sessionAllowlist.get(session.id)?.has(trimmed)) {
+      return { allowed: true, reason: 'Approved by user for this session', riskLevel: 'low' };
     }
 
     // Detect language once if session is provided to optimize subsequent checks

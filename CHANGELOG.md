@@ -4,6 +4,22 @@ All notable changes to the "Debugssy" extension will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **MCP tool annotations on all 20 tool schemas** (`title`, `readOnlyHint`,
+  `destructiveHint`, `idempotentHint`, `openWorldHint`). MCP clients use these
+  to drive approval UX: read-only inspection tools can be auto-approved once the
+  server is trusted, destructive operations (`stop_debugging`, `restart`,
+  `remove_all_breakpoints`, `clear_console_output`) are correctly flagged, and
+  `evaluate_expression`/`get_console_output` are marked `openWorldHint` since
+  their results contain debuggee-controlled text (indirect prompt-injection
+  mitigation, VS Code 1.106+).
+- **"Always allow for this debug session" in expression approval.** The
+  `evaluate_expression` elicitation prompt is now an enum choice (MCP spec
+  2025-11-25, VS Code 1.107+): Allow once / Always allow for this debug session
+  / Deny. Session approvals are exact-match on the normalized expression and are
+  cleared when the debug session terminates.
+
 ### Changed
 
 - **Minimum VS Code version bumped from 1.105.0 to 1.128.0.** VS Code 1.128

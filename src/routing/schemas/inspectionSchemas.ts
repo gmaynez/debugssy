@@ -10,13 +10,24 @@ import { TOOL_NAMES } from '../toolNames';
 
 /**
  * Tool schemas for inspection and state query operations.
+ *
+ * openWorldHint is set on tools whose results contain debuggee-controlled
+ * text (evaluated expression results, program stdout/stderr): MCP clients
+ * may review such results before injecting them into the model context,
+ * which mitigates indirect prompt injection via the debugged process.
  */
-
 export const inspectionSchemas = [
   {
     name: TOOL_NAMES.getVariables,
+    title: 'Get Variables',
     description:
       'Get variables from the current stack frame. WARNING: Can be verbose with many variables. Consider filtering by scope (e.g., "Local") to reduce output.',
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     inputSchema: {
       type: 'object',
       properties: {
@@ -34,8 +45,15 @@ export const inspectionSchemas = [
   },
   {
     name: TOOL_NAMES.getCallStack,
+    title: 'Get Call Stack',
     description:
       'Get the current call stack. WARNING: Can be very verbose with deep call stacks. Only call when you need to understand the execution path. Consider using get_debug_state first for just the current location.',
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     inputSchema: {
       type: 'object',
       properties: {
@@ -48,8 +66,15 @@ export const inspectionSchemas = [
   },
   {
     name: TOOL_NAMES.evaluateExpression,
+    title: 'Evaluate Expression',
     description:
       'Evaluate an expression in the current debug context. Use simple expressions (e.g., "x", "obj.prop") rather than complex ones that return large objects. For large objects, use get_variables with scope filter instead. SECURITY: Expressions are validated to prevent side effects (function calls, assignments, etc.). If validation fails, user approval is requested. Expression length is also limited to prevent prompt injection attacks. Validation can be disabled in settings.',
+    annotations: {
+      readOnlyHint: false, // approved expressions may mutate debuggee state
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true, // result text is debuggee-controlled
+    },
     inputSchema: {
       type: 'object',
       properties: {
@@ -68,7 +93,14 @@ export const inspectionSchemas = [
   },
   {
     name: TOOL_NAMES.getThreads,
+    title: 'Get Threads',
     description: 'Get all threads in the current debug session',
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     inputSchema: {
       type: 'object',
       properties: {},
@@ -76,8 +108,15 @@ export const inspectionSchemas = [
   },
   {
     name: TOOL_NAMES.getDebugState,
+    title: 'Get Debug State',
     description:
       'Get current debug session state including execution state (running/paused), current location if paused, and reason for stopping. Lightweight - always check this first before calling more verbose tools like get_call_stack.',
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     inputSchema: {
       type: 'object',
       properties: {},
@@ -85,7 +124,14 @@ export const inspectionSchemas = [
   },
   {
     name: TOOL_NAMES.getConsoleOutput,
+    title: 'Get Console Output',
     description: `Get output from the debug console including stdout, stderr, and console.log messages. WARNING: Can be extremely verbose. Always specify a limit (default: ${DEFAULT_CONSOLE_OUTPUT_LIMIT} most recent entries). Use category filter to reduce output.`,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true, // stdout/stderr content is debuggee-controlled
+    },
     inputSchema: {
       type: 'object',
       properties: {
@@ -113,7 +159,14 @@ export const inspectionSchemas = [
   },
   {
     name: TOOL_NAMES.clearConsoleOutput,
+    title: 'Clear Console Output',
     description: 'Clear the debug console output buffer',
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true, // discards buffered output history
+      idempotentHint: true,
+      openWorldHint: false,
+    },
     inputSchema: {
       type: 'object',
       properties: {},

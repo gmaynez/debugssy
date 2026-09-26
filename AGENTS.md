@@ -64,6 +64,9 @@ based on `automationLevel`.
 
 - Risk levels: critical (system ops) > high (mutations) > medium (unknown
   funcs) > low (getters)
+- Failed validations trigger MCP elicitation with an enum choice: allow once,
+  always allow for this debug session (session-scoped allowlist in
+  `ExpressionValidator`, cleared on session termination), or deny
 
 **Expression validation checks (in order):**
 
