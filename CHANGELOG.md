@@ -2,6 +2,19 @@
 
 All notable changes to the "Debugssy" extension will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- **Minimum VS Code version bumped from 1.105.0 to 1.128.0.** VS Code 1.128
+  ships Electron 42.5.0 with Node.js 24.17.0 (VS Code moved from Node 22 to Node
+  24 at version 1.123). `@types/node` updated to `^24.x` accordingly;
+  `@types/vscode` pinned to `1.125.0` (the highest published version at or below
+  the new floor — no `1.128.0` types package exists).
+- Updated direct dependencies: MCP SDK 1.30.1, Zod 4.6.5, ESLint 10.11.0,
+  typescript-eslint 8.70.1, esbuild 0.28.2, Prettier 3.9.9, ovsx 1.2.0, Vitest
+  4.1.11. Resolved all `npm audit` advisories via `npm audit fix`.
+
 ## [1.6.1] - 2026-05-31
 
 ### Security

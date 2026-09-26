@@ -190,22 +190,27 @@ export function validate[Lang](expr, checkMutations, checkWhitelists, extractCal
 6. **Session security** - UUIDs from crypto.randomUUID()
 7. **Type version alignment** - Keep `@types/vscode` and `@types/node` aligned
    with minimum supported VS Code version (see `engines.vscode` in package.json,
-   currently `^1.105.0`)
+   currently `^1.128.0`)
 
 ## Dependency Updates
 
 When updating npm dependencies, these packages are version-locked and **must not
 be bumped during routine dependency updates**:
 
-| Package         | Constraint                                                                       |
-| --------------- | -------------------------------------------------------------------------------- |
-| `@types/vscode` | **Pinned to `engines.vscode` minimum** — currently `^1.105.0`. Do NOT bump this. |
-| `@types/node`   | Must match Node.js bundled in min VS Code (1.105 → Node 22) — currently `^22.x`  |
+| Package         | Constraint                                                                               |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| `@types/vscode` | **Pinned at or below `engines.vscode` minimum** — currently `1.125.0`. Do NOT bump this. |
+| `@types/node`   | Must match Node.js bundled in min VS Code (1.128 → Node 24) — currently `^24.x`          |
 
 `@types/vscode` defines which VS Code API surface the extension compiles
 against. Bumping it beyond `engines.vscode` silently allows use of APIs
-unavailable to users on the minimum supported version. Always keep it equal to
-the `engines.vscode` floor, not the latest VS Code release.
+unavailable to users on the minimum supported version. Always keep it at or
+below the `engines.vscode` floor, never the latest VS Code release.
+
+Note: `@types/vscode` is not published for every VS Code version. The floor is
+1.128 but the highest available types package at or below it is `1.125.0`
+(available: 1.120.0, 1.125.0, 1.134.0, ...). Pinning slightly _below_ the floor
+is safe — it only restricts which APIs we can compile against.
 
 VS Code bundles Electron which includes a specific Node.js version. To find the
 Node.js version for a VS Code release:
@@ -214,7 +219,8 @@ Node.js version for a VS Code release:
 2. Check what Node.js that Electron version bundles
 3. Or search: "VS Code [version] Electron Node.js version"
 
-Reference: VS Code 1.105 uses Electron 37.6.0 with Node.js 22.19.0
+Reference: VS Code 1.128 uses Electron 42.5.0 with Node.js 24.17.0 (the Node 22
+→ 24 transition happened at VS Code 1.123)
 
 ## Common Mistakes
 
@@ -224,8 +230,9 @@ Reference: VS Code 1.105 uses Electron 37.6.0 with Node.js 22.19.0
 - Using `any` instead of proper types
 - Not handling `error: unknown` properly
 - Forgetting to update tool list in both schema and handler
-- **Bumping `@types/vscode` during dependency updates** — it must stay pinned to
-  `engines.vscode` (currently `^1.105.0`), never the latest VS Code version
+- **Bumping `@types/vscode` during dependency updates** — it must stay pinned at
+  or below `engines.vscode` (currently `^1.128.0`), never the latest VS Code
+  version
 
 ## Config Keys
 

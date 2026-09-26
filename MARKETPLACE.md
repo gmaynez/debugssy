@@ -165,7 +165,7 @@ rebinding. Follows
 
 ## Requirements
 
-VS Code 1.105.0+ and an MCP-compatible AI (Copilot, Cursor, Claude Desktop,
+VS Code 1.128.0+ and an MCP-compatible AI (Copilot, Cursor, Claude Desktop,
 etc.)
 
 ---
