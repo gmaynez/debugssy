@@ -31,6 +31,9 @@ export const DEFAULT_BREAKPOINT_TIMEOUT_MS = 5000;
  */
 export const MCP_SERVER_READY_DELAY_MS = 20;
 
+/** HTTP body limit, aligned with the MCP SDK's default. */
+export const MAX_MCP_REQUEST_BODY_BYTES = 4 * 1024 * 1024;
+
 /**
  * Supported MCP protocol versions.
  */

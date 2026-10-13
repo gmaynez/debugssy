@@ -149,6 +149,259 @@ describe('DAPClient', () => {
     });
   });
 
+  describe('Execution-control response tracking', () => {
+    const pausedWithFrames = (tracker: any) => {
+      tracker.onDidSendMessage({
+        type: 'event',
+        event: 'stopped',
+        body: { threadId: 1, reason: 'breakpoint' },
+      });
+      tracker.onDidSendMessage({
+        type: 'response',
+        command: 'stackTrace',
+        success: true,
+        body: { stackFrames: [{ id: 42, name: 'main', line: 1, column: 1 }] },
+      });
+    };
+
+    it.each([
+      'continue',
+      'next',
+      'stepIn',
+      'stepOut',
+      'stepBack',
+      'reverseContinue',
+      'restart',
+      'restartFrame',
+    ])(
+      'should mark execution running after successful %s without a continued event',
+      async (command) => {
+        const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
+        pausedWithFrames(tracker);
+        const listener = vi.fn();
+        client.onStateChange(listener);
+        tracker.onWillReceiveMessage({ type: 'request', seq: 10, command });
+        expect(client.getExecutionState()).toBe('paused');
+        tracker.onDidSendMessage({ type: 'response', command, request_seq: 10, success: true });
+        expect(client.getExecutionState()).toBe('running');
+        expect(client.getStoppedInfo()).toBeUndefined();
+        expect(client.getCurrentFrameId()).toBeUndefined();
+        expect(client.isReadyForEvaluation()).toBe(false);
+        expect(listener).toHaveBeenCalledWith('running');
+        mockSession.customRequest.mockRejectedValue(new Error('Running'));
+        expect((await client.getStackTrace(mockSession)).stackFrames).toEqual([]);
+      }
+    );
+
+    it.each(['launch', 'attach'])(
+      'should initialize running state after successful %s',
+      (command) => {
+        const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
+        tracker.onWillReceiveMessage({ type: 'request', seq: 1, command });
+        tracker.onDidSendMessage({ type: 'response', command, request_seq: 1, success: true });
+        expect(client.getExecutionState()).toBe('running');
+      }
+    );
+
+    it('should preserve paused frames when a resume request fails', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
+      pausedWithFrames(tracker);
+      tracker.onWillReceiveMessage({ type: 'request', seq: 1, command: 'continue' });
+      tracker.onDidSendMessage({
+        type: 'response',
+        command: 'continue',
+        request_seq: 1,
+        success: false,
+      });
+      expect(client.getExecutionState()).toBe('paused');
+      expect(client.getCurrentFrameId()).toBe(42);
+      expect(client.isReadyForEvaluation()).toBe(true);
+    });
+
+    it('should preserve the inspected stop when a different thread alone continues', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
+      pausedWithFrames(tracker);
+      tracker.onWillReceiveMessage({
+        type: 'request',
+        seq: 1,
+        command: 'continue',
+        arguments: { threadId: 2 },
+      });
+      tracker.onDidSendMessage({
+        type: 'response',
+        command: 'continue',
+        request_seq: 1,
+        success: true,
+        body: { allThreadsContinued: false },
+      });
+      tracker.onDidSendMessage({
+        type: 'event',
+        event: 'continued',
+        body: { threadId: 2, allThreadsContinued: false },
+      });
+      expect(client.getExecutionState()).toBe('paused');
+      expect(client.getCurrentFrameId()).toBe(42);
+      expect(client.getStoppedInfo()?.threadId).toBe(1);
+      expect(client.getStoppedInfo()?.allThreadsStopped).toBe(false);
+    });
+
+    it('should mark the inspected thread running on a partial continue response', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
+      pausedWithFrames(tracker);
+      tracker.onWillReceiveMessage({
+        type: 'request',
+        seq: 1,
+        command: 'continue',
+        arguments: { threadId: 1 },
+      });
+      tracker.onDidSendMessage({
+        type: 'response',
+        command: 'continue',
+        request_seq: 1,
+        success: true,
+        body: { allThreadsContinued: false },
+      });
+      expect(client.getExecutionState()).toBe('running');
+      expect(client.getCurrentFrameId()).toBeUndefined();
+    });
+
+    it('should trust the adapter when it resumes all threads despite a single-thread request', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
+      pausedWithFrames(tracker);
+      tracker.onWillReceiveMessage({
+        type: 'request',
+        seq: 1,
+        command: 'continue',
+        arguments: { threadId: 2, singleThread: true },
+      });
+      tracker.onDidSendMessage({
+        type: 'response',
+        command: 'continue',
+        request_seq: 1,
+        success: true,
+        body: { allThreadsContinued: true },
+      });
+      expect(client.getExecutionState()).toBe('running');
+      expect(client.getCurrentFrameId()).toBeUndefined();
+    });
+
+    it.each(['stopped', 'terminated'])(
+      'should not overwrite a newer %s event with a delayed response',
+      (event) => {
+        const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
+        pausedWithFrames(tracker);
+        tracker.onWillReceiveMessage({ type: 'request', seq: 1, command: 'continue' });
+        tracker.onDidSendMessage({
+          type: 'event',
+          event,
+          body: { threadId: 1, reason: 'breakpoint' },
+        });
+        tracker.onDidSendMessage({
+          type: 'response',
+          command: 'continue',
+          request_seq: 1,
+          success: true,
+        });
+        expect(client.getExecutionState()).toBe(event === 'stopped' ? 'paused' : 'terminated');
+      }
+    );
+
+    it('should not emit a second running event for a response after a continued event', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
+      pausedWithFrames(tracker);
+      const listener = vi.fn();
+      client.onStateChange(listener);
+      tracker.onWillReceiveMessage({ type: 'request', seq: 1, command: 'continue' });
+      tracker.onDidSendMessage({ type: 'event', event: 'continued' });
+      tracker.onDidSendMessage({
+        type: 'response',
+        command: 'continue',
+        request_seq: 1,
+        success: true,
+      });
+      expect(listener).toHaveBeenCalledExactlyOnceWith('running');
+    });
+
+    it('should keep concurrent sessions independent when resume responses arrive', () => {
+      const other = createMockDebugSession('other');
+      vscode.debug.activeDebugSession = mockSession;
+      const trackerA = trackerFactory.createDebugAdapterTracker(mockSession);
+      const trackerB = trackerFactory.createDebugAdapterTracker(other);
+      pausedWithFrames(trackerA);
+      pausedWithFrames(trackerB);
+      const listener = vi.fn();
+      client.onStateChange(listener);
+      trackerB.onWillReceiveMessage({ type: 'request', seq: 1, command: 'continue' });
+      trackerB.onDidSendMessage({
+        type: 'response',
+        command: 'continue',
+        request_seq: 1,
+        success: true,
+      });
+      expect(client.getExecutionState(mockSession)).toBe('paused');
+      expect(client.getExecutionState(other)).toBe('running');
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('should discard stack-trace responses from before a resume', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
+      pausedWithFrames(tracker);
+      tracker.onWillReceiveMessage({ type: 'request', seq: 1, command: 'stackTrace' });
+      tracker.onWillReceiveMessage({ type: 'request', seq: 2, command: 'continue' });
+      tracker.onDidSendMessage({
+        type: 'response',
+        command: 'continue',
+        request_seq: 2,
+        success: true,
+      });
+      tracker.onDidSendMessage({
+        type: 'response',
+        command: 'stackTrace',
+        request_seq: 1,
+        success: true,
+        body: { stackFrames: [{ id: 99, name: 'stale', line: 1, column: 1 }] },
+      });
+      expect(client.getCurrentFrameId()).toBeUndefined();
+    });
+
+    it.each(['resume', 'reset'])(
+      'should not return stale frames when %s occurs during a stack request',
+      async (change) => {
+        const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
+        pausedWithFrames(tracker);
+        mockSession.customRequest.mockImplementation(async () => {
+          if (change === 'reset') {
+            client.reset(mockSession.id);
+          } else {
+            tracker.onWillReceiveMessage({ type: 'request', seq: 2, command: 'continue' });
+            tracker.onDidSendMessage({
+              type: 'response',
+              command: 'continue',
+              request_seq: 2,
+              success: true,
+            });
+          }
+          return { stackFrames: [{ id: 99, name: 'stale', line: 1, column: 1 }] };
+        });
+        expect((await client.getStackTrace(mockSession)).stackFrames).toEqual([]);
+        expect(client.getCurrentFrameId()).toBeUndefined();
+      }
+    );
+
+    it('should ignore late resume responses after the session is reset', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
+      tracker.onWillReceiveMessage({ type: 'request', seq: 1, command: 'continue' });
+      client.reset(mockSession.id);
+      tracker.onDidSendMessage({
+        type: 'response',
+        command: 'continue',
+        request_seq: 1,
+        success: true,
+      });
+      expect(client.getExecutionState()).toBe('not_started');
+    });
+  });
+
   describe('Stack Trace', () => {
     it('should get stack trace from debug session', async () => {
       mockSession.customRequest.mockResolvedValue({

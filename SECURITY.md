@@ -67,6 +67,12 @@ session changes or terminates while confirmation is pending, evaluation is
 cancelled and no session approval is recorded. If a client cannot provide
 confirmation, expressions requiring approval are blocked.
 
+MCP connection replacement requires a complete, schema-valid HTTP initialize
+request with the expected transport headers. Malformed requests and sessionless
+GET or DELETE requests cannot replace a live connection. Initialization bodies
+are bounded to the MCP SDK's 4 MiB limit, and concurrent initializations are
+rejected with HTTP 503 while the initialization lock is held.
+
 The expression validator protects against code injection attacks through:
 
 | Protection Layer         | Attacks Blocked                                                                                                        |

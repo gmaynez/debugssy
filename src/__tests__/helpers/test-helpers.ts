@@ -4,6 +4,29 @@
 import { vi } from 'vitest';
 import { MockUri, MockPosition, MockLocation } from './vscode-mock';
 import type { ToolRegistry } from '../../tools';
+import { CURRENT_MCP_PROTOCOL_VERSION } from '../../constants';
+
+/** A complete, parsed HTTP initialize request for transport lifecycle tests. */
+export function createMockInitializeRequest() {
+  return {
+    method: 'POST',
+    headers: {
+      accept: 'application/json, text/event-stream',
+      'content-type': 'application/json',
+    },
+    url: '/mcp',
+    body: {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {
+        protocolVersion: CURRENT_MCP_PROTOCOL_VERSION,
+        capabilities: {},
+        clientInfo: { name: 'test-client', version: '1.0.0' },
+      },
+    },
+  };
+}
 
 /**
  * Common test fixtures and helper functions

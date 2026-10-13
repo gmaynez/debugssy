@@ -235,7 +235,9 @@ describe('MCPServer - Lifecycle', () => {
           release();
         });
 
-        await vi.advanceTimersByTimeAsync(100);
+        await vi.advanceTimersByTimeAsync(1);
+        expect(acquisitions).toEqual([1]);
+        await vi.advanceTimersByTimeAsync(99);
         await Promise.all([promise1, promise2]);
 
         expect(acquisitions).toEqual([1, 2]);

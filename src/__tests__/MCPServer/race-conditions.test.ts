@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { MCPServer } from '../../MCPServer';
 import { ConfigManager } from '../../Config';
-import { createMockToolRegistry } from '../helpers/test-helpers';
+import { createMockToolRegistry, createMockInitializeRequest } from '../helpers/test-helpers';
 import '../setup';
 
 describe('MCPServer - Race Conditions', () => {
@@ -47,8 +47,8 @@ describe('MCPServer - Race Conditions', () => {
         };
         (server as any).transport = mockTransport;
 
-        const req1 = { method: 'POST', headers: {}, url: '/mcp' } as any;
-        const req2 = { method: 'POST', headers: {}, url: '/mcp' } as any;
+        const req1 = createMockInitializeRequest() as any;
+        const req2 = createMockInitializeRequest() as any;
         const res1 = { headersSent: false, status: vi.fn().mockReturnThis(), json: vi.fn() } as any;
         const res2 = { headersSent: false, status: vi.fn().mockReturnThis(), json: vi.fn() } as any;
 
@@ -97,7 +97,7 @@ describe('MCPServer - Race Conditions', () => {
         handleRequest: vi.fn().mockResolvedValue(undefined),
       };
 
-      const req = { method: 'POST', headers: {}, url: '/mcp' } as any;
+      const req = createMockInitializeRequest() as any;
       const res = { headersSent: false, status: vi.fn().mockReturnThis(), json: vi.fn() } as any;
 
       await (server as any).handleSerializedInitRequest(req, res, mockTransport, 'test');
@@ -114,6 +114,102 @@ describe('MCPServer - Race Conditions', () => {
   });
 
   describe('Session Replacement', () => {
+    it('should reserve the lock before replacing a live transport', async () => {
+      server = new MCPServer(3000, createMockToolRegistry(), new ConfigManager());
+      const internal = server as any;
+      internal.hasSuccessfulInit = true;
+      internal.isTransportReady = true;
+      const oldTransport = { close: vi.fn(async () => {}), handleRequest: vi.fn() };
+      const nextTransport = {
+        sessionId: undefined as string | undefined,
+        close: vi.fn(async () => {}),
+        handleRequest: vi.fn(async () => {
+          nextTransport.sessionId = 'next-session';
+        }),
+      };
+      internal.transport = oldTransport;
+      let finishReplacement: () => void = () => {};
+      const replacing = new Promise<void>((resolve) => {
+        finishReplacement = resolve;
+      });
+      const recreate = vi.spyOn(internal, 'recreateTransport').mockImplementation(async () => {
+        await oldTransport.close();
+        await replacing;
+        internal.transport = nextTransport;
+      });
+      const req1 = createMockInitializeRequest();
+      const req2 = createMockInitializeRequest();
+      const res1 = {
+        statusCode: 200,
+        headersSent: false,
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+      };
+      const res2 = {
+        statusCode: 200,
+        headersSent: false,
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+      };
+      const first = internal.handleMcpRequest(req1, res1);
+      await vi.waitFor(() => expect(recreate).toHaveBeenCalledOnce());
+      await internal.handleMcpRequest(req2, res2);
+      expect(res2.status).toHaveBeenCalledWith(503);
+      expect(recreate).toHaveBeenCalledOnce();
+      finishReplacement();
+      await first;
+      expect(server.getMetrics().sessionReplacements).toBe(1);
+      expect(server.getMetrics().initSuccesses).toBe(1);
+      expect(nextTransport.handleRequest).toHaveBeenCalledExactlyOnceWith(req1, res1, req1.body);
+    });
+
+    it('should not count a resolved SDK error as successful initialization', async () => {
+      server = new MCPServer(3000, createMockToolRegistry(), new ConfigManager());
+      const transport = {
+        sessionId: undefined as string | undefined,
+        close: vi.fn(async () => {}),
+        handleRequest: vi.fn(async (_req, res) => {
+          transport.sessionId = 'rejected-session';
+          res.statusCode = 400;
+        }),
+      };
+      (server as any).transport = transport;
+      (server as any).isTransportReady = true;
+      const res = {
+        statusCode: 200,
+        headersSent: false,
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+      };
+      await (server as any).handleMcpRequest(createMockInitializeRequest(), res);
+      expect(server.getMetrics().initSuccesses).toBe(0);
+      expect((server as any).hasSuccessfulInit).toBe(false);
+    });
+
+    it('should not count initialization if its session closes before handling completes', async () => {
+      server = new MCPServer(3000, createMockToolRegistry(), new ConfigManager());
+      const transport = {
+        sessionId: undefined as string | undefined,
+        close: vi.fn(async () => {}),
+        handleRequest: vi.fn(async () => {
+          transport.sessionId = 'closed-session';
+          (server as any).resetSessionState();
+        }),
+      };
+      (server as any).transport = transport;
+      (server as any).isTransportReady = true;
+      const res = {
+        statusCode: 200,
+        headersSent: false,
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+      };
+      await (server as any).handleMcpRequest(createMockInitializeRequest(), res);
+      expect(server.getMetrics().initSuccesses).toBe(0);
+      expect((server as any).hasSuccessfulInit).toBe(false);
+      expect((server as any).isInitLockHeld).toBe(false);
+    });
+
     it('should replace existing session when new init arrives', async () => {
       server = new MCPServer(3000, createMockToolRegistry(), new ConfigManager());
 
@@ -129,7 +225,7 @@ describe('MCPServer - Race Conditions', () => {
       const recreateTransport = vi.fn().mockResolvedValue(undefined);
       (server as any).recreateTransport = recreateTransport;
 
-      const req = { method: 'POST', headers: {}, url: '/mcp' } as any;
+      const req = createMockInitializeRequest() as any;
       const res = { headersSent: false, status: vi.fn().mockReturnThis(), json: vi.fn() } as any;
 
       await (server as any).handleSerializedInitRequest(req, res, oldTransport, 'test');
@@ -138,7 +234,7 @@ describe('MCPServer - Race Conditions', () => {
       expect(server.getMetrics().sessionReplacements).toBe(1);
     });
 
-    it('should reset session state properly', () => {
+    it('should reset session state without unlocking a pending initialization', () => {
       server = new MCPServer(3000, createMockToolRegistry(), new ConfigManager());
 
       (server as any).hasSuccessfulInit = true;
@@ -149,59 +245,42 @@ describe('MCPServer - Race Conditions', () => {
       (server as any).resetSessionState();
 
       expect((server as any).hasSuccessfulInit).toBe(false);
-      expect((server as any).isInitLockHeld).toBe(false);
-      expect(mockRelease).toHaveBeenCalled();
-      expect((server as any).initLockRelease).toBeNull();
+      expect((server as any).isInitLockHeld).toBe(true);
+      expect(mockRelease).not.toHaveBeenCalled();
+      expect((server as any).initLockRelease).toBe(mockRelease);
     });
   });
 
-  describe('SSE vs POST Request Handling', () => {
-    it('should identify SSE requests correctly', () => {
-      server = new MCPServer(3000, createMockToolRegistry(), new ConfigManager());
+  describe('Sessionless non-POST requests', () => {
+    it.each(['GET', 'DELETE', 'PUT'])(
+      'should let the SDK reject %s without replacing a session',
+      async (method) => {
+        server = new MCPServer(3000, createMockToolRegistry(), new ConfigManager());
 
-      const isSSERequest = (server as any).isSSERequest.bind(server);
+        (server as any).isTransportReady = true;
 
-      const sseReq = {
-        method: 'GET',
-        headers: { accept: 'text/event-stream' },
-      };
-      expect(isSSERequest(sseReq)).toBe(true);
+        const mockTransport = {
+          close: vi.fn().mockResolvedValue(undefined),
+          handleRequest: vi.fn().mockResolvedValue(undefined),
+        };
+        (server as any).transport = mockTransport;
 
-      const postReq = {
-        method: 'POST',
-        headers: {},
-      };
-      expect(isSSERequest(postReq)).toBe(false);
+        const req = {
+          method,
+          headers: { accept: 'text/event-stream' },
+        } as any;
+        const res = { headersSent: false, status: vi.fn().mockReturnThis(), json: vi.fn() } as any;
 
-      const getReq = {
-        method: 'GET',
-        headers: { accept: 'application/json' },
-      };
-      expect(isSSERequest(getReq)).toBe(false);
-    });
+        (server as any).hasSuccessfulInit = true;
+        const replace = vi.spyOn(server as any, 'recreateTransport');
+        await (server as any).handleMcpRequest(req, res);
 
-    it('should handle SSE init without lock', async () => {
-      server = new MCPServer(3000, createMockToolRegistry(), new ConfigManager());
-
-      (server as any).isTransportReady = true;
-
-      const mockTransport = {
-        close: vi.fn().mockResolvedValue(undefined),
-        handleRequest: vi.fn().mockResolvedValue(undefined),
-      };
-      (server as any).transport = mockTransport;
-
-      const req = {
-        method: 'GET',
-        headers: { accept: 'text/event-stream' },
-      } as any;
-      const res = { headersSent: false, status: vi.fn().mockReturnThis(), json: vi.fn() } as any;
-
-      await (server as any).handleSSEInitRequest(req, res, mockTransport, 'test');
-
-      expect(mockTransport.handleRequest).toHaveBeenCalled();
-      expect((server as any).isInitLockHeld).toBe(false);
-    });
+        expect(mockTransport.handleRequest).toHaveBeenCalled();
+        expect((server as any).isInitLockHeld).toBe(false);
+        expect(replace).not.toHaveBeenCalled();
+        expect(mockTransport.close).not.toHaveBeenCalled();
+      }
+    );
   });
 
   describe('Error Handling', () => {
@@ -218,7 +297,7 @@ describe('MCPServer - Race Conditions', () => {
       };
       (server as any).transport = mockTransport;
 
-      const req = { method: 'POST', headers: {}, url: '/mcp' } as any;
+      const req = createMockInitializeRequest() as any;
       const res = { headersSent: false, status: vi.fn().mockReturnThis(), json: vi.fn() } as any;
 
       await (server as any).handleSerializedInitRequest(req, res, mockTransport, 'test');
@@ -238,7 +317,7 @@ describe('MCPServer - Race Conditions', () => {
       };
       (server as any).transport = mockTransport;
 
-      const req = { method: 'POST', headers: {}, url: '/mcp' } as any;
+      const req = createMockInitializeRequest() as any;
       const res = { headersSent: false, status: vi.fn().mockReturnThis(), json: vi.fn() } as any;
 
       await expect(

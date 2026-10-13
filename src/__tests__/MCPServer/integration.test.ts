@@ -6,7 +6,7 @@ import type { Express } from 'express';
 import { MCPServer } from '../../MCPServer';
 import { ConfigManager } from '../../Config';
 import { EXTENSION_VERSION, CURRENT_MCP_PROTOCOL_VERSION } from '../../constants';
-import { createMockToolRegistry } from '../helpers/test-helpers';
+import { createMockToolRegistry, createMockInitializeRequest } from '../helpers/test-helpers';
 import { TOOL_NAMES } from '../../routing/toolNames';
 import {
   RESOURCE_RESPONSE_EXAMPLES,
@@ -325,7 +325,7 @@ describe('MCPServer - Integration', () => {
       const handleInitRequest = vi.fn().mockResolvedValue(undefined);
       (server as any).handleInitRequest = handleInitRequest;
 
-      const req = { method: 'POST', headers: {}, url: '/mcp' } as any;
+      const req = createMockInitializeRequest() as any;
       const res = { headersSent: false, status: vi.fn().mockReturnThis(), json: vi.fn() } as any;
 
       await (server as any).handleMcpRequest(req, res);
@@ -369,10 +369,10 @@ describe('MCPServer - Integration', () => {
       };
       (server as any).transport = mockTransport;
 
-      const req = { method: 'POST', headers: {}, url: '/mcp' } as any;
+      const req = createMockInitializeRequest() as any;
       const res = { headersSent: false, status: vi.fn().mockReturnThis(), json: vi.fn() } as any;
 
-      await (server as any).handleInitRequest(req, res, mockTransport, 'test');
+      await (server as any).handleInitRequest(req, res, mockTransport);
 
       expect(server.getMetrics().initAttempts).toBe(1);
     });
@@ -385,13 +385,21 @@ describe('MCPServer - Integration', () => {
       (server as any).isInitLockHeld = false;
 
       const mockTransport = {
+        sessionId: undefined as string | undefined,
         close: vi.fn().mockResolvedValue(undefined),
-        handleRequest: vi.fn().mockResolvedValue(undefined),
+        handleRequest: vi.fn(async () => {
+          mockTransport.sessionId = 'initialized-session';
+        }),
       };
       (server as any).transport = mockTransport;
 
-      const req = { method: 'POST', headers: {}, url: '/mcp' } as any;
-      const res = { headersSent: false, status: vi.fn().mockReturnThis(), json: vi.fn() } as any;
+      const req = createMockInitializeRequest() as any;
+      const res = {
+        statusCode: 200,
+        headersSent: false,
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+      } as any;
 
       await (server as any).handleSerializedInitRequest(req, res, mockTransport, 'test');
 

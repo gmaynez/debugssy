@@ -6,7 +6,7 @@ import type { Express } from 'express';
 import { MCPServer } from '../MCPServer';
 import { ConfigManager } from '../Config';
 import { EXTENSION_VERSION, CURRENT_MCP_PROTOCOL_VERSION } from '../constants';
-import { createMockToolRegistry } from './helpers/test-helpers';
+import { createMockToolRegistry, createMockInitializeRequest } from './helpers/test-helpers';
 import './setup';
 
 const getRouteHandler = (app: Express, path: string) => {
@@ -215,6 +215,7 @@ describe('MCPServer', () => {
 
     // Create a mock transport
     const mockTransport = {
+      sessionId: 'existing-session',
       close: vi.fn().mockResolvedValue(undefined),
       handleRequest: vi.fn().mockResolvedValue(undefined),
     };
@@ -230,15 +231,20 @@ describe('MCPServer', () => {
     const recreateTransport = vi.fn().mockResolvedValue(undefined);
     (server as any).recreateTransport = recreateTransport;
 
-    const req = { method: 'POST', headers: {}, url: '/mcp' } as any;
-    const res = { headersSent: false, status: vi.fn().mockReturnThis(), json: vi.fn() } as any;
+    const req = createMockInitializeRequest() as any;
+    const res = {
+      statusCode: 200,
+      headersSent: false,
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn(),
+    } as any;
 
     await (server as any).handleSerializedInitRequest(req, res, mockTransport, 'test');
 
     const metrics = server.getMetrics();
     expect(metrics.sessionReplacements).toBe(1);
     expect(recreateTransport).toHaveBeenCalled();
-    expect(mockTransport.handleRequest).toHaveBeenCalled();
+    expect(mockTransport.handleRequest).toHaveBeenCalledWith(req, res, req.body);
     expect((server as any).hasSuccessfulInit).toBe(true);
   });
 

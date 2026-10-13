@@ -15,6 +15,8 @@ import {
   ListResourcesRequestSchema,
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
+  InitializeRequestSchema,
+  JSONRPCRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { ToolRegistry } from './tools';
 import { ConfigManager } from './Config';
@@ -22,6 +24,7 @@ import {
   CURRENT_MCP_PROTOCOL_VERSION,
   EXTENSION_VERSION,
   MCP_SERVER_READY_DELAY_MS,
+  MAX_MCP_REQUEST_BODY_BYTES,
   SUPPORTED_MCP_PROTOCOL_VERSIONS,
 } from './constants';
 import { McpRequestValidator } from './security/McpRequestValidator';
@@ -41,34 +44,12 @@ import { isDebugssyError, formatErrorMessage, getErrorCode } from './errors';
  * - CompletionProvider: Provides autocomplete suggestions for prompt arguments
  * - ResourceProvider: Provides resource listing and reading
  *
- * Race Condition Handling:
- * The server includes comprehensive protection against race conditions:
- *
- * 1. Early Connection Attempts:
- *    - Requests arriving before transport initialization receive HTTP 503
- *    - Triggers MCP client retry logic with exponential backoff
- *
- * 2. Concurrent Initialization Requests:
- *    - Detects multiple simultaneous initialization attempts (no Mcp-Session-Id header)
- *    - Uses an async mutex to serialize initialization requests properly
- *    - First request acquires lock and processes; concurrent requests receive HTTP 503
- *    - After ONE successful initialization, all subsequent init attempts are rejected with 503
- *    - This matches MCP SDK behavior (one init per transport instance)
- *    - SSE fallback requests bypass the lock as they're concurrent-safe by design
- *    - Prevents "Server already initialized" errors while keeping fallback mechanisms responsive
- *
- * 3. Multiple Client Instances:
- *    - Some MCP clients (like Cursor) create multiple client instances for the same server
- *    - When "Server already initialized" is reported by the transport, we return HTTP 503 to trigger client backoff
- *    - Avoids tearing down established sessions while nudging clients to retry instead of spinning up extra instances
- *
- * 4. Resource Management:
- *    - Tracks all pending timers and in-flight requests for proper cleanup
- *    - Graceful shutdown waits for in-flight requests to complete (with timeout)
- *    - dispose() cancels all pending timers and releases locks
- *
- * This handles the common scenario where MCP clients like Cursor start before the
- * VS Code extension has fully initialized, and make multiple rapid retry attempts.
+ * Requests before transport readiness receive HTTP 503. Sessionless POSTs must
+ * contain one schema-valid initialize request and valid transport headers before
+ * they may replace an existing connection. Replacement and initialization share
+ * a mutex; concurrent initialize requests receive HTTP 503. Other methods and
+ * established-session requests are delegated to the SDK without replacement.
+ * Timers and in-flight initialization requests are tracked for graceful shutdown.
  */
 export class MCPServer {
   private app: express.Application;
@@ -98,6 +79,7 @@ export class MCPServer {
   private initLockRelease: (() => void) | null = null;
   private isInitLockHeld: boolean = false;
   private hasSuccessfulInit: boolean = false;
+  private sessionGeneration = 0;
 
   // Extracted components for better separation of concerns
   private securityValidator: McpRequestValidator;
@@ -117,8 +99,8 @@ export class MCPServer {
     this.configManager = configManager;
     this.currentAutomationLevel = configManager.getConfig().automationLevel;
     this.app = express();
-    // Note: Do NOT use express.json() middleware as it consumes the request stream
-    // StreamableHTTPServerTransport needs to read the raw stream
+    // POST bodies are parsed once and passed explicitly to the SDK transport.
+    // This lets us validate initialization before replacing an existing session.
 
     // Initialize components
     this.securityValidator = new McpRequestValidator();
@@ -367,21 +349,23 @@ export class MCPServer {
    * Returns a release function that must be called when done.
    */
   private async acquireInitLock(): Promise<() => void> {
-    // Wait for any existing lock to be released
-    await this.initLock;
-
-    // Mark lock as held
-    this.isInitLockHeld = true;
-
-    // Create a new lock that others will wait on
+    // Reserve the next position before awaiting, so concurrent callers cannot
+    // both capture the same resolved lock and enter the critical section.
+    const previousLock = this.initLock;
     let release: () => void;
     this.initLock = new Promise((resolve) => {
+      let released = false;
       release = () => {
+        if (released) {
+          return;
+        }
+        released = true;
         this.isInitLockHeld = false;
         resolve();
       };
     });
-
+    await previousLock;
+    this.isInitLockHeld = true;
     return release!;
   }
 
@@ -406,13 +390,10 @@ export class MCPServer {
    * or when replacing a stale session.
    */
   private resetSessionState(): void {
+    this.sessionGeneration++;
     this.hasSuccessfulInit = false;
-    // Release any held init lock
-    if (this.initLockRelease) {
-      this.initLockRelease();
-      this.initLockRelease = null;
-    }
-    this.isInitLockHeld = false;
+    // Session closure must not unlock a concurrent initialization. Its owner
+    // releases the mutex in finally; stop/dispose handle shutdown separately.
     this.logger.debug('Session state reset - ready for new connections');
   }
 
@@ -422,6 +403,7 @@ export class MCPServer {
    */
   private createTransport(): StreamableHTTPServerTransport {
     return new StreamableHTTPServerTransport({
+      maxRequestBodySize: MAX_MCP_REQUEST_BODY_BYTES,
       sessionIdGenerator: () => {
         return `mcp-session-${randomUUID()}`;
       },
@@ -430,7 +412,9 @@ export class MCPServer {
       },
       onsessionclosed: (sessionId) => {
         this.logger.info(`MCP session closed via DELETE: ${sessionId}`);
-        this.resetSessionState();
+        if (this.transport?.sessionId === sessionId) {
+          this.resetSessionState();
+        }
       },
     });
   }
@@ -441,6 +425,7 @@ export class MCPServer {
    * maintains internal state (_initialized) that can't be reset externally.
    */
   private async recreateTransport(): Promise<void> {
+    this.sessionGeneration++;
     // Close the old transport to clean up SSE connections
     if (this.transport) {
       await this.transport.close();
@@ -457,14 +442,8 @@ export class MCPServer {
    */
   private trackRequest(requestPromise: Promise<void>): void {
     this.inflightRequests.add(requestPromise);
-    requestPromise.finally(() => {
-      this.inflightRequests.delete(requestPromise);
-    });
-  }
-
-  private isSSERequest(req: express.Request): boolean {
-    const acceptHeader = req.headers['accept'] as string | undefined;
-    return req.method === 'GET' && acceptHeader?.includes('text/event-stream') === true;
+    const removeRequest = () => this.inflightRequests.delete(requestPromise);
+    void requestPromise.then(removeRequest, removeRequest);
   }
 
   private sendJsonRpcError(
@@ -507,15 +486,14 @@ export class MCPServer {
       }
 
       const sessionId = req.headers['mcp-session-id'] as string | undefined;
-      const isInitRequest = !sessionId;
-      const isSSERequest = this.isSSERequest(req);
+      const isInitRequest = !sessionId && req.method === 'POST';
 
       if (isInitRequest) {
-        await this.handleInitRequest(req, res, transport, isSSERequest);
+        await this.handleInitRequest(req, res, transport);
         return;
       }
 
-      await transport.handleRequest(req, res);
+      await this.forwardToTransport(transport, req, res);
     } catch (error: unknown) {
       this.logger.error('Error handling MCP request:', error);
 
@@ -527,18 +505,15 @@ export class MCPServer {
   private async handleInitRequest(
     req: express.Request,
     res: express.Response,
-    transport: StreamableHTTPServerTransport,
-    isSSERequest: boolean
+    transport: StreamableHTTPServerTransport
   ): Promise<void> {
     const requestId = randomUUID().substring(0, 8);
     this.metrics.initAttempts++;
     this.logger.info(
-      `[${requestId}] Init request received, isSSE=${isSSERequest}, total attempts: ${this.metrics.initAttempts}`
+      `[${requestId}] Init request received, total attempts: ${this.metrics.initAttempts}`
     );
 
-    const requestPromise = isSSERequest
-      ? this.handleSSEInitRequest(req, res, transport, requestId)
-      : this.handleSerializedInitRequest(req, res, transport, requestId);
+    const requestPromise = this.handleSerializedInitRequest(req, res, transport, requestId);
 
     this.trackRequest(requestPromise);
     await requestPromise;
@@ -553,19 +528,8 @@ export class MCPServer {
     let release: (() => void) | null = null;
 
     try {
-      // Allow session replacement: if a previous session exists but a new client
-      // is trying to initialize (no session ID = fresh connection), recreate transport
-      // and allow the new connection. This handles the case where clients disconnect
-      // without sending DELETE (e.g., MCP config changes, extension toggles).
-      // We must recreate the transport because the MCP SDK's internal _initialized
-      // state cannot be reset externally.
-      if (this.hasSuccessfulInit) {
-        this.metrics.sessionReplacements++;
-        this.logger.info(
-          `[${requestId}] Replacing existing session - recreating transport (replacement #${this.metrics.sessionReplacements})`
-        );
-        this.resetSessionState();
-        await this.recreateTransport();
+      if (!this.validateInitializationRequest(req, res)) {
+        return;
       }
 
       if (this.isInitLockHeld) {
@@ -579,23 +543,43 @@ export class MCPServer {
         return;
       }
 
+      // Reserve synchronously before acquireInitLock yields.
+      this.isInitLockHeld = true;
       release = await this.acquireInitLock();
       this.initLockRelease = release;
       this.logger.debug(`[${requestId}] Processing initialization request (lock acquired)`);
+
+      // Only a validated initialize request can replace a transport, under the
+      // lock. A closed SDK transport also needs recreation after DELETE.
+      if (this.hasSuccessfulInit || this.transport?.sessionId) {
+        this.metrics.sessionReplacements++;
+        this.hasSuccessfulInit = false;
+        await this.recreateTransport();
+      }
 
       if (!this.transport) {
         throw new Error('Transport became unavailable during initialization');
       }
 
-      // Use this.transport (may have been recreated above) instead of the parameter
-      await this.transport.handleRequest(req, res);
+      const transport = this.transport;
+      const generation = this.sessionGeneration;
+      await this.forwardToTransport(transport, req, res);
       this.logger.debug(`[${requestId}] Transport completed successfully`);
 
-      this.hasSuccessfulInit = true;
-      this.metrics.initSuccesses++;
-      this.logger.info(
-        `[${requestId}] Initialization successful (success #${this.metrics.initSuccesses})`
-      );
+      // SDK validation failures resolve normally after writing an HTTP error.
+      // A resolved promise alone does not establish an initialized session.
+      if (
+        this.transport === transport &&
+        this.sessionGeneration === generation &&
+        transport.sessionId &&
+        res.statusCode < 400
+      ) {
+        this.hasSuccessfulInit = true;
+        this.metrics.initSuccesses++;
+        this.logger.info(
+          `[${requestId}] Initialization successful (success #${this.metrics.initSuccesses})`
+        );
+      }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(`[${requestId}] Transport error:`, errorMessage);
@@ -615,38 +599,49 @@ export class MCPServer {
       throw error;
     } finally {
       if (release) {
-        this.scheduleTimer(() => {
-          if (release) {
-            release();
-            this.initLockRelease = null;
-            this.logger.debug(`[${requestId}] Lock released`);
-          }
-        }, 10);
+        release();
+        this.initLockRelease = null;
       }
     }
   }
 
-  private async handleSSEInitRequest(
+  private forwardToTransport(
+    transport: StreamableHTTPServerTransport,
     req: express.Request,
-    res: express.Response,
-    _transport: StreamableHTTPServerTransport,
-    requestId: string
+    res: express.Response
   ): Promise<void> {
-    this.logger.debug(`[${requestId}] Processing SSE initialization request (no lock)`);
+    const body: unknown = req.body;
+    return body === undefined
+      ? transport.handleRequest(req, res)
+      : transport.handleRequest(req, res, body);
+  }
 
-    try {
-      if (!this.transport) {
-        throw new Error('Transport became unavailable during initialization');
-      }
-
-      // Use this.transport (may have been recreated) instead of the parameter
-      await this.transport.handleRequest(req, res);
-      this.logger.debug(`[${requestId}] SSE transport completed successfully`);
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`[${requestId}] SSE transport error:`, errorMessage);
-      throw error;
+  private validateInitializationRequest(req: express.Request, res: express.Response): boolean {
+    if (req.method !== 'POST') {
+      this.sendJsonRpcError(res, 400, 'Initialization requires a POST request');
+      return false;
     }
+    const accept = req.headers.accept;
+    if (!accept?.includes('application/json') || !accept.includes('text/event-stream')) {
+      this.sendJsonRpcError(res, 406, 'Client must accept application/json and text/event-stream');
+      return false;
+    }
+    const contentType = req.headers['content-type'];
+    if (contentType?.split(';')[0]?.trim().toLowerCase() !== 'application/json') {
+      this.sendJsonRpcError(res, 415, 'Content-Type must be application/json');
+      return false;
+    }
+    const body: unknown = req.body;
+    // The SDK accepts a singleton initialization batch, but rejects mixed batches.
+    const message: unknown = Array.isArray(body) && body.length === 1 ? body[0] : body;
+    if (
+      !JSONRPCRequestSchema.safeParse(message).success ||
+      !InitializeRequestSchema.safeParse(message).success
+    ) {
+      this.sendJsonRpcError(res, 400, 'A sessionless POST must contain a valid initialize request');
+      return false;
+    }
+    return true;
   }
 
   private handleHealthCheck(_req: express.Request, res: express.Response): void {
@@ -828,10 +823,30 @@ export class MCPServer {
     // Delegated to McpRequestValidator
     this.app.use('/mcp', this.securityValidator.createMiddleware());
 
+    this.app.use('/mcp', express.json({ limit: MAX_MCP_REQUEST_BODY_BYTES }));
+
     // Main MCP endpoint - StreamableHTTPServerTransport handles sessions internally
     this.app.all('/mcp', async (req, res) => {
       await this.handleMcpRequest(req, res);
     });
+
+    this.app.use(
+      '/mcp',
+      (
+        error: unknown,
+        _req: express.Request,
+        res: express.Response,
+        _next: express.NextFunction
+      ) => {
+        const status =
+          error instanceof Error && 'status' in error && error.status === 413 ? 413 : 400;
+        this.sendJsonRpcError(
+          res,
+          status,
+          status === 413 ? 'Request body too large' : 'Invalid JSON request body'
+        );
+      }
+    );
 
     // Health check endpoint - allows clients to poll for readiness
     this.app.get('/health', (req, res) => {

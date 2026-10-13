@@ -77,6 +77,27 @@ interface DAPStackTraceResponseBody {
   totalFrames?: number;
 }
 
+interface DAPContinueResponseBody {
+  allThreadsContinued?: boolean;
+}
+
+interface DAPContinuedEventBody extends DAPContinueResponseBody {
+  threadId?: number;
+}
+
+const resumeCommands = new Set([
+  'launch',
+  'attach',
+  'continue',
+  'next',
+  'stepIn',
+  'stepOut',
+  'stepBack',
+  'reverseContinue',
+  'restart',
+  'restartFrame',
+]);
+
 /**
  * DAP protocol message structure for type-safe message handling.
  * Covers response, event, and request message types.
@@ -85,8 +106,17 @@ export interface DAPMessage {
   type: 'response' | 'event' | 'request';
   command?: string;
   event?: string;
-  body?: DAPStoppedEventBody | DAPOutputEventBody | DAPStackTraceResponseBody;
+  body?:
+    | DAPStoppedEventBody
+    | DAPOutputEventBody
+    | DAPStackTraceResponseBody
+    | DAPContinueResponseBody
+    | DAPContinuedEventBody;
+  arguments?: { threadId?: number; singleThread?: boolean; [key: string]: unknown };
   success?: boolean;
+  seq?: number;
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- DAP wire format
+  request_seq?: number;
   requestSeq?: number;
 }
 
@@ -104,6 +134,11 @@ interface StackTraceRequest {
  * concurrent debug sessions never corrupt each other's state.
  */
 interface SessionState {
+  executionGeneration: number;
+  pendingRequests: Map<
+    number,
+    { command: string; generation: number; threadId?: number; singleThread?: boolean }
+  >;
   executionState: ExecutionState;
   stoppedInfo?: StoppedInfo;
   stackFrames: StackFrame[];
@@ -129,8 +164,8 @@ export class DAPClient {
     this.trackerDisposable = vscode.debug.registerDebugAdapterTrackerFactory('*', {
       createDebugAdapterTracker: (session: vscode.DebugSession) => {
         return {
-          onWillReceiveMessage: (_message: DAPMessage) => {
-            // Can inspect outgoing messages if needed
+          onWillReceiveMessage: (message: DAPMessage) => {
+            this.trackDAPRequest(session.id, message);
           },
           onDidSendMessage: (message: DAPMessage) => {
             this.handleDAPMessage(session.id, message);
@@ -151,6 +186,7 @@ export class DAPClient {
     options?: { startFrame?: number; levels?: number; threadId?: number }
   ): Promise<{ stackFrames: StackFrame[]; totalFrames?: number }> {
     const state = this.getOrCreateState(session.id);
+    const generation = state.executionGeneration;
     try {
       const preferredThreadId =
         options?.threadId ??
@@ -165,6 +201,12 @@ export class DAPClient {
       };
 
       const response = await session.customRequest('stackTrace', request);
+      if (
+        this.sessionStates.get(session.id) !== state ||
+        state.executionGeneration !== generation
+      ) {
+        return { stackFrames: [] };
+      }
       if (response?.stackFrames) {
         state.stackFrames = response.stackFrames;
         state.lastKnownThreadId = preferredThreadId;
@@ -177,7 +219,12 @@ export class DAPClient {
     } catch (error: unknown) {
       this.logger.error('Error getting stack trace:', error);
     }
-    return { stackFrames: this.getCachedStackFrames(state, options) };
+    return {
+      stackFrames:
+        this.sessionStates.get(session.id) === state && state.executionGeneration === generation
+          ? this.getCachedStackFrames(state, options)
+          : [],
+    };
   }
 
   async getScopes(session: vscode.DebugSession, frameId: number): Promise<Scope[]> {
@@ -364,6 +411,8 @@ export class DAPClient {
     let state = this.sessionStates.get(sessionId);
     if (!state) {
       state = {
+        executionGeneration: 0,
+        pendingRequests: new Map(),
         executionState: 'not_started',
         stackFrames: [],
         consoleOutput: [],
@@ -437,8 +486,77 @@ export class DAPClient {
     return this.constrainStackFrames(windowed, options);
   }
 
+  private trackDAPRequest(sessionId: string, message: DAPMessage): void {
+    if (
+      message.type !== 'request' ||
+      message.seq === undefined ||
+      !message.command ||
+      (!resumeCommands.has(message.command) && message.command !== 'stackTrace')
+    ) {
+      return;
+    }
+    const state = this.getOrCreateState(sessionId);
+    state.pendingRequests.set(message.seq, {
+      command: message.command,
+      generation: state.executionGeneration,
+      threadId: message.arguments?.threadId,
+      singleThread: message.arguments?.singleThread,
+    });
+  }
+
+  private markRunning(sessionId: string, state: SessionState): void {
+    state.executionGeneration++;
+    state.executionState = 'running';
+    state.stoppedInfo = undefined;
+    state.stackFrames = [];
+    state.currentFrameId = undefined;
+    this.emitStateChange(sessionId, 'running');
+  }
+
   private handleDAPMessage(sessionId: string, message: DAPMessage): void {
     if (message.type === 'response') {
+      const state = this.sessionStates.get(sessionId);
+      const requestSeq = message.request_seq ?? message.requestSeq;
+      const pending = requestSeq === undefined ? undefined : state?.pendingRequests.get(requestSeq);
+      if (requestSeq !== undefined) {
+        state?.pendingRequests.delete(requestSeq);
+      }
+      if (
+        requestSeq !== undefined &&
+        !pending &&
+        (message.command === 'stackTrace' || resumeCommands.has(message.command ?? ''))
+      ) {
+        return;
+      }
+      // A stop/continue/termination event after a request is newer evidence.
+      // Late resume or stack responses must not overwrite that state.
+      if (
+        pending &&
+        (pending.command !== message.command || pending.generation !== state?.executionGeneration)
+      ) {
+        return;
+      }
+      if (message.success && pending && state && resumeCommands.has(pending.command)) {
+        const body = message.body as DAPContinueResponseBody | undefined;
+        const singleThread =
+          pending.command === 'continue'
+            ? body?.allThreadsContinued === false
+            : pending.singleThread === true;
+        if (
+          singleThread &&
+          pending.threadId !== undefined &&
+          state.stoppedInfo &&
+          pending.threadId !== state.stoppedInfo.threadId
+        ) {
+          state.stoppedInfo.allThreadsStopped = false;
+          return;
+        }
+        if (pending.threadId !== undefined) {
+          state.lastKnownThreadId = pending.threadId;
+        }
+        this.markRunning(sessionId, state);
+        return;
+      }
       switch (message.command) {
         case 'stackTrace': {
           const body = message.body as DAPStackTraceResponseBody | undefined;
@@ -461,6 +579,7 @@ export class DAPClient {
         case 'stopped': {
           const body = message.body as DAPStoppedEventBody | undefined;
           const state = this.getOrCreateState(sessionId);
+          state.executionGeneration++;
           state.executionState = 'paused';
           // Frames from a previous stop are stale; drop them so evaluations
           // never target dead frame IDs.
@@ -493,16 +612,22 @@ export class DAPClient {
         }
         case 'continued': {
           const state = this.getOrCreateState(sessionId);
-          state.executionState = 'running';
-          state.stoppedInfo = undefined;
-          // Execution resumed: cached frames/frame IDs are now dead.
-          state.stackFrames = [];
-          state.currentFrameId = undefined;
-          this.emitStateChange(sessionId, 'running');
+          const body = message.body as DAPContinuedEventBody | undefined;
+          if (
+            body?.allThreadsContinued === false &&
+            body.threadId !== undefined &&
+            state.stoppedInfo &&
+            body.threadId !== state.stoppedInfo.threadId
+          ) {
+            state.stoppedInfo.allThreadsStopped = false;
+            break;
+          }
+          this.markRunning(sessionId, state);
           break;
         }
         case 'terminated': {
           const state = this.getOrCreateState(sessionId);
+          state.executionGeneration++;
           state.executionState = 'terminated';
           state.stoppedInfo = undefined;
           state.stackFrames = [];
