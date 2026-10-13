@@ -47,7 +47,14 @@ import { TOOL_NAMES } from './toolNames';
  * See routing/types/toolArguments.ts for Zod schemas and specific arg types.
  * See individual tool files (Breakpoints.ts, etc.) for result types.
  */
-type ToolHandler<Result extends ToolResult = ToolResult> = (args: unknown) => Promise<Result>;
+type ToolHandler<Result extends ToolResult = ToolResult> = (
+  args: unknown,
+  server?: Server
+) => Promise<Result>;
+
+interface ExpressionApproval extends EvaluationResult {
+  allowForSession?: boolean;
+}
 
 /**
  * Handles tool registration and routing for the MCP server.
@@ -135,15 +142,8 @@ export class ToolRouter {
       validatedArgs = parsed.data;
     }
 
-    // Special handling for evaluate_expression with security validation
-    if (toolName === TOOL_NAMES.evaluateExpression && server) {
-      return await this.handleEvaluateExpressionWithValidation(
-        validatedArgs as EvaluateExpressionArgs,
-        server
-      );
-    }
-
-    return await handler(validatedArgs);
+    // Protected handlers validate expressions even without an elicitation server.
+    return await handler(validatedArgs, server);
   }
 
   private ensureToolEnabled(toolName: string): void {
@@ -169,9 +169,9 @@ export class ToolRouter {
    * before reaching the handler.
    */
   private handler<Args, Result extends ToolResult>(
-    fn: (args: Args) => Promise<Result>
+    fn: (args: Args, server?: Server) => Promise<Result>
   ): ToolHandler<Result> {
-    return (args: unknown) => fn(args as Args);
+    return (args: unknown, server?: Server) => fn(args as Args, server);
   }
 
   /**
@@ -183,8 +183,8 @@ export class ToolRouter {
       // Breakpoint tools
       [
         TOOL_NAMES.setBreakpoint,
-        this.handler((args: SetBreakpointArgs) =>
-          this.toolRegistry.breakpoints.setBreakpoint(args)
+        this.handler((args: SetBreakpointArgs, server?: Server) =>
+          this.handleSetBreakpointWithValidation(args, server)
         ),
       ],
       [
@@ -207,8 +207,8 @@ export class ToolRouter {
       ],
       [
         TOOL_NAMES.toggleBreakpoint,
-        this.handler((args: ToggleBreakpointArgs) =>
-          this.toolRegistry.breakpoints.toggleBreakpoint(args)
+        this.handler((args: ToggleBreakpointArgs, server?: Server) =>
+          this.handleToggleBreakpointWithValidation(args, server)
         ),
       ],
       [
@@ -229,8 +229,8 @@ export class ToolRouter {
       ],
       [
         TOOL_NAMES.evaluateExpression,
-        this.handler((args: EvaluateExpressionArgs) =>
-          this.toolRegistry.inspection.evaluateExpression(args)
+        this.handler((args: EvaluateExpressionArgs, server?: Server) =>
+          this.handleEvaluateExpressionWithValidation(args, server)
         ),
       ],
       [
@@ -326,22 +326,137 @@ export class ToolRouter {
    */
   private async handleEvaluateExpressionWithValidation(
     args: EvaluateExpressionArgs,
-    server: Server
+    server?: Server
   ): Promise<EvaluationResult> {
     const session = vscode.debug.activeDebugSession;
+    let terminated = false;
+    const terminationListener = session
+      ? vscode.debug.onDidTerminateDebugSession((endedSession) => {
+          if (endedSession.id === session.id) {
+            terminated = true;
+          }
+        })
+      : undefined;
+
+    try {
+      const approval = await this.approveExpression(args.expression, server, session);
+      if (!approval.success) {
+        return approval;
+      }
+
+      // Never apply approval (or an allowlist entry) to a different debuggee.
+      if (terminated || vscode.debug.activeDebugSession?.id !== session?.id) {
+        return {
+          success: false,
+          error:
+            'Debug session changed or ended while expression approval was pending. Retry in the current session.',
+        };
+      }
+      if (approval.allowForSession) {
+        this.expressionValidator.allowExpressionForSession(args.expression, session);
+      }
+
+      const result = session
+        ? await this.toolRegistry.inspection.evaluateExpression(args, session)
+        : await this.toolRegistry.inspection.evaluateExpression(args);
+      return approval._warning ? { ...result, _warning: approval._warning } : result;
+    } finally {
+      terminationListener?.dispose();
+    }
+  }
+
+  private async handleSetBreakpointWithValidation(
+    args: SetBreakpointArgs,
+    server?: Server
+  ): Promise<ToolResult> {
+    const approval = await this.approveBreakpointExpressions(args, server);
+    return approval.success ? this.toolRegistry.breakpoints.setBreakpoint(args) : approval;
+  }
+
+  private async handleToggleBreakpointWithValidation(
+    args: ToggleBreakpointArgs,
+    server?: Server
+  ): Promise<ToolResult> {
+    const filePath = vscode.Uri.file(args.filePath).fsPath;
+    const findCurrentBreakpoint = () =>
+      vscode.debug.breakpoints.find(
+        (breakpoint): breakpoint is vscode.SourceBreakpoint =>
+          breakpoint instanceof vscode.SourceBreakpoint &&
+          breakpoint.location.uri.fsPath === filePath &&
+          breakpoint.location.range.start.line === args.line - 1
+      );
+    const existing = findCurrentBreakpoint();
+    if (existing && !existing.enabled) {
+      const approval = await this.approveBreakpointExpressions(
+        {
+          ...args,
+          condition: existing.condition,
+          hitCondition: existing.hitCondition,
+          logMessage: existing.logMessage,
+        },
+        server
+      );
+      if (!approval.success) {
+        return approval;
+      }
+      if (findCurrentBreakpoint() !== existing || existing.enabled) {
+        return { success: false, error: 'Breakpoint changed while approval was pending. Retry.' };
+      }
+    }
+    return this.toolRegistry.breakpoints.toggleBreakpoint(args);
+  }
+
+  private async approveBreakpointExpressions(
+    args: SetBreakpointArgs,
+    server?: Server
+  ): Promise<ToolResult> {
+    // Breakpoints survive debug sessions. Validate without a language-specific
+    // exemption or session allowlist, and approve their creation explicitly.
+    const fields = [
+      ['condition', args.condition],
+      ['hitCondition', args.hitCondition],
+      ['logMessage', args.logMessage?.includes('{') ? args.logMessage : undefined],
+    ] as const;
+    for (const [field, expression] of fields) {
+      if (expression?.trim()) {
+        // Scan the complete log template so nested or adapter-specific
+        // interpolation syntax cannot hide expressions from validation.
+        const approval = await this.approveExpression(expression, server, undefined, field);
+        if (!approval.success) {
+          return approval;
+        }
+      }
+    }
+    return { success: true };
+  }
+
+  private async approveExpression(
+    expression: string,
+    server?: Server,
+    session?: vscode.DebugSession,
+    breakpointField?: string
+  ): Promise<ExpressionApproval> {
     const validationLevel = this.configManager.getConfig().expressionValidationLevel;
 
     // Skip validation if disabled in settings
     if (validationLevel === 'disabled') {
-      return await this.toolRegistry.inspection.evaluateExpression(args);
+      return { success: true };
+    }
+
+    const maxLength = this.configManager.getConfig().maxExpressionLength;
+    if (expression.length > maxLength) {
+      return {
+        success: false,
+        error: `Expression exceeds maximum allowed length of ${maxLength} characters (current: ${expression.length}).`,
+      };
     }
 
     // Validate the expression
-    const validationResult = this.expressionValidator.validateExpression(args.expression, session);
+    const validationResult = this.expressionValidator.validateExpression(expression, session);
 
     // If validation passes, execute immediately
     if (validationResult.allowed) {
-      return await this.toolRegistry.inspection.evaluateExpression(args);
+      return { success: true };
     }
 
     // Check if we should elicit based on validation level and risk level
@@ -352,19 +467,25 @@ export class ToolRouter {
 
     // If below threshold, allow without elicitation
     if (!shouldElicit) {
-      return await this.toolRegistry.inspection.evaluateExpression(args);
+      return { success: true };
     }
 
     // Validation failed - request user approval via elicitation.
     // Uses an enum choice (MCP spec 2025-11-25) instead of a bare checkbox so
     // the user can also approve the expression for the rest of the session.
-    const elicitationMessage = this.expressionValidator.formatElicitationMessage(
-      args.expression,
+    const validationMessage = this.expressionValidator.formatElicitationMessage(
+      expression,
       validationResult
     );
+    const elicitationMessage = breakpointField
+      ? `Breakpoint ${breakpointField}: ${validationMessage}\nApproving creates a persistent breakpoint. Its expressions may execute on every hit, including in future debug sessions, until the breakpoint is removed.`
+      : validationMessage;
 
     let elicitResponse;
     try {
+      if (!server) {
+        throw new Error('No elicitation server available');
+      }
       elicitResponse = await server.elicitInput({
         message: elicitationMessage,
         requestedSchema: {
@@ -373,10 +494,17 @@ export class ToolRouter {
             decision: {
               type: 'string',
               title: 'Decision',
-              description: 'Whether to execute this expression in the debuggee',
+              description: breakpointField
+                ? 'Whether to create a breakpoint containing this expression'
+                : 'Whether to execute this expression in the debuggee',
               oneOf: [
-                { const: 'allow_once', title: 'Allow once' },
-                { const: 'allow_session', title: 'Always allow for this debug session' },
+                {
+                  const: 'allow_once',
+                  title: breakpointField ? 'Create breakpoint' : 'Allow once',
+                },
+                ...(!breakpointField && session
+                  ? [{ const: 'allow_session', title: 'Always allow for this debug session' }]
+                  : []),
                 { const: 'deny', title: 'Deny' },
               ],
               default: 'deny',
@@ -397,7 +525,7 @@ export class ToolRouter {
         validationFailure: {
           reason: validationResult.reason,
           riskLevel: validationResult.riskLevel,
-          expression: args.expression,
+          expression,
         },
       };
     }
@@ -406,19 +534,16 @@ export class ToolRouter {
     if (elicitResponse.action === 'accept') {
       const decision = elicitResponse.content?.decision as string | undefined;
 
-      if (decision === 'allow_once' || decision === 'allow_session') {
-        if (decision === 'allow_session') {
-          this.expressionValidator.allowExpressionForSession(args.expression, session);
-        }
-
-        // User approved - execute the expression
-        const result = await this.toolRegistry.inspection.evaluateExpression(args);
-
-        // Add a warning to the result
+      if (
+        decision === 'allow_once' ||
+        (decision === 'allow_session' && session && !breakpointField)
+      ) {
         return {
-          ...result,
-          _warning:
-            decision === 'allow_session'
+          success: true,
+          allowForSession: decision === 'allow_session',
+          _warning: breakpointField
+            ? 'Breakpoint expression approved for persistent use despite validation failure'
+            : decision === 'allow_session'
               ? 'Expression executed and approved for the rest of this debug session despite validation failure'
               : 'Expression executed with user approval despite validation failure',
         };

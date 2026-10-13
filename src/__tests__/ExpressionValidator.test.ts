@@ -659,11 +659,10 @@ describe('ExpressionValidator', () => {
       expect(result.riskLevel).toBe('high');
     });
 
-    it('should detect suspicious patterns without session as medium risk', () => {
-      // Without session, suspicious patterns are caught but flagged as unknown functions
+    it('should detect suspicious patterns without session as high risk', () => {
       const result = validator.validateExpression('obj["del" + "ete"]()');
       expect(result.allowed).toBe(false);
-      expect(result.riskLevel).toBe('medium');
+      expect(result.riskLevel).toBe('high');
     });
 
     it('should allow arrow function literals with whitelisted calls', () => {
@@ -686,6 +685,63 @@ describe('ExpressionValidator', () => {
   });
 
   describe('Whitelisted Callback Side-Effect Screening', () => {
+    it.each(['(y=7)', 'Math.max(y=7, 0)', '[1].map(x => (y=7))', '[1].map(x => (x, y=7))'])(
+      'should reject parenthesized and argument assignments: %s',
+      (expression) => {
+        for (const type of ['node', 'java', 'coreclr', 'custom-adapter']) {
+          const result = validator.validateExpression(
+            expression,
+            createMockDebugSession('test', type)
+          );
+          expect(result.allowed).toBe(false);
+          expect(result.riskLevel).toBe('high');
+        }
+        expect(validator.validateExpression(expression).riskLevel).toBe('high');
+      }
+    );
+
+    it.each(['(x:=7)', 'sorted(items, key=(x:=len))'])(
+      'should reject Python walrus assignments: %s',
+      (expression) => {
+        const result = validator.validateExpression(
+          expression,
+          createMockDebugSession('test', 'python')
+        );
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      }
+    );
+
+    it.each(['node', 'python', 'java', 'custom-adapter', undefined])(
+      'should aggregate getter and unknown-call risks for %s',
+      (type) => {
+        const session = type ? createMockDebugSession('test', type) : undefined;
+        for (const expression of [
+          'obj.getName(), doSideEffect()',
+          'doSideEffect(), obj.getName()',
+          'obj.getName(doSideEffect())',
+        ]) {
+          const result = validator.validateExpression(expression, session);
+          expect(result.allowed).toBe(false);
+          expect(result.riskLevel).toBe('medium');
+          expect(validator.shouldElicit(result.riskLevel, 'moderate')).toBe(true);
+        }
+      }
+    );
+
+    it.each(['node', 'custom-adapter', undefined])(
+      'should not let getters or unknown calls mask obfuscated calls for %s',
+      (type) => {
+        const session = type ? createMockDebugSession('test', type) : undefined;
+        const result = validator.validateExpression(
+          'obj.getName(), custom(), obj[method]()',
+          session
+        );
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+      }
+    );
+
     it('should reject assignments hidden in whitelisted JS callbacks', () => {
       const jsSession = createMockDebugSession('test', 'node');
       const result = validator.validateExpression('[1,2,3].map(x => y = x)', jsSession);

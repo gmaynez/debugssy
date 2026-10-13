@@ -315,14 +315,18 @@ export class InspectionTools {
    * @param args.frameId - Stack frame ID (defaults to current frame)
    * @returns InspectionResult with expression result, type, and value
    */
-  async evaluateExpression(args: {
-    expression: string;
-    frameId?: number;
-  }): Promise<InspectionResult> {
+  async evaluateExpression(
+    args: { expression: string; frameId?: number },
+    validatedSession?: vscode.DebugSession
+  ): Promise<InspectionResult> {
     try {
-      const session = vscode.debug.activeDebugSession;
+      const session = validatedSession ?? vscode.debug.activeDebugSession;
       if (!session) {
         throw new DebugNotActiveError('evaluate_expression');
+      }
+
+      if (validatedSession && vscode.debug.activeDebugSession?.id !== validatedSession.id) {
+        return { success: false, error: 'Debug session changed before expression evaluation.' };
       }
 
       // Security: Validate expression length to prevent prompt injection attacks

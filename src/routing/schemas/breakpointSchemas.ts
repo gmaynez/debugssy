@@ -15,7 +15,8 @@ export const breakpointSchemas = [
   {
     name: TOOL_NAMES.setBreakpoint,
     title: 'Set Breakpoint',
-    description: 'Set a breakpoint at the specified file and line',
+    description:
+      'Set a breakpoint at the specified file and line. Conditions and logpoint expressions are security-validated; risky expressions require approval for persistent use.',
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
@@ -35,7 +36,7 @@ export const breakpointSchemas = [
         },
         condition: {
           type: 'string',
-          description: 'Optional condition expression',
+          description: 'Optional condition expression (security-validated before installation)',
         },
         hitCondition: {
           type: 'string',
@@ -43,7 +44,8 @@ export const breakpointSchemas = [
         },
         logMessage: {
           type: 'string',
-          description: 'Optional log message (creates a logpoint)',
+          description:
+            'Optional log message (creates a logpoint). Interpolated expressions in braces are security-validated.',
         },
       },
       required: ['filePath', 'line'],

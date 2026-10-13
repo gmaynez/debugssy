@@ -188,7 +188,7 @@ export class ExpressionValidator {
     // 1.9 Check for mutation operators (assignments, increments) in ALL expressions.
     // This runs before language-specific validation so whitelisted callbacks
     // (e.g. arr.map(x => y = x)) cannot smuggle side effects past the checks.
-    const mutationOpCheck = this.detectMutationOperators(trimmed);
+    const mutationOpCheck = this.detectMutationOperators(trimmed, language);
     if (mutationOpCheck) {
       return mutationOpCheck;
     }
@@ -844,6 +844,7 @@ export class ExpressionValidator {
     staticWhitelist: Set<string>,
     methodWhitelist: Set<string>
   ): ValidationResult | null {
+    let highestRisk: ValidationResult | null = null;
     for (const call of calls) {
       // Check for suspicious bracket notation marker
       if (call === '__SUSPICIOUS_BRACKET_NOTATION__') {
@@ -867,21 +868,22 @@ export class ExpressionValidator {
 
       // Check if it looks like a getter (LOW risk)
       if (this.isGetterPattern(methodName)) {
-        return {
+        highestRisk ??= {
           allowed: false,
           reason: 'Getter Method',
           riskLevel: 'low',
         };
+        continue;
       }
 
       // Unknown function call
-      return {
+      highestRisk = {
         allowed: false,
         reason: 'User-Defined Function',
         riskLevel: 'medium',
       };
     }
-    return null;
+    return highestRisk;
   }
 
   /**
@@ -954,13 +956,16 @@ export class ExpressionValidator {
    * increment/decrement) that modify program state.
    * Arrow functions (=>) are excluded from assignment detection so
    * whitelisted callbacks like arr.map(x => x * 2) are not false-flagged.
-   * Keyword arguments (e.g. sorted(items, key=len)) are parameter bindings,
-   * not assignments, and are excluded as well.
+   * Only Python keyword arguments are excluded: the same syntax is an
+   * assignment in JavaScript and other languages, including unknown adapters.
    */
-  private detectMutationOperators(expression: string): ValidationResult | null {
-    // Strip keyword-argument = (identifier directly after ( or ,) so it is
-    // not mistaken for an assignment below.
-    const withoutKeywordArgs = expression.replace(/([(,]\s*[A-Za-z_]\w*)\s*=(?![=>=])/g, '$1');
+  private detectMutationOperators(expression: string, language?: string): ValidationResult | null {
+    // Python permits name=value parameter bindings; ordinary parenthesized
+    // assignments are invalid Python, and walrus assignments (:=) remain checked.
+    const withoutKeywordArgs =
+      language === 'python'
+        ? expression.replace(/([(,]\s*[A-Za-z_]\w*)\s*=(?![=>=])/g, '$1')
+        : expression;
 
     // HIGH RISK: Assignment operators
     // Match: = but not ==, !=, <=, >=, ===, !==, or arrow functions (=>)
@@ -1007,40 +1012,13 @@ export class ExpressionValidator {
       // since many languages (TypeScript, C#, Java, Go, etc.) have similar built-in functions
       const calls = this.extractFunctionCalls(expression);
 
-      for (const call of calls) {
-        // Check JavaScript static functions (Object.keys, JSON.stringify, Math.*)
-        // These are common across many C-style languages
-        if (this.jsSafeStaticFunctions.has(call)) {
-          continue; // This call is safe
-        }
-
-        // Check JavaScript methods (filter, map, etc.)
-        // Many languages have similar collection methods
-        const methodName = call.split('.').pop() || call;
-        if (this.jsSafeFunctions.has(methodName)) {
-          continue; // This call is safe
-        }
-
-        // Also check Python built-ins as they're common debugging functions
-        if (this.pythonSafeFunctions.has(methodName) || this.pythonSafeStaticFunctions.has(call)) {
-          continue; // This call is safe
-        }
-
-        // Check if it looks like a getter (LOW risk) vs unknown function (MEDIUM risk)
-        if (this.isGetterPattern(methodName)) {
-          return {
-            allowed: false,
-            reason: 'Getter Method',
-            riskLevel: 'low',
-          };
-        }
-
-        // Unknown function call - not in any whitelist
-        return {
-          allowed: false,
-          reason: 'User-Defined Function',
-          riskLevel: 'medium',
-        };
+      const callRisk = this.checkAgainstWhitelists(
+        calls,
+        new Set([...this.jsSafeStaticFunctions, ...this.pythonSafeStaticFunctions]),
+        new Set([...this.jsSafeFunctions, ...this.pythonSafeFunctions])
+      );
+      if (callRisk) {
+        return callRisk;
       }
 
       // All function calls are whitelisted (high-risk operators handled above)

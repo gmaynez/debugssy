@@ -54,6 +54,19 @@ Debugssy implements multiple security layers:
 
 ### Expression Validator Protection
 
+Expression validation applies to `evaluate_expression` and to conditions, hit
+conditions, and interpolated log messages when setting or re-enabling a
+breakpoint. Log templates are scanned in full, including nested expressions;
+templates containing interpolation are subject to `maxExpressionLength`.
+Breakpoint validation uses conservative rules without language-specific
+exemptions or session allowlists because breakpoints persist across sessions.
+Approval explicitly covers creating or enabling that persistent breakpoint.
+
+Evaluation approval is tied to the debug session that was validated. If the
+session changes or terminates while confirmation is pending, evaluation is
+cancelled and no session approval is recorded. If a client cannot provide
+confirmation, expressions requiring approval are blocked.
+
 The expression validator protects against code injection attacks through:
 
 | Protection Layer         | Attacks Blocked                                                                                                        |

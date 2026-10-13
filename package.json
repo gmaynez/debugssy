@@ -85,7 +85,7 @@
           "default": 100,
           "minimum": 20,
           "maximum": 400,
-          "description": "Maximum allowed length for expressions in evaluate_expression tool. Helps prevent prompt injection attacks by limiting code execution length. Default: 100 characters, Range: 20-400."
+          "description": "Maximum length of evaluated expressions, breakpoint conditions, hit conditions, and interpolated log templates. Default: 100 characters, Range: 20-400."
         },
         "debugssy.expressionValidationLevel": {
           "type": "string",

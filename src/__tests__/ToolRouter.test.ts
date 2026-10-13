@@ -8,6 +8,7 @@ import { ConfigManager } from '../Config';
 import { TOOL_NAMES } from '../routing/toolNames';
 import { vscode } from './setup';
 import { createMockDebugSession } from './helpers/vscode-mock';
+import { createBreakpointLocation } from './helpers/test-helpers';
 
 function mockConfig(
   configManager: ConfigManager,
@@ -75,6 +76,327 @@ describe('ToolRouter', () => {
 
   afterEach(() => {
     toolRouter.dispose();
+  });
+
+  describe('Expression security regressions', () => {
+    it.each(['strict', 'moderate', 'permissive'] as const)(
+      'should block risky evaluation without elicitation in %s mode',
+      async (expressionValidationLevel) => {
+        mockConfig(mockConfigManager, { expressionValidationLevel });
+        vscode.debug.activeDebugSession = createMockDebugSession();
+        const result = await toolRouter.routeToolCall(TOOL_NAMES.evaluateExpression, {
+          expression: '[1].map(x => (y=7))',
+        });
+        expect(result.success).toBe(false);
+        expect(mockToolRegistry.inspection.evaluateExpression).not.toHaveBeenCalled();
+      }
+    );
+
+    it('should elicit for the highest-risk call in an expression', async () => {
+      vscode.debug.activeDebugSession = createMockDebugSession();
+      const server = { elicitInput: vi.fn().mockResolvedValue({ action: 'decline' }) } as any;
+      const result = await toolRouter.routeToolCall(
+        TOOL_NAMES.evaluateExpression,
+        { expression: 'obj.getName(), doSideEffect()' },
+        server
+      );
+      expect(server.elicitInput).toHaveBeenCalledOnce();
+      expect(result.success).toBe(false);
+      expect(mockToolRegistry.inspection.evaluateExpression).not.toHaveBeenCalled();
+    });
+
+    it.each(['allow_once', 'allow_session'])(
+      'should reject %s approval after the active session changes',
+      async (decision) => {
+        const sessionA = createMockDebugSession('A');
+        const sessionB = createMockDebugSession('B');
+        vscode.debug.activeDebugSession = sessionA;
+        const allowSpy = vi.spyOn(
+          (toolRouter as any).expressionValidator,
+          'allowExpressionForSession'
+        );
+        const server = {
+          elicitInput: vi.fn(async () => {
+            vscode.debug.activeDebugSession = sessionB;
+            return { action: 'accept', content: { decision } };
+          }),
+        } as any;
+        const result = await toolRouter.routeToolCall(
+          TOOL_NAMES.evaluateExpression,
+          { expression: 'x=7' },
+          server
+        );
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('session changed or ended');
+        expect(mockToolRegistry.inspection.evaluateExpression).not.toHaveBeenCalled();
+        expect(allowSpy).not.toHaveBeenCalled();
+      }
+    );
+
+    it('should reject approval for a terminated session even if it remains active', async () => {
+      const session = createMockDebugSession();
+      vscode.debug.activeDebugSession = session;
+      const listenerDisposable = { dispose: vi.fn() };
+      let terminate: (session: typeof vscode.debug.activeDebugSession) => void = () => {};
+      (vscode.debug.onDidTerminateDebugSession as any).mockImplementationOnce(
+        (listener: typeof terminate) => {
+          terminate = listener;
+          return listenerDisposable;
+        }
+      );
+      const server = {
+        elicitInput: vi.fn(async () => {
+          terminate(session);
+          return { action: 'accept', content: { decision: 'allow_session' } };
+        }),
+      } as any;
+      const allowSpy = vi.spyOn(
+        (toolRouter as any).expressionValidator,
+        'allowExpressionForSession'
+      );
+      const result = await toolRouter.routeToolCall(
+        TOOL_NAMES.evaluateExpression,
+        { expression: 'x=7' },
+        server
+      );
+      expect(result.success).toBe(false);
+      expect(mockToolRegistry.inspection.evaluateExpression).not.toHaveBeenCalled();
+      expect(allowSpy).not.toHaveBeenCalled();
+      expect(listenerDisposable.dispose).toHaveBeenCalledOnce();
+    });
+
+    it('should pass the validated session explicitly when approval succeeds', async () => {
+      const session = createMockDebugSession();
+      vscode.debug.activeDebugSession = session;
+      const server = {
+        elicitInput: vi
+          .fn()
+          .mockResolvedValue({ action: 'accept', content: { decision: 'allow_once' } }),
+      } as any;
+      const args = { expression: 'x=7', frameId: 5 };
+      const result = await toolRouter.routeToolCall(TOOL_NAMES.evaluateExpression, args, server);
+      expect(result.success).toBe(true);
+      expect(mockToolRegistry.inspection.evaluateExpression).toHaveBeenCalledWith(args, session);
+    });
+
+    it.each(['decline', 'cancel', 'error'])(
+      'should clean up the pending session listener after %s',
+      async (action) => {
+        vscode.debug.activeDebugSession = createMockDebugSession();
+        const disposable = { dispose: vi.fn() };
+        vi.mocked(vscode.debug.onDidTerminateDebugSession).mockReturnValueOnce(disposable);
+        const server = {
+          elicitInput:
+            action === 'error'
+              ? vi.fn().mockRejectedValue(new Error('Elicitation unavailable'))
+              : vi.fn().mockResolvedValue({ action }),
+        } as any;
+        const result = await toolRouter.routeToolCall(
+          TOOL_NAMES.evaluateExpression,
+          { expression: 'x=7' },
+          server
+        );
+        expect(result.success).toBe(false);
+        expect(mockToolRegistry.inspection.evaluateExpression).not.toHaveBeenCalled();
+        expect(disposable.dispose).toHaveBeenCalledOnce();
+      }
+    );
+  });
+
+  describe('Breakpoint expression security', () => {
+    const location = { filePath: '/test.js', line: 1 };
+
+    it('should validate executable expressions when enabling an existing breakpoint', async () => {
+      const breakpoint = new vscode.SourceBreakpoint(
+        createBreakpointLocation('/test.js', 1),
+        false,
+        'mutate()'
+      );
+      vscode.debug.breakpoints = [breakpoint];
+      const result = await toolRouter.routeToolCall(TOOL_NAMES.toggleBreakpoint, location);
+      expect(result.success).toBe(false);
+      expect(mockToolRegistry.breakpoints.toggleBreakpoint).not.toHaveBeenCalled();
+    });
+
+    it('should allow disabling a risky breakpoint without approval', async () => {
+      const breakpoint = new vscode.SourceBreakpoint(
+        createBreakpointLocation('/test.js', 1),
+        true,
+        'mutate()'
+      );
+      vscode.debug.breakpoints = [breakpoint];
+      const result = await toolRouter.routeToolCall(TOOL_NAMES.toggleBreakpoint, location);
+      expect(result.success).toBe(true);
+      expect(mockToolRegistry.breakpoints.toggleBreakpoint).toHaveBeenCalledWith(location);
+    });
+
+    it('should enable a safe breakpoint without approval', async () => {
+      const breakpoint = new vscode.SourceBreakpoint(
+        createBreakpointLocation('/test.js', 1),
+        false,
+        'x > 7'
+      );
+      vscode.debug.breakpoints = [breakpoint];
+      const server = { elicitInput: vi.fn() } as any;
+      const result = await toolRouter.routeToolCall(TOOL_NAMES.toggleBreakpoint, location, server);
+      expect(result.success).toBe(true);
+      expect(server.elicitInput).not.toHaveBeenCalled();
+      expect(mockToolRegistry.breakpoints.toggleBreakpoint).toHaveBeenCalledWith(location);
+    });
+
+    it('should not enable a replacement breakpoint after approval', async () => {
+      const breakpoint = new vscode.SourceBreakpoint(
+        createBreakpointLocation('/test.js', 1),
+        false,
+        'mutate()'
+      );
+      vscode.debug.breakpoints = [breakpoint];
+      const server = {
+        elicitInput: vi.fn(async () => {
+          vscode.debug.breakpoints = [
+            new vscode.SourceBreakpoint(
+              createBreakpointLocation('/test.js', 1),
+              false,
+              'otherMutation()'
+            ),
+            breakpoint,
+          ];
+          return { action: 'accept', content: { decision: 'allow_once' } };
+        }),
+      } as any;
+      const result = await toolRouter.routeToolCall(TOOL_NAMES.toggleBreakpoint, location, server);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Breakpoint changed');
+      expect(mockToolRegistry.breakpoints.toggleBreakpoint).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { condition: '(x=7)' },
+      { hitCondition: 'doSideEffect()' },
+      { logMessage: 'value: {[1].map(x => (y=7))}' },
+      { logMessage: '{obj.getName()} {doSideEffect()}' },
+      { logMessage: '{JSON.stringify({value: doSideEffect()})}' },
+    ])('should block risky breakpoint fields without elicitation: %j', async (fields) => {
+      const result = await toolRouter.routeToolCall(TOOL_NAMES.setBreakpoint, {
+        ...location,
+        ...fields,
+      });
+      expect(result.success).toBe(false);
+      expect(mockToolRegistry.breakpoints.setBreakpoint).not.toHaveBeenCalled();
+    });
+
+    it('should ask about persistent use and install only after every field is approved', async () => {
+      const args = { ...location, condition: 'doSideEffect()', logMessage: '{otherSideEffect()}' };
+      const server = {
+        elicitInput: vi
+          .fn()
+          .mockResolvedValue({ action: 'accept', content: { decision: 'allow_once' } }),
+      } as any;
+      const result = await toolRouter.routeToolCall(TOOL_NAMES.setBreakpoint, args, server);
+      expect(result.success).toBe(true);
+      expect(server.elicitInput).toHaveBeenCalledTimes(2);
+      expect(server.elicitInput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining('future debug sessions'),
+          requestedSchema: expect.objectContaining({
+            properties: expect.objectContaining({
+              decision: expect.objectContaining({
+                oneOf: [
+                  { const: 'allow_once', title: 'Create breakpoint' },
+                  { const: 'deny', title: 'Deny' },
+                ],
+              }),
+            }),
+          }),
+        })
+      );
+      expect(mockToolRegistry.breakpoints.setBreakpoint).toHaveBeenCalledWith(args);
+    });
+
+    it('should leave breakpoints untouched if a later expression is denied', async () => {
+      const server = {
+        elicitInput: vi
+          .fn()
+          .mockResolvedValueOnce({ action: 'accept', content: { decision: 'allow_once' } })
+          .mockResolvedValueOnce({ action: 'decline' }),
+      } as any;
+      const result = await toolRouter.routeToolCall(
+        TOOL_NAMES.setBreakpoint,
+        { ...location, condition: 'mutate()', logMessage: '{mutateAgain()}' },
+        server
+      );
+      expect(result.success).toBe(false);
+      expect(mockToolRegistry.breakpoints.setBreakpoint).not.toHaveBeenCalled();
+    });
+
+    it('should not reuse evaluation session approvals for persistent breakpoints', async () => {
+      const session = createMockDebugSession();
+      vscode.debug.activeDebugSession = session;
+      (toolRouter as any).expressionValidator.allowExpressionForSession('mutate()', session);
+      const server = { elicitInput: vi.fn().mockResolvedValue({ action: 'decline' }) } as any;
+      const result = await toolRouter.routeToolCall(
+        TOOL_NAMES.setBreakpoint,
+        { ...location, condition: 'mutate()' },
+        server
+      );
+      expect(result.success).toBe(false);
+      expect(server.elicitInput).toHaveBeenCalledOnce();
+      expect(mockToolRegistry.breakpoints.setBreakpoint).not.toHaveBeenCalled();
+    });
+
+    it('should reject a session approval decision for persistent breakpoints', async () => {
+      const server = {
+        elicitInput: vi
+          .fn()
+          .mockResolvedValue({ action: 'accept', content: { decision: 'allow_session' } }),
+      } as any;
+      const result = await toolRouter.routeToolCall(
+        TOOL_NAMES.setBreakpoint,
+        { ...location, condition: 'mutate()' },
+        server
+      );
+      expect(result.success).toBe(false);
+      expect(mockToolRegistry.breakpoints.setBreakpoint).not.toHaveBeenCalled();
+    });
+
+    it('should allow safe conditions, hit counts, and log interpolation without approval', async () => {
+      const args = {
+        ...location,
+        condition: 'user.id === 7',
+        hitCondition: '> 10',
+        logMessage: 'User {user.id}: {Math.max(a, b)}',
+      };
+      const server = { elicitInput: vi.fn() } as any;
+      const result = await toolRouter.routeToolCall(TOOL_NAMES.setBreakpoint, args, server);
+      expect(result.success).toBe(true);
+      expect(server.elicitInput).not.toHaveBeenCalled();
+      expect(mockToolRegistry.breakpoints.setBreakpoint).toHaveBeenCalledWith(args);
+    });
+
+    it('should respect explicitly disabled validation', async () => {
+      mockConfig(mockConfigManager, { expressionValidationLevel: 'disabled' });
+      const args = { ...location, condition: '(x=7)', logMessage: '{mutate()}' };
+      const result = await toolRouter.routeToolCall(TOOL_NAMES.setBreakpoint, args);
+      expect(result.success).toBe(true);
+      expect(mockToolRegistry.breakpoints.setBreakpoint).toHaveBeenCalledWith(args);
+    });
+
+    it('should bound interpolated templates and leave long plain log text usable', async () => {
+      const server = { elicitInput: vi.fn() } as any;
+      const result = await toolRouter.routeToolCall(
+        TOOL_NAMES.setBreakpoint,
+        { ...location, logMessage: 'x'.repeat(100) + '{user.id}' },
+        server
+      );
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('maximum allowed length');
+      expect(server.elicitInput).not.toHaveBeenCalled();
+      expect(mockToolRegistry.breakpoints.setBreakpoint).not.toHaveBeenCalled();
+      const plainLog = { ...location, logMessage: 'x'.repeat(150) };
+      const plainResult = await toolRouter.routeToolCall(TOOL_NAMES.setBreakpoint, plainLog);
+      expect(plainResult.success).toBe(true);
+      expect(mockToolRegistry.breakpoints.setBreakpoint).toHaveBeenCalledWith(plainLog);
+    });
   });
 
   describe('getToolSchemas', () => {
@@ -335,6 +657,7 @@ describe('ToolRouter', () => {
       });
 
       it('should execute with warning when user allows once', async () => {
+        vscode.debug.activeDebugSession = createMockDebugSession();
         const expressionValidator = (toolRouter as any).expressionValidator;
         vi.spyOn(expressionValidator, 'validateExpression').mockReturnValue({
           allowed: false,
@@ -383,6 +706,8 @@ describe('ToolRouter', () => {
       });
 
       it('should register session approval when user chooses always allow', async () => {
+        const session = createMockDebugSession();
+        vscode.debug.activeDebugSession = session;
         const expressionValidator = (toolRouter as any).expressionValidator;
         vi.spyOn(expressionValidator, 'validateExpression').mockReturnValue({
           allowed: false,
@@ -405,7 +730,7 @@ describe('ToolRouter', () => {
           server
         );
 
-        expect(allowSpy).toHaveBeenCalledWith('mutateState()', undefined);
+        expect(allowSpy).toHaveBeenCalledWith('mutateState()', session);
         expect(result).toMatchObject({
           success: true,
           _warning:

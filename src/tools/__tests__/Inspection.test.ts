@@ -574,6 +574,16 @@ describe('InspectionTools', () => {
   });
 
   describe('evaluateExpression', () => {
+    it('should not evaluate in a session other than the validated session', async () => {
+      const validatedSession = createMockDebugSession('validated');
+      vscode.debug.activeDebugSession = mockSession;
+      const evaluateSpy = vi.spyOn(dapClient, 'evaluateExpression');
+      const result = await tools.evaluateExpression({ expression: 'x=7' }, validatedSession);
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('session changed');
+      expect(evaluateSpy).not.toHaveBeenCalled();
+    });
+
     it('should fail when no active debug session', async () => {
       vscode.debug.activeDebugSession = undefined;
 

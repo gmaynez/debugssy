@@ -123,6 +123,12 @@ Your AI sees these via MCP:
 `set_breakpoint` supports conditions (`user.role === 'admin'`), hit counts
 (`> 10`), and log messages (logpoints).
 
+Conditions, hit conditions, and interpolated log messages receive expression
+validation when setting or re-enabling a breakpoint. Risky expressions require
+approval to create or enable the breakpoint; they can execute on every hit,
+including in future debug sessions, until the breakpoint is removed. Evaluation
+approvals for a single debug session do not approve persistent breakpoints.
+
 **Execution control** (full mode only): `start_debugging`, `stop_debugging`,
 `continue`, `pause`, `restart`, `wait_for_breakpoint`
 
