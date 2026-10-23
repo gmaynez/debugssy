@@ -21,7 +21,7 @@ export class CompletionProvider {
   private fileCache: Map<string, string[]> = new Map();
   private cacheInitialized = false;
   private cacheInitializing: Promise<void> | null = null;
-  private disposables: vscode.Disposable[] = [];
+  private workspaceFolderSubscription: vscode.Disposable | undefined;
   private fileWatchers: vscode.FileSystemWatcher[] = [];
   private watchersInitialized = false;
   private static readonly FILE_SEARCH_EXCLUDE =
@@ -37,8 +37,8 @@ export class CompletionProvider {
    * Dispose of event listeners to prevent memory leaks.
    */
   dispose(): void {
-    this.disposables.forEach((d) => d.dispose());
-    this.disposables = [];
+    this.workspaceFolderSubscription?.dispose();
+    this.workspaceFolderSubscription = undefined;
 
     this.fileWatchers.forEach((w) => w.dispose());
     this.fileWatchers = [];
@@ -91,8 +91,8 @@ export class CompletionProvider {
    * is kept in sync via FileSystemWatcher events (including external changes),
    * allowing us to avoid expensive full-workspace globbing on every keystroke.
    *
-   * Supports multi-root workspaces by indexing all folders and prefixing paths
-   * with the workspace folder name when multiple roots exist.
+   * Supports multi-root workspaces by indexing all folders and returning
+   * absolute paths accepted directly by breakpoint tools.
    */
   private async getFilePathCompletions(
     partial: string
@@ -104,19 +104,12 @@ export class CompletionProvider {
 
     await this.ensureFileCache(workspaceFolders);
 
-    // Aggregate all cached files from all workspace folders
+    // Aggregate absolute paths from all workspace folders so suggestions can be
+    // passed directly to tools without workspace-specific path interpretation.
     let filePaths: string[] = [];
-    const isMultiRoot = workspaceFolders.length > 1;
-
     for (const folder of workspaceFolders) {
       const cached = this.fileCache.get(folder.uri.toString()) || [];
-      if (isMultiRoot) {
-        // Prefix with folder name for multi-root workspaces
-        const folderName = folder.name;
-        filePaths.push(...cached.map((p) => `${folderName}/${p}`));
-      } else {
-        filePaths.push(...cached);
-      }
+      filePaths.push(...cached.map((p) => path.resolve(folder.uri.fsPath, p)));
     }
 
     // Filter and sort by relevance
@@ -190,6 +183,9 @@ export class CompletionProvider {
     this.watchersInitialized = true;
     this.logger.debug('Initializing completion file watchers (lazy initialization)');
     this.setupFileSystemWatchers();
+    this.workspaceFolderSubscription ??= vscode.workspace.onDidChangeWorkspaceFolders((event) => {
+      void this.onWorkspaceFoldersChanged(event);
+    });
   }
 
   /**
@@ -220,12 +216,6 @@ export class CompletionProvider {
       this.fileWatchers.push(watcher);
     }
 
-    // Listen for workspace folder changes to rebuild cache
-    this.disposables.push(
-      vscode.workspace.onDidChangeWorkspaceFolders((event) => {
-        this.onWorkspaceFoldersChanged(event);
-      })
-    );
   }
 
   private onFileCreated(uri: vscode.Uri, folder: vscode.WorkspaceFolder): void {
@@ -277,20 +267,16 @@ export class CompletionProvider {
       this.fileCache.delete(removed.uri.toString());
     }
 
-    // Rebuild cache and watchers to include new folders
-    if (event.added.length > 0) {
+    // Rebuild cache and watchers for both additions and removals.
+    if (event.added.length > 0 || event.removed.length > 0) {
       this.cacheInitialized = false;
       this.cacheInitializing = null;
 
-      // Dispose old watchers and setup new ones
       this.fileWatchers.forEach((w) => w.dispose());
       this.fileWatchers = [];
 
-      // Only recreate watchers if they were previously initialized
-      // (i.e., a client has actually requested completions)
       if (this.watchersInitialized) {
-        this.watchersInitialized = false; // Reset to trigger re-initialization
-        this.ensureWatchersInitialized();
+        this.setupFileSystemWatchers();
       }
     }
   }

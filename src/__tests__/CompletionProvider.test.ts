@@ -2,7 +2,9 @@
 // SPDX-FileCopyrightText: 2025 Guillermo Garcia Maynez
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import * as path from 'path';
 import { CompletionProvider } from '../routing/CompletionProvider';
+import { MAX_COMPLETIONS } from '../constants';
 import { vscode } from './setup';
 
 /**
@@ -42,6 +44,12 @@ describe('CompletionProvider', () => {
     vi.clearAllMocks();
     completionProvider = new CompletionProvider();
     vscode.workspace.workspaceFolders = [];
+    vscode.workspace.createFileSystemWatcher = vi.fn(() => ({
+      onDidCreate: vi.fn(() => ({ dispose: vi.fn() })),
+      onDidDelete: vi.fn(() => ({ dispose: vi.fn() })),
+      dispose: vi.fn(),
+    }));
+    vscode.workspace.onDidChangeWorkspaceFolders = vi.fn(() => ({ dispose: vi.fn() }));
   });
 
   afterEach(() => {
@@ -139,7 +147,8 @@ describe('CompletionProvider', () => {
 
       const result = await completionProvider.getCompletions('test', 'filePath', 'src/');
 
-      expect(result.values.every((v) => v.startsWith('src/'))).toBe(true);
+      expect(result.values.every((v) => path.isAbsolute(v))).toBe(true);
+      expect(result.values.every((v) => v.includes(`${path.sep}src${path.sep}`))).toBe(true);
     });
 
     it('should limit results to MAX_COMPLETIONS', async () => {
@@ -155,12 +164,12 @@ describe('CompletionProvider', () => {
 
       const result = await completionProvider.getCompletions('test', 'filePath', '');
 
-      expect(result.values.length).toBeLessThanOrEqual(100);
-      expect(result.total).toBeGreaterThan(100);
+      expect(result.values).toHaveLength(MAX_COMPLETIONS);
+      expect(result.total).toBe(150);
       expect(result.hasMore).toBe(true);
     });
 
-    it('should prefix paths with workspace folder name in multi-root workspace', async () => {
+    it('should return absolute paths for each root in a multi-root workspace', async () => {
       const frontend = createMockWorkspaceFolder('frontend', '/workspaces');
       const backend = createMockWorkspaceFolder('backend', '/workspaces');
       vscode.workspace.workspaceFolders = [frontend, backend] as any;
@@ -172,11 +181,11 @@ describe('CompletionProvider', () => {
 
       const result = await completionProvider.getCompletions('test', 'filePath', '');
 
-      expect(result.values.some((v) => v.startsWith('frontend/'))).toBe(true);
-      expect(result.values.some((v) => v.startsWith('backend/'))).toBe(true);
+      expect(result.values).toContain(path.resolve(frontend.uri.fsPath, 'src/index.ts'));
+      expect(result.values).toContain(path.resolve(backend.uri.fsPath, 'src/server.ts'));
     });
 
-    it('should not prefix paths in single-root workspace', async () => {
+    it('should return absolute paths in a single-root workspace', async () => {
       const folder = createMockWorkspaceFolder('project');
       vscode.workspace.workspaceFolders = [folder] as any;
 
@@ -188,8 +197,7 @@ describe('CompletionProvider', () => {
 
       const result = await completionProvider.getCompletions('test', 'filePath', '');
 
-      expect(result.values[0]).toBe('src/index.ts');
-      expect(result.values[0]).not.toContain('project/');
+      expect(result.values[0]).toBe(path.resolve(folder.uri.fsPath, 'src/index.ts'));
     });
   });
 
@@ -372,7 +380,7 @@ describe('CompletionProvider', () => {
 
       const result = await completionProvider.getCompletions('test', 'variableName', '');
 
-      expect(result).toBeDefined();
+      expect(result).toEqual({ values: [], total: 0, hasMore: false });
     });
   });
 
@@ -406,6 +414,47 @@ describe('CompletionProvider', () => {
     });
   });
 
+  describe('Workspace Folder Watchers', () => {
+    it('should rebuild watchers for additions and removals without accumulating listeners', async () => {
+      const first = createMockWorkspaceFolder('first');
+      const second = createMockWorkspaceFolder('second');
+      vscode.workspace.workspaceFolders = [first] as any;
+      vscode.workspace.findFiles = vi.fn().mockResolvedValue([]);
+      const watchers: Array<{ dispose: ReturnType<typeof vi.fn> }> = [];
+      let onFoldersChanged: ((event: any) => void) | undefined;
+      const subscription = { dispose: vi.fn() };
+
+      vscode.workspace.createFileSystemWatcher = vi.fn().mockImplementation(() => {
+        const watcher = {
+          onDidCreate: vi.fn(() => ({ dispose: vi.fn() })),
+          onDidDelete: vi.fn(() => ({ dispose: vi.fn() })),
+          dispose: vi.fn(),
+        };
+        watchers.push(watcher);
+        return watcher;
+      });
+      vscode.workspace.onDidChangeWorkspaceFolders = vi.fn().mockImplementation((callback) => {
+        onFoldersChanged = callback;
+        return subscription;
+      });
+
+      await completionProvider.getCompletions('test', 'filePath', '');
+      expect(watchers).toHaveLength(1);
+      expect(vscode.workspace.onDidChangeWorkspaceFolders).toHaveBeenCalledOnce();
+
+      vscode.workspace.workspaceFolders = [first, second] as any;
+      onFoldersChanged?.({ added: [second], removed: [] });
+      expect(watchers[0]?.dispose).toHaveBeenCalledOnce();
+      expect(watchers).toHaveLength(3);
+
+      vscode.workspace.workspaceFolders = [second] as any;
+      onFoldersChanged?.({ added: [], removed: [first] });
+      expect(watchers[2]?.dispose).toHaveBeenCalledOnce();
+      expect(watchers).toHaveLength(4);
+      expect(vscode.workspace.onDidChangeWorkspaceFolders).toHaveBeenCalledOnce();
+    });
+  });
+
   describe('dispose', () => {
     it('should dispose without errors', () => {
       const provider = new CompletionProvider();
@@ -429,21 +478,25 @@ describe('CompletionProvider', () => {
       newProvider.dispose();
     });
 
-    it('should dispose file watchers', () => {
+    it('should dispose file watchers and the workspace-folder subscription', async () => {
       const provider = new CompletionProvider();
       vscode.workspace.workspaceFolders = [createMockWorkspaceFolder('project')] as any;
+      vscode.workspace.findFiles = vi.fn().mockResolvedValue([]);
 
       const mockWatcher = {
         onDidCreate: vi.fn(() => ({ dispose: vi.fn() })),
         onDidDelete: vi.fn(() => ({ dispose: vi.fn() })),
         dispose: vi.fn(),
       };
+      const subscription = { dispose: vi.fn() };
       vscode.workspace.createFileSystemWatcher = vi.fn().mockReturnValue(mockWatcher);
+      vscode.workspace.onDidChangeWorkspaceFolders = vi.fn().mockReturnValue(subscription);
 
-      // Trigger watcher initialization
-      provider.getCompletions('test', 'filePath', '');
+      await provider.getCompletions('test', 'filePath', '');
+      provider.dispose();
 
-      expect(() => provider.dispose()).not.toThrow();
+      expect(mockWatcher.dispose).toHaveBeenCalledOnce();
+      expect(subscription.dispose).toHaveBeenCalledOnce();
     });
   });
 });
