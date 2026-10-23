@@ -13,6 +13,10 @@ out/**
 .git
 .gitignore
 .github/**
+.husky/**
+
+# Local AI client state
+.crush/**
 
 # Documentation (keep only README.md, LICENSE, CHANGELOG.md in vsix)
 docs/**
@@ -26,6 +30,7 @@ MARKETPLACE.md
 README.md.backup
 MARKETPLACE.md.backup
 scripts/prepare-marketplace.js
+scripts/**
 
 # Node modules - excluded since we bundle with esbuild
 node_modules
@@ -56,6 +61,8 @@ eslint.config.mjs
 **/*.spec.ts
 **/__tests__/**
 coverage/**
+reports/**
+stryker.config.mjs
 vitest.config.ts
 vitest.config.mts
 

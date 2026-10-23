@@ -4,53 +4,32 @@ All notable changes to the "Debugssy" extension will be documented in this file.
 
 ## [Unreleased]
 
-### Added
-
-- **MCP tool annotations on all 20 tool schemas** (`title`, `readOnlyHint`,
-  `destructiveHint`, `idempotentHint`, `openWorldHint`). MCP clients use these
-  to drive approval UX: read-only inspection tools can be auto-approved once the
-  server is trusted, destructive operations (`stop_debugging`, `restart`,
-  `remove_all_breakpoints`, `clear_console_output`) are correctly flagged, and
-  `evaluate_expression`/`get_console_output` are marked `openWorldHint` since
-  their results contain debuggee-controlled text (indirect prompt-injection
-  mitigation, VS Code 1.106+).
-- **"Always allow for this debug session" in expression approval.** The
-  `evaluate_expression` elicitation prompt is now an enum choice (MCP spec
-  2025-11-25, VS Code 1.107+): Allow once / Always allow for this debug session
-  / Deny. Session approvals are exact-match on the normalized expression and are
-  cleared when the debug session terminates.
+## [1.7.0] - 2026-10-22
 
 ### Changed
 
-- **Minimum VS Code version bumped from 1.105.0 to 1.128.0.** VS Code 1.128
-  ships Electron 42.5.0 with Node.js 24.17.0 (VS Code moved from Node 22 to Node
-  24 at version 1.123). `@types/node` updated to `^24.x` accordingly;
-  `@types/vscode` pinned to `1.125.0` (the highest published version at or below
-  the new floor — no `1.128.0` types package exists).
-- Updated direct dependencies: MCP SDK 1.30.1, Zod 4.6.5, ESLint 10.11.0,
-  typescript-eslint 8.70.1, esbuild 0.28.2, Prettier 3.9.9, ovsx 1.2.0, Vitest
-  4.1.11. Resolved all `npm audit` advisories via `npm audit fix`.
-- **Dependency refresh to latest, with VS Code/Node types held back.**
-  `@types/vscode` stays pinned at `1.125.0` and `@types/node` stays on the Node
-  24 line, because both are tied to the `engines.vscode` floor of `^1.128.0` (VS
-  Code 1.128 bundles Node 24). Everything else was moved to latest: MCP SDK
-  1.32.1, Zod 4.6.7, Express 5.3.0, ESLint 10.13.0, typescript-eslint 8.72.0,
-  Prettier 3.9.10, ovsx 1.3.0, Stryker 10.0.0, `@vscode/vsce` 4.0.0, and Vitest
-  5.0.5. TypeScript stays on 6.0.3: `typescript-eslint` 8.x hard-fails on
-  TypeScript 7.0 (`typescript-eslint does not support TS 7.0`), and TS 7 also
-  removes `moduleResolution: node10`. All `npm audit` advisories resolved
-  (`hono`, `ip-address`, `shell-quote`).
-- **`.vscodeignore` now excludes `.stryker-tmp/**`.** The Stryker sandbox
-  contains a `node_modules` symlink that made `vsce package` abort with
-  `Error: not a file: ...\.stryker-tmp\sandbox-*\node_modules`.
-- **GitHub Actions updated to their latest majors.** `actions/checkout` v6 → v7,
-  `actions/setup-node` v6 → v7, `actions/upload-artifact` v6 → v7,
-  `actions/github-script` v8 → v9, and `softprops/action-gh-release` v2 → v3.
-  All five move to the Node 24 Actions runtime / ESM packaging; none of the
-  breaking changes affect this repository (no `pull_request_target` or
-  `workflow_run` triggers, no `require('@actions/github')` in the
-  `github-script` body, and no reliance on the removed dummy `NODE_AUTH_TOKEN`
-  export).
+- **Requires VS Code 1.128.0 or later**, up from 1.105.0.
+- Clearer setup instructions for each AI client, including Claude Code, with
+  updated privacy and security guidance.
+
+### Added
+
+- Approve an expression once or for the current debug session. Session approvals
+  expire when the session ends.
+- Clearer tool labels and approval information in compatible AI clients.
+
+### Security
+
+- Stronger expression checks, including breakpoint conditions and logpoints.
+  Some expressions now require approval even in permissive mode.
+- Breakpoint approvals cover repeated use across debug sessions. Evaluation
+  approvals stay within their original session and do not approve breakpoints.
+
+### Fixed
+
+- More reliable inspection after manual steps and when using multiple threads or
+  debug sessions. Breakpoint waits now end promptly when a session stops.
+- Invalid connection requests no longer interrupt the active AI client.
 
 ## [1.6.1] - 2026-05-31
 
