@@ -2,7 +2,11 @@
 // SPDX-FileCopyrightText: 2025 Guillermo Garcia Maynez
 
 import * as vscode from 'vscode';
-import { DEFAULT_THREAD_ID, MAX_CONSOLE_BUFFER_SIZE } from '../constants';
+import {
+  DEFAULT_THREAD_ID,
+  MAX_CONSOLE_BUFFER_SIZE,
+  MAX_CONSOLE_ENTRY_LENGTH,
+} from '../constants';
 import { Logger } from '../utils/Logger';
 
 export interface StackFrame {
@@ -150,6 +154,7 @@ interface SessionState {
 
 export class DAPClient {
   private readonly sessionStates = new Map<string, SessionState>();
+  private nextExecutionGeneration = 1;
   // Session that most recently produced a DAP event. Used to resolve the
   // "observed" session when VS Code reports no active debug session.
   private lastUpdatedSessionId: string | undefined;
@@ -184,7 +189,7 @@ export class DAPClient {
   async getStackTrace(
     session: vscode.DebugSession,
     options?: { startFrame?: number; levels?: number; threadId?: number }
-  ): Promise<{ stackFrames: StackFrame[]; totalFrames?: number }> {
+  ): Promise<{ stackFrames: StackFrame[]; totalFrames?: number; stale?: boolean }> {
     const state = this.getOrCreateState(session.id);
     const generation = state.executionGeneration;
     try {
@@ -201,59 +206,69 @@ export class DAPClient {
       };
 
       const response = await session.customRequest('stackTrace', request);
-      if (
-        this.sessionStates.get(session.id) !== state ||
-        state.executionGeneration !== generation
-      ) {
-        return { stackFrames: [] };
+      this.assertRequestCurrent(session.id, state, generation, 'Stack trace');
+      if (!Array.isArray(response?.stackFrames)) {
+        throw new Error('Debug adapter returned an invalid stackTrace response');
       }
-      if (response?.stackFrames) {
-        state.stackFrames = response.stackFrames;
-        state.lastKnownThreadId = preferredThreadId;
-        const limitedFrames = this.constrainStackFrames(response.stackFrames, options);
-        return {
-          stackFrames: limitedFrames,
-          totalFrames: response.totalFrames,
-        };
-      }
+      state.stackFrames = response.stackFrames;
+      state.currentFrameId = response.stackFrames[0]?.id;
+      state.lastKnownThreadId = preferredThreadId;
+      const limitedFrames = this.constrainStackFrames(response.stackFrames, options);
+      return {
+        stackFrames: limitedFrames,
+        totalFrames: response.totalFrames,
+      };
     } catch (error: unknown) {
       this.logger.error('Error getting stack trace:', error);
+      if (
+        this.sessionStates.get(session.id) === state &&
+        state.executionGeneration === generation &&
+        state.stackFrames.length > 0
+      ) {
+        return { stackFrames: this.getCachedStackFrames(state, options), stale: true };
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get stack trace: ${message}`, { cause: error });
     }
-    return {
-      stackFrames:
-        this.sessionStates.get(session.id) === state && state.executionGeneration === generation
-          ? this.getCachedStackFrames(state, options)
-          : [],
-    };
   }
 
   async getScopes(session: vscode.DebugSession, frameId: number): Promise<Scope[]> {
+    const state = this.getOrCreateState(session.id);
+    const generation = state.executionGeneration;
     try {
       const response = await session.customRequest('scopes', { frameId });
-      if (response?.scopes) {
-        return response.scopes;
+      this.assertRequestCurrent(session.id, state, generation, 'Scopes');
+      if (!Array.isArray(response?.scopes)) {
+        throw new Error('Debug adapter returned an invalid scopes response');
       }
+      return response.scopes;
     } catch (error: unknown) {
       this.logger.error('Error getting scopes:', error);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get scopes: ${message}`, { cause: error });
     }
-    return [];
   }
 
   async getVariables(
     session: vscode.DebugSession,
     variablesReference: number
   ): Promise<Variable[]> {
+    const state = this.getOrCreateState(session.id);
+    const generation = state.executionGeneration;
     try {
       const response = await session.customRequest('variables', {
         variablesReference,
       });
-      if (response?.variables) {
-        return response.variables;
+      this.assertRequestCurrent(session.id, state, generation, 'Variables');
+      if (!Array.isArray(response?.variables)) {
+        throw new Error('Debug adapter returned an invalid variables response');
       }
+      return response.variables;
     } catch (error: unknown) {
       this.logger.error('Error getting variables:', error);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get variables: ${message}`, { cause: error });
     }
-    return [];
   }
 
   async evaluateExpression(
@@ -286,33 +301,22 @@ export class DAPClient {
     return this.getObservedState(session)?.executionState ?? 'not_started';
   }
 
+  /** Returns the generation used to reject results from an earlier stop/run. */
+  getExecutionGeneration(session: vscode.DebugSession): number {
+    return this.getOrCreateState(session.id).executionGeneration;
+  }
+
   getStoppedInfo(session?: vscode.DebugSession): StoppedInfo | undefined {
     return this.getObservedState(session)?.stoppedInfo;
   }
 
-  /**
-   * Returns aggregated hit stats for a protocol breakpoint ID across all
-   * sessions. IDs are adapter-assigned per session, so counts are summed and
-   * the most recent hit timestamp is reported.
-   */
+  /** Protocol breakpoint IDs are adapter-assigned and only unique per session. */
   getBreakpointHitStats(
+    session: vscode.DebugSession,
     breakpointId: number
   ): { hitCount: number; lastHitTimestamp?: number } | undefined {
-    let hitCount = 0;
-    let lastHitTimestamp: number | undefined;
-    let found = false;
-    for (const state of this.sessionStates.values()) {
-      const stats = state.breakpointHitStats.get(breakpointId);
-      if (stats) {
-        found = true;
-        hitCount += stats.hitCount;
-        lastHitTimestamp = Math.max(lastHitTimestamp ?? 0, stats.lastHitTimestamp);
-      }
-    }
-    if (!found) {
-      return undefined;
-    }
-    return { hitCount, lastHitTimestamp };
+    const stats = this.sessionStates.get(session.id)?.breakpointHitStats.get(breakpointId);
+    return stats ? { ...stats } : undefined;
   }
 
   isReadyForEvaluation(session?: vscode.DebugSession): boolean {
@@ -407,11 +411,22 @@ export class DAPClient {
     this.stateChangeEmitter.dispose();
   }
 
+  private assertRequestCurrent(
+    sessionId: string,
+    state: SessionState,
+    generation: number,
+    operation: string
+  ): void {
+    if (this.sessionStates.get(sessionId) !== state || state.executionGeneration !== generation) {
+      throw new Error(`${operation} result is stale because execution state changed`);
+    }
+  }
+
   private getOrCreateState(sessionId: string): SessionState {
     let state = this.sessionStates.get(sessionId);
     if (!state) {
       state = {
-        executionGeneration: 0,
+        executionGeneration: this.nextExecutionGeneration++,
         pendingRequests: new Map(),
         executionState: 'not_started',
         stackFrames: [],
@@ -505,7 +520,7 @@ export class DAPClient {
   }
 
   private markRunning(sessionId: string, state: SessionState): void {
-    state.executionGeneration++;
+    state.executionGeneration = this.nextExecutionGeneration++;
     state.executionState = 'running';
     state.stoppedInfo = undefined;
     state.stackFrames = [];
@@ -560,13 +575,11 @@ export class DAPClient {
       switch (message.command) {
         case 'stackTrace': {
           const body = message.body as DAPStackTraceResponseBody | undefined;
-          if (message.success && body?.stackFrames) {
+          if (message.success && Array.isArray(body?.stackFrames)) {
             const state = this.getOrCreateState(sessionId);
             state.stackFrames = body.stackFrames;
+            state.currentFrameId = state.stackFrames[0]?.id;
             this.lastUpdatedSessionId = sessionId;
-            if (state.stackFrames.length > 0 && state.stackFrames[0]) {
-              state.currentFrameId = state.stackFrames[0].id;
-            }
           }
           break;
         }
@@ -579,7 +592,7 @@ export class DAPClient {
         case 'stopped': {
           const body = message.body as DAPStoppedEventBody | undefined;
           const state = this.getOrCreateState(sessionId);
-          state.executionGeneration++;
+          state.executionGeneration = this.nextExecutionGeneration++;
           state.executionState = 'paused';
           // Frames from a previous stop are stale; drop them so evaluations
           // never target dead frame IDs.
@@ -627,7 +640,7 @@ export class DAPClient {
         }
         case 'terminated': {
           const state = this.getOrCreateState(sessionId);
-          state.executionGeneration++;
+          state.executionGeneration = this.nextExecutionGeneration++;
           state.executionState = 'terminated';
           state.stoppedInfo = undefined;
           state.stackFrames = [];
@@ -654,6 +667,13 @@ export class DAPClient {
   }
 
   private captureConsoleOutput(state: SessionState, output: ConsoleOutput): void {
+    if (output.output.length > MAX_CONSOLE_ENTRY_LENGTH) {
+      const marker = '\n… [output truncated]';
+      output = {
+        ...output,
+        output: output.output.slice(0, MAX_CONSOLE_ENTRY_LENGTH - marker.length) + marker,
+      };
+    }
     state.consoleOutput.push(output);
 
     // Keep buffer size limited

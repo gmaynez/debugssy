@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { InspectionTools } from '../Inspection';
 import { DAPClient } from '../../dap/Client';
 import { ConfigManager } from '../../Config';
-import { DEFAULT_MAX_STACK_DEPTH } from '../../constants';
+import { DEFAULT_MAX_STACK_DEPTH, MAX_BREAKPOINT_TIMEOUT_MS } from '../../constants';
 import { vscode } from '../../__tests__/setup';
 import { createMockDebugSession } from '../../__tests__/helpers/vscode-mock';
 
@@ -96,6 +96,38 @@ describe('InspectionTools', () => {
           functionName: 'main',
         },
       });
+    });
+
+    it('should reject a paused snapshot when execution changes during stack lookup', async () => {
+      vscode.debug.activeDebugSession = mockSession;
+      vi.spyOn(dapClient, 'getExecutionState').mockReturnValue('paused');
+      vi.spyOn(dapClient, 'getStoppedInfo').mockReturnValue({ threadId: 1, reason: 'breakpoint' });
+      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue({
+        stackFrames: [{ id: 1, name: 'old', line: 1, column: 0 }],
+      });
+      vi.spyOn(dapClient, 'getExecutionGeneration').mockReturnValueOnce(4).mockReturnValue(5);
+
+      const result = await tools.getDebugState();
+
+      expect(result).toEqual({
+        success: false,
+        error: 'Debug state snapshot is stale because execution state changed',
+      });
+    });
+
+    it('should mark cached debug-state locations as stale', async () => {
+      vscode.debug.activeDebugSession = mockSession;
+      vi.spyOn(dapClient, 'getExecutionState').mockReturnValue('paused');
+      vi.spyOn(dapClient, 'getStoppedInfo').mockReturnValue({ threadId: 1, reason: 'breakpoint' });
+      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue({
+        stackFrames: [{ id: 1, name: 'cached', line: 1, column: 0 }],
+        stale: true,
+      });
+
+      const result = await tools.getDebugState();
+
+      expect(result.success).toBe(true);
+      expect((result.data as any)?.stale).toBe(true);
     });
 
     it('should handle paused state without stack frame', async () => {
@@ -289,6 +321,31 @@ describe('InspectionTools', () => {
       expect(result.error).toContain('Timeout');
       expect(result.error).toContain('100ms');
     });
+
+    it('should cap requested timeouts at the configured maximum', async () => {
+      vi.useFakeTimers();
+      try {
+        vscode.debug.activeDebugSession = mockSession;
+        vi.spyOn(dapClient, 'getExecutionState').mockReturnValue('running');
+        vi.spyOn(dapClient, 'onStateChange').mockImplementation(() => ({
+          dispose: vi.fn(),
+        }));
+
+        const resultPromise = tools.waitForBreakpoint({
+          automationLevel: 'full',
+          timeout: MAX_BREAKPOINT_TIMEOUT_MS + 1,
+        });
+        await vi.advanceTimersByTimeAsync(MAX_BREAKPOINT_TIMEOUT_MS);
+        const result = await resultPromise;
+
+        expect(result).toEqual({
+          success: false,
+          error: `Timeout waiting for breakpoint after ${MAX_BREAKPOINT_TIMEOUT_MS}ms`,
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe('getVariables', () => {
@@ -368,6 +425,7 @@ describe('InspectionTools', () => {
 
       expect(result.success).toBe(true);
       expect((result.data as any)?.frameId).toBe(2);
+      expect(dapClient.getStackTrace).not.toHaveBeenCalled();
       expect(dapClient.getScopes).toHaveBeenCalledWith(mockSession, 2);
     });
 
@@ -403,6 +461,57 @@ describe('InspectionTools', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('Stack trace error');
+    });
+
+    it('should not inspect variables through a stale cached frame', async () => {
+      vscode.debug.activeDebugSession = mockSession;
+      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue({
+        stackFrames: [{ id: 1, name: 'cached', line: 10, column: 0 }],
+        stale: true,
+      });
+      const getScopes = vi.spyOn(dapClient, 'getScopes');
+
+      const result = await tools.getVariables({});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('stale stack frame');
+      expect(getScopes).not.toHaveBeenCalled();
+    });
+
+    it('should report scope adapter failures instead of returning empty variables', async () => {
+      vscode.debug.activeDebugSession = mockSession;
+      vi.spyOn(dapClient, 'getScopes').mockRejectedValue(
+        new Error('Failed to get scopes: adapter failure')
+      );
+
+      const result = await tools.getVariables({ frameId: 2 });
+
+      expect(result).toEqual({
+        success: false,
+        error: 'Failed to get scopes: adapter failure',
+      });
+    });
+
+    it('should not combine scopes and variables from different generations', async () => {
+      vscode.debug.activeDebugSession = mockSession;
+      vi.spyOn(dapClient, 'getScopes').mockResolvedValue([
+        { name: 'Local', variablesReference: 100, expensive: false },
+      ]);
+      vi.spyOn(dapClient, 'getVariables').mockResolvedValue([
+        { name: 'x', value: 'new', variablesReference: 0 },
+      ]);
+      vi.spyOn(dapClient, 'getExecutionGeneration')
+        .mockReturnValueOnce(7)
+        .mockReturnValueOnce(7)
+        .mockReturnValueOnce(7)
+        .mockReturnValue(8);
+
+      const result = await tools.getVariables({ frameId: 2 });
+
+      expect(result).toEqual({
+        success: false,
+        error: 'Variable inspection is stale because execution state changed',
+      });
     });
   });
 
@@ -491,6 +600,19 @@ describe('InspectionTools', () => {
       expect(result.success).toBe(true);
       expect((result.data as any)?.frames).toHaveLength(1);
       expect((result.data as any)?.truncated).toBe(false);
+    });
+
+    it('should mark cached call-stack results as stale', async () => {
+      vscode.debug.activeDebugSession = mockSession;
+      vi.spyOn(dapClient, 'getStackTrace').mockResolvedValue({
+        stackFrames: [{ id: 1, name: 'cached', line: 10, column: 0 }],
+        stale: true,
+      });
+
+      const result = await tools.getCallStack();
+
+      expect(result.success).toBe(true);
+      expect((result.data as any)?.stale).toBe(true);
     });
 
     it('should infer truncation when adapters omit totalFrames', async () => {

@@ -226,8 +226,8 @@ export class BreakpointTools {
       }
 
       if (session && executionState === 'paused') {
-        const { stackFrames } = await this.dapClient.getStackTrace(session, { levels: 1 });
-        const currentFrame = stackFrames[0];
+        const { stackFrames, stale } = await this.dapClient.getStackTrace(session, { levels: 1 });
+        const currentFrame = stale ? undefined : stackFrames[0];
         if (currentFrame) {
           result.currentLocation = {
             file: currentFrame.source?.path || currentFrame.source?.name,
@@ -282,7 +282,7 @@ export class BreakpointTools {
           }
 
           if (typeof protocolBreakpoint.id === 'number') {
-            const hitStats = this.dapClient.getBreakpointHitStats(protocolBreakpoint.id);
+            const hitStats = this.dapClient.getBreakpointHitStats(session, protocolBreakpoint.id);
             result.history = {
               available: true,
               hitCount: hitStats?.hitCount ?? 0,

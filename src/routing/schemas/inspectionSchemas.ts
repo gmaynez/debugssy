@@ -26,7 +26,7 @@ export const inspectionSchemas = [
       readOnlyHint: true,
       destructiveHint: false,
       idempotentHint: true,
-      openWorldHint: false,
+      openWorldHint: true, // variable values are debuggee-controlled
     },
     inputSchema: {
       type: 'object',
@@ -52,7 +52,7 @@ export const inspectionSchemas = [
       readOnlyHint: true,
       destructiveHint: false,
       idempotentHint: true,
-      openWorldHint: false,
+      openWorldHint: true, // frame names and locations come from the debuggee
     },
     inputSchema: {
       type: 'object',
@@ -99,7 +99,7 @@ export const inspectionSchemas = [
       readOnlyHint: true,
       destructiveHint: false,
       idempotentHint: true,
-      openWorldHint: false,
+      openWorldHint: true, // thread names come from the debuggee
     },
     inputSchema: {
       type: 'object',
@@ -115,7 +115,7 @@ export const inspectionSchemas = [
       readOnlyHint: true,
       destructiveHint: false,
       idempotentHint: true,
-      openWorldHint: false,
+      openWorldHint: true, // stop text and locations come from the debug adapter
     },
     inputSchema: {
       type: 'object',
@@ -127,9 +127,9 @@ export const inspectionSchemas = [
     title: 'Get Console Output',
     description: `Get output from the debug console including stdout, stderr, and console.log messages. WARNING: Can be extremely verbose. Always specify a limit (default: ${DEFAULT_CONSOLE_OUTPUT_LIMIT} most recent entries). Use category filter to reduce output.`,
     annotations: {
-      readOnlyHint: true,
-      destructiveHint: false,
-      idempotentHint: true,
+      readOnlyHint: false, // clear=true mutates the retained buffer
+      destructiveHint: true, // clear=true discards buffered output history
+      idempotentHint: false,
       openWorldHint: true, // stdout/stderr content is debuggee-controlled
     },
     inputSchema: {

@@ -497,6 +497,7 @@ describe('BreakpointTools', () => {
       });
 
       expect(session.getDebugProtocolBreakpoint).toHaveBeenCalledWith(bp);
+      expect(dapClient.getBreakpointHitStats).toHaveBeenCalledWith(session, 7);
       expect(result.success).toBe(true);
       expect(result.data).toMatchObject({
         session: {

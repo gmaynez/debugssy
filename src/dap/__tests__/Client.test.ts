@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { DAPClient } from '../Client';
 import { vscode } from '../../__tests__/setup';
 import { createMockDebugSession } from '../../__tests__/helpers/vscode-mock';
-import { MAX_CONSOLE_BUFFER_SIZE } from '../../constants';
+import { MAX_CONSOLE_BUFFER_SIZE, MAX_CONSOLE_ENTRY_LENGTH } from '../../constants';
 
 describe('DAPClient', () => {
   let client: DAPClient;
@@ -189,7 +189,9 @@ describe('DAPClient', () => {
         expect(client.isReadyForEvaluation()).toBe(false);
         expect(listener).toHaveBeenCalledWith('running');
         mockSession.customRequest.mockRejectedValue(new Error('Running'));
-        expect((await client.getStackTrace(mockSession)).stackFrames).toEqual([]);
+        await expect(client.getStackTrace(mockSession)).rejects.toThrow(
+          'Failed to get stack trace: Running'
+        );
       }
     );
 
@@ -383,7 +385,7 @@ describe('DAPClient', () => {
           }
           return { stackFrames: [{ id: 99, name: 'stale', line: 1, column: 1 }] };
         });
-        expect((await client.getStackTrace(mockSession)).stackFrames).toEqual([]);
+        await expect(client.getStackTrace(mockSession)).rejects.toThrow(/stale/);
         expect(client.getCurrentFrameId()).toBeUndefined();
       }
     );
@@ -440,13 +442,12 @@ describe('DAPClient', () => {
       });
     });
 
-    it('should return empty array when stack trace fails', async () => {
+    it('should distinguish stack trace adapter failures from an empty stack', async () => {
       mockSession.customRequest.mockRejectedValue(new Error('Stack trace failed'));
 
-      const result = await client.getStackTrace(mockSession);
-
-      expect(result.stackFrames).toEqual([]);
-      expect(result.totalFrames).toBeUndefined();
+      await expect(client.getStackTrace(mockSession)).rejects.toThrow(
+        'Failed to get stack trace: Stack trace failed'
+      );
     });
 
     it('should pass depth limit parameters to DAP request', async () => {
@@ -528,6 +529,7 @@ describe('DAPClient', () => {
       const result = await client.getStackTrace(mockSession, { startFrame: 1, levels: 1 });
 
       expect(result.stackFrames).toEqual([{ id: 2, name: 'helper', line: 2, column: 0 }]);
+      expect(result.stale).toBe(true);
     });
 
     it('should cache stack frames from DAP messages', () => {
@@ -555,6 +557,31 @@ describe('DAPClient', () => {
       });
 
       expect(client.getCurrentFrameId()).toBeUndefined();
+    });
+
+    it('should clear a stale current frame ID when an empty stack arrives', async () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
+      mockSession.customRequest.mockResolvedValueOnce({
+        stackFrames: [{ id: 8, name: 'main', line: 1, column: 0 }],
+      });
+      await client.getStackTrace(mockSession);
+      expect(client.getCurrentFrameId(mockSession)).toBe(8);
+
+      mockSession.customRequest.mockResolvedValueOnce({ stackFrames: [] });
+      expect((await client.getStackTrace(mockSession)).stackFrames).toEqual([]);
+      expect(client.getCurrentFrameId(mockSession)).toBeUndefined();
+
+      mockSession.customRequest.mockResolvedValueOnce({
+        stackFrames: [{ id: 9, name: 'main', line: 1, column: 0 }],
+      });
+      await client.getStackTrace(mockSession);
+      tracker.onDidSendMessage({
+        type: 'response',
+        command: 'stackTrace',
+        success: true,
+        body: { stackFrames: [] },
+      });
+      expect(client.getCurrentFrameId(mockSession)).toBeUndefined();
     });
   });
 
@@ -588,12 +615,12 @@ describe('DAPClient', () => {
       });
     });
 
-    it('should return empty array when get scopes fails', async () => {
+    it('should propagate scope adapter failures', async () => {
       mockSession.customRequest.mockRejectedValue(new Error('Get scopes failed'));
 
-      const scopes = await client.getScopes(mockSession, 1);
-
-      expect(scopes).toEqual([]);
+      await expect(client.getScopes(mockSession, 1)).rejects.toThrow(
+        'Failed to get scopes: Get scopes failed'
+      );
     });
 
     it('should get variables from a scope', async () => {
@@ -628,13 +655,46 @@ describe('DAPClient', () => {
       });
     });
 
-    it('should return empty array when get variables fails', async () => {
+    it('should propagate variable adapter failures', async () => {
       mockSession.customRequest.mockRejectedValue(new Error('Get variables failed'));
 
-      const variables = await client.getVariables(mockSession, 100);
-
-      expect(variables).toEqual([]);
+      await expect(client.getVariables(mockSession, 100)).rejects.toThrow(
+        'Failed to get variables: Get variables failed'
+      );
     });
+
+    it('should preserve legitimate empty scope and variable results', async () => {
+      mockSession.customRequest
+        .mockResolvedValueOnce({ scopes: [] })
+        .mockResolvedValueOnce({ variables: [] });
+
+      await expect(client.getScopes(mockSession, 1)).resolves.toEqual([]);
+      await expect(client.getVariables(mockSession, 100)).resolves.toEqual([]);
+    });
+
+    it.each(['scopes', 'variables'] as const)(
+      'should reject %s results from an earlier execution generation',
+      async (operation) => {
+        const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
+        let resolveRequest!: (value: unknown) => void;
+        mockSession.customRequest.mockImplementation(
+          () =>
+            new Promise((resolve) => {
+              resolveRequest = resolve;
+            })
+        );
+        const request =
+          operation === 'scopes'
+            ? client.getScopes(mockSession, 1)
+            : client.getVariables(mockSession, 100);
+        const rejection = expect(request).rejects.toThrow(/stale/);
+
+        tracker.onDidSendMessage({ type: 'event', event: 'continued', body: {} });
+        resolveRequest(operation === 'scopes' ? { scopes: [] } : { variables: [] });
+
+        await rejection;
+      }
+    );
   });
 
   describe('Expression Evaluation', () => {
@@ -901,6 +961,21 @@ describe('DAPClient', () => {
       expect(output.length).toBeLessThanOrEqual(MAX_CONSOLE_BUFFER_SIZE);
       // Should keep latest entries
       expect(output[output.length - 1]?.output).toContain(`${MAX_CONSOLE_BUFFER_SIZE + 99}`);
+    });
+
+    it('should bound retained characters in a single output event', () => {
+      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
+
+      tracker.onDidSendMessage({
+        type: 'event',
+        event: 'output',
+        body: { category: 'stdout', output: 'x'.repeat(MAX_CONSOLE_ENTRY_LENGTH * 2) },
+      });
+
+      const output = client.getConsoleOutput();
+      expect(output).toHaveLength(1);
+      expect(output[0]?.output).toHaveLength(MAX_CONSOLE_ENTRY_LENGTH);
+      expect(output[0]?.output.endsWith('… [output truncated]')).toBe(true);
     });
 
     it('should ignore output events without output body', () => {
@@ -1207,7 +1282,7 @@ describe('DAPClient', () => {
       expect(client.getCurrentFrameId(sessionA)).toBeUndefined();
     });
 
-    it('should aggregate breakpoint hit stats across sessions', () => {
+    it('should key breakpoint hit stats by session', () => {
       trackerA.onDidSendMessage({
         type: 'event',
         event: 'stopped',
@@ -1219,7 +1294,9 @@ describe('DAPClient', () => {
         body: { threadId: 2, reason: 'breakpoint', hitBreakpointIds: [5] },
       });
 
-      expect(client.getBreakpointHitStats(5)?.hitCount).toBe(2);
+      expect(client.getBreakpointHitStats(sessionA, 5)?.hitCount).toBe(1);
+      expect(client.getBreakpointHitStats(sessionB, 5)?.hitCount).toBe(1);
+      expect(client.getBreakpointHitStats(sessionA, 6)).toBeUndefined();
     });
 
     it('should notify listeners when the observed session is reset', () => {

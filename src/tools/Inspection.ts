@@ -5,7 +5,11 @@ import * as vscode from 'vscode';
 import { DAPClient } from '../dap/Client';
 import { ConfigManager } from '../Config';
 import { DebugNotActiveError, formatErrorMessage } from '../errors';
-import { DEFAULT_CONSOLE_OUTPUT_LIMIT, DEFAULT_MAX_STACK_DEPTH } from '../constants';
+import {
+  DEFAULT_CONSOLE_OUTPUT_LIMIT,
+  DEFAULT_MAX_STACK_DEPTH,
+  MAX_BREAKPOINT_TIMEOUT_MS,
+} from '../constants';
 import type { DebugStateData, GetVariablesResult } from '../routing/types/toolResults';
 
 export interface InspectionResult {
@@ -56,8 +60,13 @@ export class InspectionTools {
 
       // If paused, include location and reason information
       if (executionState === 'paused' && stoppedInfo) {
-        // Try to get current stack frame for location - only need top frame
-        const { stackFrames } = await this.dapClient.getStackTrace(session, { levels: 1 });
+        // The entire snapshot must remain in the same execution generation.
+        const generation = this.dapClient.getExecutionGeneration(session);
+        const { stackFrames, stale } = await this.dapClient.getStackTrace(session, { levels: 1 });
+        this.assertExecutionGeneration(session, generation, 'Debug state snapshot');
+        if (stale) {
+          result.stale = true;
+        }
         const currentFrame = stackFrames.length > 0 ? stackFrames[0] : undefined;
 
         result.stoppedInfo = {
@@ -121,7 +130,7 @@ export class InspectionTools {
 
       // Use provided timeout, fallback to config, then default
       const defaultTimeout = this.configManager.getConfig().waitForBreakpointTimeout;
-      const timeout = args.timeout || defaultTimeout;
+      const timeout = Math.min(args.timeout ?? defaultTimeout, MAX_BREAKPOINT_TIMEOUT_MS);
 
       // CRITICAL: Avoid race condition by setting up listener BEFORE checking state
       // This ensures we don't miss events that occur between check and setup
@@ -203,26 +212,32 @@ export class InspectionTools {
         throw new DebugNotActiveError('get_variables');
       }
 
-      // Get stack trace first - only need top frame if frameId not specified
-      const { stackFrames } = await this.dapClient.getStackTrace(session, { levels: 1 });
-      if (stackFrames.length === 0 || !stackFrames[0]) {
-        return {
-          success: false,
-          error: 'No stack frames available',
-        };
+      let frameId = args.frameId;
+      if (frameId === undefined) {
+        const { stackFrames, stale } = await this.dapClient.getStackTrace(session, { levels: 1 });
+        if (stale) {
+          throw new Error('Cannot inspect variables using a stale stack frame');
+        }
+        if (!stackFrames[0]) {
+          return {
+            success: false,
+            error: 'No stack frames available',
+          };
+        }
+        frameId = stackFrames[0].id;
       }
 
-      const frameId = args.frameId !== undefined ? args.frameId : stackFrames[0].id;
-
-      // Get scopes for the frame
+      // All requests in this inspection must belong to the same stop. Otherwise
+      // scopes and variables from different generations could be mixed together.
+      const generation = this.dapClient.getExecutionGeneration(session);
       const scopes = await this.dapClient.getScopes(session, frameId);
+      this.assertExecutionGeneration(session, generation);
 
       const result: GetVariablesResult['data'] = {
         frameId,
         scopes: [],
       };
 
-      // Get variables for each scope
       for (const scope of scopes) {
         // Filter by scope if specified - use startsWith to match "Local: functionName" with "Local"
         if (args.scope && !scope.name.toLowerCase().startsWith(args.scope.toLowerCase())) {
@@ -230,6 +245,7 @@ export class InspectionTools {
         }
 
         const variables = await this.dapClient.getVariables(session, scope.variablesReference);
+        this.assertExecutionGeneration(session, generation);
         result.scopes.push({
           name: scope.name,
           variables: variables.map((v) => ({
@@ -240,6 +256,7 @@ export class InspectionTools {
         });
       }
 
+      this.assertExecutionGeneration(session, generation);
       return {
         success: true,
         data: result,
@@ -272,7 +289,7 @@ export class InspectionTools {
       const requestedLevels = maxDepth + 1; // Fetch one extra frame to detect truncation reliably
 
       // Fetch only the requested depth from the debug adapter
-      const { stackFrames, totalFrames } = await this.dapClient.getStackTrace(session, {
+      const { stackFrames, totalFrames, stale } = await this.dapClient.getStackTrace(session, {
         levels: requestedLevels,
       });
 
@@ -296,6 +313,7 @@ export class InspectionTools {
           })),
           totalFrames: reportedTotal,
           truncated,
+          ...(stale ? { stale: true } : {}),
         },
       };
     } catch (error: unknown) {
@@ -457,6 +475,16 @@ export class InspectionTools {
         success: false,
         error: formatErrorMessage(error),
       };
+    }
+  }
+
+  private assertExecutionGeneration(
+    session: vscode.DebugSession,
+    generation: number,
+    operation = 'Variable inspection'
+  ): void {
+    if (this.dapClient.getExecutionGeneration(session) !== generation) {
+      throw new Error(`${operation} is stale because execution state changed`);
     }
   }
 }

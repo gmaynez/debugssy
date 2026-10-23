@@ -365,6 +365,51 @@ describe('DebugControlTools', () => {
       expect(vscode.debug.startDebugging).toHaveBeenCalledWith(mockFolder2, expect.anything());
     });
 
+    it('should reject an unknown workspace folder instead of using the first folder', async () => {
+      mockConfig(configManager);
+      const mockFolder = {
+        uri: { fsPath: '/workspace', toString: () => '/workspace' },
+        name: 'workspace',
+        index: 0,
+      };
+      vscode.workspace.workspaceFolders = [mockFolder as any];
+
+      const result = await tools.startDebugging({
+        workspaceFolder: 'missing',
+        configuration: { type: 'node', request: 'launch', name: 'test' },
+      });
+
+      expect(result).toEqual({ success: false, error: 'Workspace folder not found: missing' });
+      expect(vscode.debug.startDebugging).not.toHaveBeenCalled();
+    });
+
+    it.each(['type', 'name', 'request'] as const)(
+      'should reject a non-string configuration %s',
+      async (field) => {
+        mockConfig(configManager);
+        const mockFolder = {
+          uri: { fsPath: '/workspace', toString: () => '/workspace' },
+          name: 'workspace',
+          index: 0,
+        };
+        vscode.workspace.workspaceFolders = [mockFolder as any];
+        const configuration: Record<string, unknown> = {
+          type: 'node',
+          request: 'launch',
+          name: 'test',
+          [field]: 42,
+        };
+
+        const result = await tools.startDebugging({ configuration });
+
+        expect(result).toEqual({
+          success: false,
+          error: `Invalid debug configuration: field(s) must be non-empty strings: ${field}`,
+        });
+        expect(vscode.debug.startDebugging).not.toHaveBeenCalled();
+      }
+    );
+
     it('should reject configuration missing required fields', async () => {
       vi.spyOn(configManager, 'getConfig').mockReturnValue({
         enabled: true,

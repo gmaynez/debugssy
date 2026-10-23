@@ -174,6 +174,7 @@ export type GetCallStackResult = ToolResult<{
   frames: StackFrameInfo[];
   totalFrames: number;
   truncated: boolean;
+  stale?: boolean;
 }>;
 
 export type EvaluateExpressionResult = ToolResult<{
@@ -196,6 +197,7 @@ export interface DebugStateData {
   executionState: 'not_started' | 'running' | 'paused' | 'terminated';
   sessionName?: string;
   sessionType?: string;
+  stale?: boolean;
   stoppedInfo?: {
     reason: string;
     description?: string;

@@ -7,7 +7,7 @@
  */
 
 import { z } from 'zod';
-import { MAX_CONSOLE_OUTPUT_LIMIT } from '../../constants';
+import { MAX_BREAKPOINT_TIMEOUT_MS, MAX_CONSOLE_OUTPUT_LIMIT } from '../../constants';
 import { TOOL_NAMES } from '../toolNames';
 
 export const SetBreakpointArgsSchema = z.object({
@@ -50,7 +50,7 @@ export const EvaluateExpressionArgsSchema = z.object({
 export type EvaluateExpressionArgs = z.infer<typeof EvaluateExpressionArgsSchema>;
 
 export const WaitForBreakpointArgsSchema = z.object({
-  timeout: z.number().int().positive().optional(),
+  timeout: z.number().int().positive().max(MAX_BREAKPOINT_TIMEOUT_MS).optional(),
 });
 export type WaitForBreakpointArgs = z.infer<typeof WaitForBreakpointArgsSchema>;
 

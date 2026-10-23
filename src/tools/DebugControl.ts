@@ -82,9 +82,13 @@ export class DebugControlTools implements vscode.Disposable {
         const found = workspaceFolders.find(
           (f) => f.name === args.workspaceFolder || f.uri.fsPath === args.workspaceFolder
         );
-        if (found) {
-          folder = found;
+        if (!found) {
+          return {
+            success: false,
+            error: `Workspace folder not found: ${args.workspaceFolder}`,
+          };
         }
+        folder = found;
       }
 
       // Use provided configuration or try to find one by name
@@ -104,19 +108,22 @@ export class DebugControlTools implements vscode.Disposable {
         };
       }
 
-      // Validate required configuration fields before calling VS Code
-      const configType = config.type as string | undefined;
-      const configName = config.name as string | undefined;
-      const configRequest = config.request as string | undefined;
-      if (!configType || !configName || !configRequest) {
-        const missing = [
-          !configType && 'type',
-          !configName && 'name',
-          !configRequest && 'request',
-        ].filter(Boolean);
+      // Validate runtime types before crossing the VS Code API boundary.
+      const requiredFields = ['type', 'name', 'request'] as const;
+      const missing = requiredFields.filter((field) => config[field] === undefined);
+      if (missing.length > 0) {
         return {
           success: false,
           error: `Invalid debug configuration: missing required field(s): ${missing.join(', ')}`,
+        };
+      }
+      const invalid = requiredFields.filter(
+        (field) => typeof config[field] !== 'string' || !(config[field] as string).trim()
+      );
+      if (invalid.length > 0) {
+        return {
+          success: false,
+          error: `Invalid debug configuration: field(s) must be non-empty strings: ${invalid.join(', ')}`,
         };
       }
 

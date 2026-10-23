@@ -77,6 +77,12 @@ export const MAX_CONSOLE_OUTPUT_LIMIT = 1000;
  */
 export const MAX_CONSOLE_BUFFER_SIZE = 1000;
 
+/**
+ * Maximum retained characters per console entry, including truncation marker.
+ * Limits memory retention when a debuggee emits very large single events.
+ */
+export const MAX_CONSOLE_ENTRY_LENGTH = 10_000;
+
 // =============================================================================
 // Expression Validation Constants
 // =============================================================================
