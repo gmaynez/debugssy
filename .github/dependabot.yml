@@ -29,9 +29,9 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
       # @types/vscode must match engines.vscode (minimum supported VS Code version)
-      # Currently pinned to ^1.101.0 - do not update
+      # Currently pinned to 1.125.0 - do not update
       - dependency-name: "@types/vscode"
       # @types/node must match Node.js bundled in minimum VS Code version
-      # VS Code 1.101 bundles Node 22 via Electron 35 - stay on v22.x
+      # VS Code 1.128 bundles Node 24 via Electron 42 - stay on v24.x
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]

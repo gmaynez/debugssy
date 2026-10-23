@@ -195,7 +195,7 @@ npm version major   # 1.0.0 → 2.0.0 (breaking changes)
 → Bump version with `npm version patch/minor/major`
 
 **"GitHub release failed with status: 403"**  
-→ Ensure the workflow includes `permissions: contents: write` and uses `softprops/action-gh-release@v2`.
+→ Ensure the workflow includes `permissions: contents: write` and uses `softprops/action-gh-release@v3`.
 
 For more troubleshooting, see [PUBLISHING.md](../../PUBLISHING.md)
 

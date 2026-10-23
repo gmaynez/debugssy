@@ -43,6 +43,14 @@ All notable changes to the "Debugssy" extension will be documented in this file.
 - **`.vscodeignore` now excludes `.stryker-tmp/**`.** The Stryker sandbox
   contains a `node_modules` symlink that made `vsce package` abort with
   `Error: not a file: ...\.stryker-tmp\sandbox-*\node_modules`.
+- **GitHub Actions updated to their latest majors.** `actions/checkout` v6 → v7,
+  `actions/setup-node` v6 → v7, `actions/upload-artifact` v6 → v7,
+  `actions/github-script` v8 → v9, and `softprops/action-gh-release` v2 → v3.
+  All five move to the Node 24 Actions runtime / ESM packaging; none of the
+  breaking changes affect this repository (no `pull_request_target` or
+  `workflow_run` triggers, no `require('@actions/github')` in the
+  `github-script` body, and no reliance on the removed dummy `NODE_AUTH_TOKEN`
+  export).
 
 ## [1.6.1] - 2026-05-31
 
