@@ -718,8 +718,6 @@ export const GO_SAFE_FUNCTIONS = new Set<string>([
   // String functions
   'len',
   'cap',
-  'append',
-  'copy',
   'make',
   'new',
   'strings.Contains',
@@ -781,9 +779,8 @@ export const GO_SAFE_FUNCTIONS = new Set<string>([
   'strconv.FormatInt',
   'strconv.FormatFloat',
   'strconv.FormatBool',
-  // JSON (read-only)
+  // JSON serialization (Unmarshal is excluded because it mutates its target)
   'json.Marshal',
-  'json.Unmarshal',
   // Type checking
   'reflect.TypeOf',
   // Note: reflect.ValueOf is deliberately excluded - it enables reflection

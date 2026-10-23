@@ -10,7 +10,7 @@ import { JS_SAFE_METHODS, JS_SAFE_STATIC_FUNCTIONS } from '../safeLists';
 export function detectJavaScriptCritical(expression: string): ValidationResult | null {
   // File system operations (dot and bracket notation)
   if (
-    /\bfs\s*(?:\.\s*|\[['"])(unlink|rmdir|rm|write|mkdir|rename|delete|chmod|chown|truncate|appendFile|writeFile)(?:['"]\]|\s*\()/i.test(
+    /\bfs\s*(?:\.\s*|\[\s*['"])(unlink|rmdir|rm|write|mkdir|rename|delete|chmod|chown|truncate|appendFile|writeFile)(?:Sync)?(?:['"]\s*\]|\)+)?\s*(?:\?\.)?\s*\(/i.test(
       expression
     )
   ) {
@@ -31,7 +31,11 @@ export function detectJavaScriptCritical(expression: string): ValidationResult |
   }
 
   // Process control (dot and bracket notation)
-  if (/\bprocess\s*(?:\.\s*|\[['"])(exit|kill|abort)(?:['"]\]|\s*\()/i.test(expression)) {
+  if (
+    /\bprocess\s*(?:\.\s*|\[\s*['"])(exit|kill|abort)(?:['"]\s*\]|\)+)?\s*(?:\?\.)?\s*\(/i.test(
+      expression
+    )
+  ) {
     return {
       allowed: false,
       reason: 'Process Control: can terminate application',
@@ -42,7 +46,9 @@ export function detectJavaScriptCritical(expression: string): ValidationResult |
   // Network operations (fetch, axios, http)
   if (
     /\b(fetch|axios|XMLHttpRequest)\s*[.([]/i.test(expression) ||
-    /\bhttps?\s*(?:\.\s*|\[['"])(get|post|put|delete|request)(?:['"]\])/i.test(expression)
+    /\bhttps?\s*(?:\.\s*|\[\s*['"])(get|post|put|delete|request)(?:['"]\s*\]|\)+)?\s*(?:\?\.)?\s*\(/i.test(
+      expression
+    )
   ) {
     return {
       allowed: false,

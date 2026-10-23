@@ -440,6 +440,27 @@ describe('ExpressionValidator', () => {
     });
   });
 
+  describe('Persistent Breakpoint Validation', () => {
+    it.each([
+      { expression: 'eval("code")', riskLevel: 'high' },
+      { expression: 'arr.push(1)', riskLevel: 'high' },
+      { expression: 'copy(dst, src)', riskLevel: 'critical' },
+      { expression: 'json.Unmarshal(data, &target)', riskLevel: 'high' },
+    ])(
+      'should retain language danger checks without a session: $expression',
+      ({ expression, riskLevel }) => {
+        const result = validator.validateBreakpointExpression(expression);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe(riskLevel);
+      }
+    );
+
+    it('should still allow recognized read-only expressions', () => {
+      expect(validator.validateBreakpointExpression('Math.max(a, b)').allowed).toBe(true);
+      expect(validator.validateBreakpointExpression('user.id === 7').allowed).toBe(true);
+    });
+  });
+
   describe('Critical Operations Detection', () => {
     describe('JavaScript Critical Operations', () => {
       it('should reject file system operations', () => {
@@ -528,6 +549,33 @@ describe('ExpressionValidator', () => {
         const processResult = validator.validateExpression("process['exit'](0)");
         expect(processResult.riskLevel).toBe('critical');
         expect(processResult.reason).toContain('Process');
+      });
+
+      it.each([
+        '(process.exit)(0)',
+        'process[ "exit" ](0)',
+        'process.exit?.(0)',
+        '(process.kill)(pid)',
+      ])('should reject equivalent process-control invocation syntax: %s', (expression) => {
+        const session = createMockDebugSession('node-invocation', 'node');
+        const result = validator.validateExpression(expression, session);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('critical');
+        expect(result.reason).toContain('Process Control');
+      });
+
+      it.each([
+        'fs.writeFileSync("file", data)',
+        'fs.appendFileSync("file", data)',
+        'fs.rmSync("path")',
+        'http.get("url")',
+        'https.request("url")',
+        'http[ "get" ]("url")',
+      ])('should reject synchronous and ordinary Node system calls: %s', (expression) => {
+        const session = createMockDebugSession('node-system-call', 'node');
+        const result = validator.validateExpression(expression, session);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('critical');
       });
     });
 
@@ -1347,6 +1395,16 @@ describe('ExpressionValidator', () => {
       expect(validator.validateExpression('reflect.ValueOf(x)', goSession).riskLevel).toBe('high');
       expect(validator.validateExpression('reflect.TypeOf(x)', goSession).allowed).toBe(true);
     });
+
+    it.each(['copy(dst, src)', 'append(items, value)', 'json.Unmarshal(data, &target)'])(
+      'should require approval for mutating Go helpers: %s',
+      (expression) => {
+        const result = validator.validateExpression(expression, goSession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('high');
+        expect(result.reason).toContain('State Mutation');
+      }
+    );
   });
 
   describe('Rust Specific Validation', () => {
@@ -1401,6 +1459,15 @@ describe('ExpressionValidator', () => {
       );
     });
 
+    it.each(['`ls`', 'system "ls"', 'exec "ls"', '%x{ls}'])(
+      'should detect Ruby command execution without ordinary call syntax: %s',
+      (expression) => {
+        const result = validator.validateExpression(expression, rubySession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('critical');
+      }
+    );
+
     it('should detect Ruby high-risk dynamic execution and mutations', () => {
       expect(validator.validateExpression('eval("code")', rubySession).riskLevel).toBe('high');
       expect(validator.validateExpression('send(:dangerous)', rubySession).riskLevel).toBe('high');
@@ -1450,6 +1517,12 @@ describe('ExpressionValidator', () => {
       expect(validator.validateExpression('array_push($items, 1)', phpSession).riskLevel).toBe(
         'high'
       );
+    });
+
+    it('should detect PHP backtick command execution', () => {
+      const result = validator.validateExpression('`ls`', phpSession);
+      expect(result.allowed).toBe(false);
+      expect(result.riskLevel).toBe('critical');
     });
 
     it('should not whitelist unserialize (PHP object injection risk)', () => {
@@ -1888,6 +1961,15 @@ describe('ExpressionValidator', () => {
       expect(validator.validateExpression('obj?.prop').allowed).toBe(true);
       expect(validator.validateExpression('obj?.method()').allowed).toBe(false); // unknown method
     });
+
+    it.each(['(customFunction)()', 'customFunction?.()', 'object[ "customMethod" ]()'])(
+      'should not treat unrecognized invocation syntax as safe: %s',
+      (expression) => {
+        const result = validator.validateExpression(expression, jsSession);
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('medium');
+      }
+    );
 
     it('should handle expressions with spread operator', () => {
       // Spread doesn't contain function calls, should be allowed

@@ -451,8 +451,11 @@ export class ToolRouter {
       };
     }
 
-    // Validate the expression
-    const validationResult = this.expressionValidator.validateExpression(expression, session);
+    // Persistent breakpoints retain conservative language-independent danger
+    // checks even though they do not belong to one evaluation session.
+    const validationResult = breakpointField
+      ? this.expressionValidator.validateBreakpointExpression(expression)
+      : this.expressionValidator.validateExpression(expression, session);
 
     // If validation passes, execute immediately
     if (validationResult.allowed) {

@@ -79,6 +79,15 @@ export function validateGo(
     };
   }
 
+  // These helpers can modify existing debuggee state and need explicit approval.
+  if (/\b(?:copy|append|json\s*\.\s*Unmarshal)\s*\(/.test(expression)) {
+    return {
+      allowed: false,
+      reason: 'State Mutation: Go helper modifies existing data',
+      riskLevel: 'high',
+    };
+  }
+
   // Check function calls against whitelist (Go uses goSafeFunctions for both static and methods)
   if (/[\w_\]]\s*\(/.test(expression)) {
     const calls = extractFunctionCalls(expression);

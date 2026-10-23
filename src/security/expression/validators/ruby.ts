@@ -10,7 +10,9 @@ import { RUBY_SAFE_METHODS, RUBY_SAFE_STATIC_FUNCTIONS } from '../safeLists';
 export function detectRubyCritical(expression: string): ValidationResult | null {
   // Process execution (system, exec, spawn, backticks, %x)
   if (
-    /\b(system|exec|spawn|fork|`|%x\{|%x\[|%x\(|Kernel\s*\.\s*(system|exec|spawn))\s*[(`[{(]/i.test(
+    /`[^`]*`/.test(expression) ||
+    /%x\s*[{[(/!|]/.test(expression) ||
+    /\b(?:system|exec|spawn|fork|Kernel\s*\.\s*(?:system|exec|spawn))(?:\s*\(|\s+['"`])/i.test(
       expression
     )
   ) {

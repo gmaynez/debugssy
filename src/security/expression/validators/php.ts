@@ -9,7 +9,10 @@ import { PHP_SAFE_FUNCTIONS } from '../safeLists';
  */
 export function detectPHPCritical(expression: string): ValidationResult | null {
   // Process execution (many variants in PHP)
-  if (/\b(exec|system|shell_exec|passthru|proc_open|popen|pcntl_exec|`)\s*[(`]/i.test(expression)) {
+  if (
+    /`[^`]*`/.test(expression) ||
+    /\b(exec|system|shell_exec|passthru|proc_open|popen|pcntl_exec)\s*\(/i.test(expression)
+  ) {
     return {
       allowed: false,
       reason: 'Process Execution: can run system commands (PHP)',

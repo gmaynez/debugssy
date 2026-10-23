@@ -23,6 +23,18 @@ import { detectPHPCritical, validatePHP } from './expression/validators/php';
 
 export type { RiskLevel, ValidationLevel, ValidationResult };
 
+const VALIDATED_LANGUAGES = [
+  'javascript',
+  'python',
+  'csharp',
+  'java',
+  'cpp',
+  'go',
+  'rust',
+  'ruby',
+  'php',
+] as const;
+
 /**
  * Validates expressions for potential side effects before evaluation.
  * Uses pattern-based validation with whitelists of known-safe functions.
@@ -130,6 +142,23 @@ export class ExpressionValidator {
    * 4. LOW - Getter patterns (likely safe)
    */
   validateExpression(expression: string, session?: vscode.DebugSession): ValidationResult {
+    return this.validate(expression, session, false);
+  }
+
+  /**
+   * Validates an expression that will persist in a breakpoint across sessions.
+   * Language-specific danger checks are applied conservatively without using a
+   * session allowlist or assuming one adapter's safe-function exemptions.
+   */
+  validateBreakpointExpression(expression: string): ValidationResult {
+    return this.validate(expression, undefined, true);
+  }
+
+  private validate(
+    expression: string,
+    session: vscode.DebugSession | undefined,
+    persistent: boolean
+  ): ValidationResult {
     // Trim whitespace and normalize Unicode (NFKC) to defeat confusable character attacks
     // e.g. fullwidth ｅｖａｌ → eval, look-alike Cyrillic letters, etc.
     const trimmed = expression.trim().normalize('NFKC');
@@ -196,6 +225,11 @@ export class ExpressionValidator {
     // 2. Try language-specific validation (HIGH risk: mutations, eval)
     if (language) {
       const languageResult = this.validateByLanguage(trimmed, language);
+      if (languageResult) {
+        return languageResult;
+      }
+    } else if (persistent) {
+      const languageResult = this.validateAcrossLanguages(trimmed);
       if (languageResult) {
         return languageResult;
       }
@@ -743,6 +777,35 @@ export class ExpressionValidator {
   }
 
   /**
+   * Applies every language's danger checks for persistent expressions. A high-
+   * risk match in any language wins; otherwise one recognized safe form is
+   * enough to preserve useful cross-language breakpoint expressions.
+   */
+  private validateAcrossLanguages(expression: string): ValidationResult | null {
+    let fallback: ValidationResult | null = null;
+    let recognizedSafe = false;
+
+    for (const language of VALIDATED_LANGUAGES) {
+      const result = this.validateByLanguage(expression, language);
+      if (!result) {
+        continue;
+      }
+      if (result.allowed) {
+        recognizedSafe = true;
+        continue;
+      }
+      if (result.riskLevel === 'critical' || result.riskLevel === 'high') {
+        return result;
+      }
+      if (fallback?.riskLevel !== 'medium') {
+        fallback = result;
+      }
+    }
+
+    return recognizedSafe ? { allowed: true } : fallback;
+  }
+
+  /**
    * Apply language-specific validation rules if available.
    * Returns null if no specific rules apply, falling back to generic validation.
    */
@@ -844,6 +907,14 @@ export class ExpressionValidator {
     staticWhitelist: Set<string>,
     methodWhitelist: Set<string>
   ): ValidationResult | null {
+    if (calls.length === 0) {
+      return {
+        allowed: false,
+        reason: 'Unrecognized Function Call',
+        riskLevel: 'medium',
+      };
+    }
+
     let highestRisk: ValidationResult | null = null;
     for (const call of calls) {
       // Check for suspicious bracket notation marker
@@ -896,7 +967,7 @@ export class ExpressionValidator {
 
     // Match: identifier( or object.method( or module.function(
     // This regex captures the function/method name before the opening parenthesis
-    const dotNotationRegex = /([\w.]+)\s*\(/g;
+    const dotNotationRegex = /([\w.]+)\s*(?:\?\.)?\s*\(/g;
     let match;
 
     while ((match = dotNotationRegex.exec(expression)) !== null) {
@@ -905,9 +976,17 @@ export class ExpressionValidator {
       }
     }
 
-    // Match bracket notation: obj['method']( or obj["method"](
+    // Match parenthesized callees: (object.method)()
+    const parenthesizedCallRegex = /\(\s*([\w.]+)\s*\)\s*(?:\?\.)?\s*\(/g;
+    while ((match = parenthesizedCallRegex.exec(expression)) !== null) {
+      if (match[1]) {
+        calls.push(match[1]);
+      }
+    }
+
+    // Match bracket notation: obj['method']( or obj[ "method" ]?.()
     // Captures simple string literals in brackets
-    const bracketNotationRegex = /\[(['"])(\w+)\1\]\s*\(/g;
+    const bracketNotationRegex = /\[\s*(['"])(\w+)\1\s*\]\s*(?:\?\.)?\s*\(/g;
     while ((match = bracketNotationRegex.exec(expression)) !== null) {
       if (match[2]) {
         // Add just the method name (not the full path)
@@ -1006,7 +1085,7 @@ export class ExpressionValidator {
    * by detectMutationOperators before this fallback runs.
    */
   private validateGeneric(expression: string): ValidationResult {
-    const hasFunctionCalls = /[\w_\]]\s*\(/.test(expression);
+    const hasFunctionCalls = /[\w_\])]\s*\(|\?\.\s*\(/.test(expression);
     if (hasFunctionCalls) {
       // Even for unknown languages, check against JavaScript whitelists
       // since many languages (TypeScript, C#, Java, Go, etc.) have similar built-in functions

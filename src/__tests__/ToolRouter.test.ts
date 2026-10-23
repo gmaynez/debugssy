@@ -373,6 +373,17 @@ describe('ToolRouter', () => {
       expect(mockToolRegistry.breakpoints.setBreakpoint).toHaveBeenCalledWith(args);
     });
 
+    it('should require approval for persistent code execution in permissive mode', async () => {
+      mockConfig(mockConfigManager, { expressionValidationLevel: 'permissive' });
+      const result = await toolRouter.routeToolCall(TOOL_NAMES.setBreakpoint, {
+        ...location,
+        condition: 'eval("doSomething()")',
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Code Execution');
+      expect(mockToolRegistry.breakpoints.setBreakpoint).not.toHaveBeenCalled();
+    });
+
     it('should respect explicitly disabled validation', async () => {
       mockConfig(mockConfigManager, { expressionValidationLevel: 'disabled' });
       const args = { ...location, condition: '(x=7)', logMessage: '{mutate()}' };
