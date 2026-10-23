@@ -59,6 +59,9 @@ coverage/**
 vitest.config.ts
 vitest.config.mts
 
+# Stryker sandbox (contains a node_modules symlink that breaks vsce packaging)
+.stryker-tmp/**
+
 # Build scripts
 *.sh
 *.bat

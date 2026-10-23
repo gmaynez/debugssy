@@ -30,6 +30,19 @@ All notable changes to the "Debugssy" extension will be documented in this file.
 - Updated direct dependencies: MCP SDK 1.30.1, Zod 4.6.5, ESLint 10.11.0,
   typescript-eslint 8.70.1, esbuild 0.28.2, Prettier 3.9.9, ovsx 1.2.0, Vitest
   4.1.11. Resolved all `npm audit` advisories via `npm audit fix`.
+- **Dependency refresh to latest, with VS Code/Node types held back.**
+  `@types/vscode` stays pinned at `1.125.0` and `@types/node` stays on the Node
+  24 line, because both are tied to the `engines.vscode` floor of `^1.128.0` (VS
+  Code 1.128 bundles Node 24). Everything else was moved to latest: MCP SDK
+  1.32.1, Zod 4.6.7, Express 5.3.0, ESLint 10.13.0, typescript-eslint 8.72.0,
+  Prettier 3.9.10, ovsx 1.3.0, Stryker 10.0.0, `@vscode/vsce` 4.0.0, and Vitest
+  5.0.5. TypeScript stays on 6.0.3: `typescript-eslint` 8.x hard-fails on
+  TypeScript 7.0 (`typescript-eslint does not support TS 7.0`), and TS 7 also
+  removes `moduleResolution: node10`. All `npm audit` advisories resolved
+  (`hono`, `ip-address`, `shell-quote`).
+- **`.vscodeignore` now excludes `.stryker-tmp/**`.** The Stryker sandbox
+  contains a `node_modules` symlink that made `vsce package` abort with
+  `Error: not a file: ...\.stryker-tmp\sandbox-*\node_modules`.
 
 ## [1.6.1] - 2026-05-31
 
