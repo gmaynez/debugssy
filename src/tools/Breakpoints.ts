@@ -3,7 +3,7 @@
 
 import * as vscode from 'vscode';
 import { DAPClient } from '../dap/Client';
-import { BreakpointNotFoundError, formatErrorMessage } from '../errors';
+import { BreakpointNotFoundError, createErrorResult } from '../errors';
 import type {
   BreakpointData,
   BreakpointInfo,
@@ -63,10 +63,7 @@ export class BreakpointTools {
         },
       };
     } catch (error: unknown) {
-      return {
-        success: false,
-        error: formatErrorMessage(error),
-      };
+      return createErrorResult(error);
     }
   }
 
@@ -95,10 +92,7 @@ export class BreakpointTools {
         message: `Removed ${toRemove.length} breakpoint(s) at ${args.filePath}:${args.line}`,
       };
     } catch (error: unknown) {
-      return {
-        success: false,
-        error: formatErrorMessage(error),
-      };
+      return createErrorResult(error);
     }
   }
 
@@ -129,11 +123,10 @@ export class BreakpointTools {
       };
     } catch (error: unknown) {
       return {
-        success: false,
+        ...createErrorResult(error),
         data: {
           breakpoints: [],
         },
-        error: formatErrorMessage(error),
       };
     }
   }
@@ -313,10 +306,7 @@ export class BreakpointTools {
         data: result,
       };
     } catch (error: unknown) {
-      return {
-        success: false,
-        error: formatErrorMessage(error),
-      };
+      return createErrorResult(error);
     }
   }
 
@@ -356,10 +346,7 @@ export class BreakpointTools {
         throw new BreakpointNotFoundError(args.filePath, args.line);
       }
     } catch (error: unknown) {
-      return {
-        success: false,
-        error: formatErrorMessage(error),
-      };
+      return createErrorResult(error);
     }
   }
 
@@ -373,10 +360,7 @@ export class BreakpointTools {
         message: `Removed all ${breakpoints.length} breakpoints`,
       };
     } catch (error: unknown) {
-      return {
-        success: false,
-        error: formatErrorMessage(error),
-      };
+      return createErrorResult(error);
     }
   }
 

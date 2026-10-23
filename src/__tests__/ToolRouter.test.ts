@@ -1264,6 +1264,31 @@ describe('ToolRouter', () => {
         automationLevel: 'full',
       });
     });
+
+    it('should reject unbounded per-call timeouts', async () => {
+      mockConfig(mockConfigManager, { automationLevel: 'full' });
+      await expect(
+        toolRouter.routeToolCall(TOOL_NAMES.waitForBreakpoint, { timeout: 300001 })
+      ).rejects.toThrow('Invalid arguments');
+    });
+
+    it('should forward MCP cancellation to waitForBreakpoint', async () => {
+      mockConfig(mockConfigManager, { automationLevel: 'full' });
+      const controller = new AbortController();
+
+      await toolRouter.routeToolCall(
+        TOOL_NAMES.waitForBreakpoint,
+        {},
+        undefined,
+        controller.signal
+      );
+
+      expect(mockToolRegistry.inspection.waitForBreakpoint).toHaveBeenCalledWith({
+        timeout: undefined,
+        automationLevel: 'full',
+        signal: controller.signal,
+      });
+    });
   });
 
   describe('dispose', () => {

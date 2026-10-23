@@ -322,6 +322,25 @@ describe('InspectionTools', () => {
       expect(result.error).toContain('100ms');
     });
 
+    it('should cancel waiting and clean up listeners when the request aborts', async () => {
+      vscode.debug.activeDebugSession = mockSession;
+      vi.spyOn(dapClient, 'getExecutionState').mockReturnValue('running');
+      const dispose = vi.fn();
+      vi.spyOn(dapClient, 'onStateChange').mockImplementation(() => ({ dispose }));
+      const controller = new AbortController();
+
+      const resultPromise = tools.waitForBreakpoint({
+        automationLevel: 'full',
+        timeout: 5000,
+        signal: controller.signal,
+      });
+      controller.abort();
+      const result = await resultPromise;
+
+      expect(result).toEqual({ success: false, error: 'Wait for breakpoint cancelled' });
+      expect(dispose).toHaveBeenCalledOnce();
+    });
+
     it('should cap requested timeouts at the configured maximum', async () => {
       vi.useFakeTimers();
       try {

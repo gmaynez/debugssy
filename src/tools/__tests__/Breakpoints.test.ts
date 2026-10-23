@@ -143,6 +143,8 @@ describe('BreakpointTools', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('No breakpoint found');
+      expect(result.code).toBe('BREAKPOINT_NOT_FOUND');
+      expect(result.details).toEqual({ filePath: '/test/file.js', line: 10 });
     });
 
     it('should only remove breakpoint at exact location', async () => {

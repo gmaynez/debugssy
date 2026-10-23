@@ -162,7 +162,10 @@ describe('MCPServer - Integration', () => {
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: 'Transport error',
+          error: {
+            code: -32603,
+            message: 'Transport error',
+          },
         })
       );
     });
@@ -237,6 +240,34 @@ describe('MCPServer - Integration', () => {
       expect(result.isError).toBeUndefined();
       expect(parseToolContent(result)).toEqual(TOOL_RESPONSE_EXAMPLES.getDebugStatePaused);
       expect(toolRegistry.inspection.getDebugState).toHaveBeenCalledTimes(1);
+    });
+
+    it('should mark returned tool failures as errors and preserve their codes', async () => {
+      const toolRegistry = createMockToolRegistry();
+      toolRegistry.breakpoints.removeBreakpoint = vi.fn().mockResolvedValue({
+        success: false,
+        error: 'No breakpoint found',
+        code: 'BREAKPOINT_NOT_FOUND',
+      });
+      server = new MCPServer(3000, toolRegistry, new ConfigManager());
+
+      const handler = getMcpHandler(server, 'tools/call');
+      const result = await handler?.({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: {
+          name: TOOL_NAMES.removeBreakpoint,
+          arguments: { filePath: '/test.js', line: 1 },
+        },
+      });
+
+      expect(result.isError).toBe(true);
+      expect(parseToolContent(result)).toEqual({
+        success: false,
+        error: 'No breakpoint found',
+        code: 'BREAKPOINT_NOT_FOUND',
+      });
     });
 
     it('should serialize automation-level errors through tools/call without executing the tool', async () => {
@@ -449,10 +480,13 @@ describe('MCPServer - Integration', () => {
 
       expect(res.status).toHaveBeenCalledWith(503);
       expect(res.json).toHaveBeenCalledWith({
-        error: 'Service unavailable',
+        error: {
+          code: -32000,
+          message: 'Service unavailable',
+          data: { retryAfter: 1 },
+        },
         jsonrpc: '2.0',
         id: null,
-        retryAfter: 1,
       });
     });
 

@@ -49,7 +49,8 @@ import { TOOL_NAMES } from './toolNames';
  */
 type ToolHandler<Result extends ToolResult = ToolResult> = (
   args: unknown,
-  server?: Server
+  server?: Server,
+  signal?: AbortSignal
 ) => Promise<Result>;
 
 interface ExpressionApproval extends EvaluationResult {
@@ -112,7 +113,12 @@ export class ToolRouter {
    * For evaluate_expression, applies security validation and uses elicitation
    * to request user approval if the expression may have side effects.
    */
-  async routeToolCall(toolName: string, args: unknown, server?: Server): Promise<ToolResult> {
+  async routeToolCall(
+    toolName: string,
+    args: unknown,
+    server?: Server,
+    signal?: AbortSignal
+  ): Promise<ToolResult> {
     const handler = this.toolHandlers.get(toolName);
 
     if (!handler) {
@@ -143,7 +149,7 @@ export class ToolRouter {
     }
 
     // Protected handlers validate expressions even without an elicitation server.
-    return await handler(validatedArgs, server);
+    return await handler(validatedArgs, server, signal);
   }
 
   private ensureToolEnabled(toolName: string): void {
@@ -169,9 +175,10 @@ export class ToolRouter {
    * before reaching the handler.
    */
   private handler<Args, Result extends ToolResult>(
-    fn: (args: Args, server?: Server) => Promise<Result>
+    fn: (args: Args, server?: Server, signal?: AbortSignal) => Promise<Result>
   ): ToolHandler<Result> {
-    return (args: unknown, server?: Server) => fn(args as Args, server);
+    return (args: unknown, server?: Server, signal?: AbortSignal) =>
+      fn(args as Args, server, signal);
   }
 
   /**
@@ -289,11 +296,12 @@ export class ToolRouter {
       ],
       [
         TOOL_NAMES.waitForBreakpoint,
-        this.handler((args: WaitForBreakpointArgs) => {
+        this.handler((args: WaitForBreakpointArgs, _server?: Server, signal?: AbortSignal) => {
           const automationLevel = this.configManager.getConfig().automationLevel;
           return this.toolRegistry.inspection.waitForBreakpoint({
             timeout: args?.timeout,
             automationLevel,
+            ...(signal ? { signal } : {}),
           });
         }),
       ],

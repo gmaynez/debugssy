@@ -12,6 +12,8 @@ export interface ToolResult<T = unknown> {
   data?: T;
   message?: string;
   error?: string;
+  code?: string;
+  details?: Record<string, unknown>;
 }
 
 /**

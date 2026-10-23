@@ -101,7 +101,6 @@ export class McpRequestValidator {
    */
   validateProtocolVersion(req: Request, res: Response): boolean {
     const protocolVersion = req.headers['mcp-protocol-version'] as string;
-    const effectiveVersion = protocolVersion || FALLBACK_MCP_PROTOCOL_VERSION;
 
     if (protocolVersion && !SUPPORTED_MCP_PROTOCOL_VERSIONS.includes(protocolVersion as any)) {
       this.logger.warn(`Rejected request with unsupported protocol version: ${protocolVersion}`);
@@ -117,8 +116,11 @@ export class McpRequestValidator {
       );
     }
 
-    // Echo back the version we will operate with to aid clients
-    res.setHeader('MCP-Protocol-Version', effectiveVersion);
+    // Echo only an explicitly supplied version. Initialization may negotiate a
+    // newer body version when this header is absent.
+    if (protocolVersion) {
+      res.setHeader('MCP-Protocol-Version', protocolVersion);
+    }
 
     return true;
   }

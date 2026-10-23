@@ -52,7 +52,10 @@ describe('MCPServer', () => {
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        error: expect.stringContaining('transport initializing'),
+        error: expect.objectContaining({
+          code: -32000,
+          message: expect.stringContaining('transport initializing'),
+        }),
       })
     );
   });

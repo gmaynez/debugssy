@@ -3,13 +3,10 @@
 
 import * as vscode from 'vscode';
 import { ConfigManager } from '../Config';
-import { DebugNotActiveError, formatErrorMessage } from '../errors';
+import { DebugNotActiveError, createErrorResult } from '../errors';
+import type { DebugControlResult } from '../routing/types/toolResults';
 
-export interface DebugControlResult {
-  success: boolean;
-  message?: string;
-  error?: string;
-}
+export type { DebugControlResult } from '../routing/types/toolResults';
 
 export class DebugControlTools implements vscode.Disposable {
   private activeSession: vscode.DebugSession | undefined;
@@ -136,10 +133,7 @@ export class DebugControlTools implements vscode.Disposable {
         message: success ? 'Debug session started' : 'Failed to start debug session',
       };
     } catch (error: unknown) {
-      return {
-        success: false,
-        error: formatErrorMessage(error),
-      };
+      return createErrorResult(error);
     }
   }
 
@@ -156,10 +150,7 @@ export class DebugControlTools implements vscode.Disposable {
         message: 'Debug session stopped',
       };
     } catch (error: unknown) {
-      return {
-        success: false,
-        error: formatErrorMessage(error),
-      };
+      return createErrorResult(error);
     }
   }
 
@@ -245,10 +236,7 @@ export class DebugControlTools implements vscode.Disposable {
         message: successMessage,
       };
     } catch (error: unknown) {
-      return {
-        success: false,
-        error: formatErrorMessage(error),
-      };
+      return createErrorResult(error);
     }
   }
 

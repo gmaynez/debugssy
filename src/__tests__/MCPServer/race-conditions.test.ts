@@ -105,7 +105,10 @@ describe('MCPServer - Race Conditions', () => {
       expect(res.status).toHaveBeenCalledWith(503);
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          error: expect.stringContaining('Server busy'),
+          error: expect.objectContaining({
+            code: -32000,
+            message: expect.stringContaining('Server busy'),
+          }),
         })
       );
       const metrics = server.getMetrics();

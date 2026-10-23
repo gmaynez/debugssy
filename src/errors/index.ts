@@ -403,3 +403,19 @@ export function getErrorCode(error: unknown): ErrorCode {
   }
   return ErrorCode.UNKNOWN_ERROR;
 }
+
+/** Converts a caught error into the shared tool-result error shape. */
+export function createErrorResult(error: unknown): {
+  success: false;
+  error: string;
+  code?: ErrorCode;
+  details?: Record<string, unknown>;
+} {
+  return {
+    success: false,
+    error: formatErrorMessage(error),
+    ...(isDebugssyError(error)
+      ? { code: getErrorCode(error), ...(error.details ? { details: error.details } : {}) }
+      : {}),
+  };
+}

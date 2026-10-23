@@ -455,11 +455,15 @@ export class MCPServer {
     if (res.headersSent) {
       return;
     }
+    const code = status === 500 ? -32603 : status >= 500 ? -32000 : -32600;
     res.status(status).json({
-      error,
+      error: {
+        code,
+        message: error,
+        ...(Object.keys(extra).length > 0 ? { data: extra } : {}),
+      },
       jsonrpc: '2.0',
       id: null,
-      ...extra,
     });
   }
 
@@ -693,12 +697,17 @@ export class MCPServer {
     });
 
     // Handle tool calls - delegated to ToolRouter with elicitation support
-    this.mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
+    this.mcpServer.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
       const { name, arguments: args } = request.params;
 
       try {
         // Pass the server instance to enable elicitation via server.elicitInput()
-        const result = await this.toolRouter.routeToolCall(name, args, this.mcpServer);
+        const result = await this.toolRouter.routeToolCall(
+          name,
+          args,
+          this.mcpServer,
+          extra?.signal
+        );
 
         return {
           content: [
@@ -707,6 +716,7 @@ export class MCPServer {
               text: this.stringifyMcpPayload(result),
             },
           ],
+          ...(result.success ? {} : { isError: true }),
         };
       } catch (error: unknown) {
         // Handle custom Debugssy errors with additional context

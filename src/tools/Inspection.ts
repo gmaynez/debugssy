@@ -4,7 +4,7 @@
 import * as vscode from 'vscode';
 import { DAPClient } from '../dap/Client';
 import { ConfigManager } from '../Config';
-import { DebugNotActiveError, formatErrorMessage } from '../errors';
+import { DebugNotActiveError, createErrorResult } from '../errors';
 import {
   DEFAULT_CONSOLE_OUTPUT_LIMIT,
   DEFAULT_MAX_STACK_DEPTH,
@@ -95,10 +95,7 @@ export class InspectionTools {
         data: result,
       };
     } catch (error: unknown) {
-      return {
-        success: false,
-        error: formatErrorMessage(error),
-      };
+      return createErrorResult(error);
     }
   }
 
@@ -114,6 +111,7 @@ export class InspectionTools {
   async waitForBreakpoint(args: {
     timeout?: number;
     automationLevel: 'assisted' | 'full';
+    signal?: AbortSignal;
   }): Promise<InspectionResult> {
     try {
       // Check automation level
@@ -122,6 +120,10 @@ export class InspectionTools {
           success: false,
           error: 'wait_for_breakpoint is only available in full automation mode',
         };
+      }
+
+      if (args.signal?.aborted) {
+        return { success: false, error: 'Wait for breakpoint cancelled' };
       }
 
       if (!vscode.debug.activeDebugSession) {
@@ -136,6 +138,7 @@ export class InspectionTools {
       // This ensures we don't miss events that occur between check and setup
       let disposable: vscode.Disposable | undefined;
       let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+      let abortListener: (() => void) | undefined;
       let stateCheckPromise: Promise<InspectionResult>;
 
       try {
@@ -153,6 +156,8 @@ export class InspectionTools {
               });
             }
           });
+          abortListener = () => resolve({ success: false, error: 'Wait for breakpoint cancelled' });
+          args.signal?.addEventListener('abort', abortListener, { once: true });
         });
 
         // Now check current state - if already paused, resolve immediately
@@ -187,12 +192,12 @@ export class InspectionTools {
         if (timeoutHandle) {
           clearTimeout(timeoutHandle);
         }
+        if (abortListener) {
+          args.signal?.removeEventListener('abort', abortListener);
+        }
       }
     } catch (error: unknown) {
-      return {
-        success: false,
-        error: formatErrorMessage(error),
-      };
+      return createErrorResult(error);
     }
   }
 
@@ -262,10 +267,7 @@ export class InspectionTools {
         data: result,
       };
     } catch (error: unknown) {
-      return {
-        success: false,
-        error: formatErrorMessage(error),
-      };
+      return createErrorResult(error);
     }
   }
 
@@ -317,10 +319,7 @@ export class InspectionTools {
         },
       };
     } catch (error: unknown) {
-      return {
-        success: false,
-        error: formatErrorMessage(error),
-      };
+      return createErrorResult(error);
     }
   }
 
@@ -371,10 +370,7 @@ export class InspectionTools {
         },
       };
     } catch (error: unknown) {
-      return {
-        success: false,
-        error: formatErrorMessage(error),
-      };
+      return createErrorResult(error);
     }
   }
 
@@ -399,10 +395,7 @@ export class InspectionTools {
         },
       };
     } catch (error: unknown) {
-      return {
-        success: false,
-        error: formatErrorMessage(error),
-      };
+      return createErrorResult(error);
     }
   }
 
@@ -449,10 +442,7 @@ export class InspectionTools {
         },
       };
     } catch (error: unknown) {
-      return {
-        success: false,
-        error: formatErrorMessage(error),
-      };
+      return createErrorResult(error);
     }
   }
 
@@ -471,10 +461,7 @@ export class InspectionTools {
         },
       };
     } catch (error: unknown) {
-      return {
-        success: false,
-        error: formatErrorMessage(error),
-      };
+      return createErrorResult(error);
     }
   }
 

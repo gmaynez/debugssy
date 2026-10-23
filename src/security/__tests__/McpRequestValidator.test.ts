@@ -250,12 +250,12 @@ describe('McpRequestValidator', () => {
       expect(res.headers['MCP-Protocol-Version']).toBe('2025-06-18');
     });
 
-    it('should echo fallback version when header is missing', () => {
+    it('should not echo a fallback version when header is missing', () => {
       const req = createMockRequest({ method: 'POST' });
       const res = createMockResponse();
 
       validator.validateProtocolVersion(req, res);
-      expect(res.headers['MCP-Protocol-Version']).toBe('2025-03-26');
+      expect(res.headers['MCP-Protocol-Version']).toBeUndefined();
     });
   });
 
