@@ -5,17 +5,17 @@ on:
   # Note: Tags should be created from the main branch for releases
   push:
     tags:
-      - "v*"
+      - 'v*'
   # Allow manual trigger from GitHub UI
   workflow_dispatch:
     inputs:
       publish_vscode:
-        description: "Publish to VS Code Marketplace"
+        description: 'Publish to VS Code Marketplace'
         required: true
         type: boolean
         default: true
       publish_openvsx:
-        description: "Publish to Open VSX"
+        description: 'Publish to Open VSX'
         required: true
         type: boolean
         default: true
@@ -51,11 +51,36 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "22"
-          cache: "npm"
+          node-version: '24'
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Verify release version consistency
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const { version } = require('./package.json');
+          const changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
+
+          if (process.env.GITHUB_EVENT_NAME === 'push') {
+            const expectedTag = `v${version}`;
+            if (process.env.GITHUB_REF_NAME !== expectedTag) {
+              console.error(`Release tag must be ${expectedTag} to match package.json.`);
+              process.exit(1);
+            }
+          }
+
+          const escapedVersion = version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const changelogEntry = new RegExp(`^## \\[${escapedVersion}\\](?:\\s+-.*)?$`, 'm');
+          if (!changelogEntry.test(changelog)) {
+            console.error(`CHANGELOG.md must contain a heading for version ${version}.`);
+            process.exit(1);
+          }
+
+          console.log(`Release metadata agrees on version ${version}.`);
+          NODE
 
       - name: Run shared verification suite
         run: npm run verify
@@ -124,7 +149,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: debugssy-${{ steps.get_version.outputs.VERSION }}.vsix
-          path: "*.vsix"
+          path: '*.vsix'
           retention-days: 30
           if-no-files-found: error
 
@@ -147,7 +172,7 @@ jobs:
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3
         with:
-          files: "*.vsix"
+          files: '*.vsix'
           generate_release_notes: false
           draft: false
           prerelease: false

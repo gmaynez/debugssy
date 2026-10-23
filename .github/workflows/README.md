@@ -7,48 +7,58 @@ Quick reference for Debugssy's CI/CD workflows.
 ## 📦 `publish.yml` - Publish Extension
 
 **Triggers:**
+
 - Version tags `v*` (e.g., `v1.0.0`) **on main branch only**
 - Manual dispatch from GitHub Actions UI
 
 **What it does:**
+
 1. Verifies tag is on `main` branch
-2. Runs the shared `npm run verify` suite (build, type-check, lint, format-check, coverage)
-3. Blocks publishing if verification fails
-4. Builds and packages extension
-5. Publishes to **VS Code Marketplace**
-6. Publishes to **Open VSX Registry**
-7. Creates **GitHub Release** with `.vsix` file attached
+2. Verifies the tag, `package.json`, and changelog agree on the release version
+3. Runs the shared `npm run verify` suite (build, type-check, lint,
+   format-check, coverage, production audit)
+4. Blocks publishing if verification fails
+5. Builds and packages extension
+6. Publishes to **VS Code Marketplace**
+7. Publishes to **Open VSX Registry**
+8. Creates **GitHub Release** with `.vsix` file attached
 
 **Quality gates:**
+
 - ✅ Shared verification suite passes
 - ✅ Coverage thresholds pass
+- ✅ Production dependencies pass `npm audit`
+- ✅ Release versions agree
 - ✅ No linting or formatting errors
 - ✅ Build succeeds
 
 **Required secrets:**
-- `VSCE_PAT` - VS Code Marketplace token
-- `OVSX_PAT` - Open VSX token
-  (GitHub token permissions are requested via `permissions: contents: write` in the workflow.)
 
-**Setup guide:** See [PUBLISHING.md](../../PUBLISHING.md)
+- `VSCE_PAT` - VS Code Marketplace token
+- `OVSX_PAT` - Open VSX token (GitHub token permissions are requested via
+  `permissions: contents: write` in the workflow.)
 
 ---
 
 ## 🔄 `ci.yml` - Continuous Integration
 
 **Triggers:**
+
 - Push to `main`, `develop`, `feature/*`, `fix/*`
 - Note: PRs are handled by `pr-validation.yml` to avoid duplicate runs
 
 **What it does:**
-- Runs the cross-platform test suite on Ubuntu, Windows, and macOS
-- Tests on Ubuntu, Windows, macOS with Node.js 22
-- Runs the shared `npm run verify` suite on Ubuntu for build, type-check, lint, format-check, and coverage
+
+- Runs the cross-platform test suite on Ubuntu, Windows, and macOS with Node.js
+  22
+- Also tests on Ubuntu with Node.js 24
+- Runs the shared `npm run verify` suite on Ubuntu with Node.js 24 for build,
+  type-check, lint, format-check, coverage, and production audit
 - Generates coverage reports
-- Security audit with `npm audit`
 - Packages extension
 
 **Test coverage includes:**
+
 - ✅ Security validators (ExpressionValidator, McpRequestValidator)
 - ✅ Core business logic (Breakpoints, DebugControl, Inspection)
 - ✅ DAP Client (state management, event handling)
@@ -61,13 +71,16 @@ Quick reference for Debugssy's CI/CD workflows.
 ## ✅ `pr-validation.yml` - Pull Request Validation
 
 **Triggers:**
+
 - Pull requests opened/updated
 
 **What it does:**
+
 - Validates `package.json`
 - Checks version bumps (for PRs to main)
 - Detects breaking changes
-- Runs the shared `npm run verify` suite
+- Runs the shared `npm run verify` suite, including the production dependency
+  audit
 - Builds and packages the extension
 - Auto-comments on PR with results
 
@@ -127,11 +140,13 @@ code --install-extension debugssy-X.X.X.vsix
 **Current:** Working on `main` branch
 
 **Future (when ready):**
+
 - `main` - Production releases only (tagged)
 - `develop` - Active development
 - `feature/*` - Feature branches
 
 **Workflow:**
+
 1. Work in `develop`
 2. Merge to `main` when ready to release
 3. Tag on `main` to publish
@@ -142,20 +157,11 @@ code --install-extension debugssy-X.X.X.vsix
 
 When you push a tag to `main`:
 
-| Destination | URL |
-|-------------|-----|
+| Destination         | URL                                                          |
+| ------------------- | ------------------------------------------------------------ |
 | VS Code Marketplace | `marketplace.visualstudio.com/items?itemName=gamag.debugssy` |
-| Open VSX Registry | `open-vsx.org/extension/gamag/debugssy` |
-| GitHub Releases | Includes `.vsix` file for direct download |
-
----
-
-## 📚 Documentation
-
-- **[PUBLISHING.md](../../PUBLISHING.md)** - Complete setup guide (tokens, publisher accounts)
-- **[GITHUB_RELEASE_GUIDE.md](../../GITHUB_RELEASE_GUIDE.md)** - How GitHub Releases work
-- **[BUILD_GUIDE.md](../../BUILD_GUIDE.md)** - Build locally without publishing
-- **[CI_CD_SETUP_SUMMARY.md](../../CI_CD_SETUP_SUMMARY.md)** - Overview of CI/CD setup
+| Open VSX Registry   | `open-vsx.org/extension/gamag/debugssy`                      |
+| GitHub Releases     | Includes `.vsix` file for direct download                    |
 
 ---
 
@@ -173,7 +179,8 @@ npm version major   # 1.0.0 → 2.0.0 (breaking changes)
 
 ## ⚠️ Important Notes
 
-- ✅ **Tags must be on `main` branch** - workflow will fail if tag is from `develop` or feature branches
+- ✅ **Tags must be on `main` branch** - workflow will fail if tag is from
+  `develop` or feature branches
 - ✅ **Regular pushes don't publish** - only tags trigger publishing
 - ✅ **Can't publish same version twice** - bump version for each release
 - ✅ **CI runs on every push** - testing happens automatically
@@ -195,9 +202,8 @@ npm version major   # 1.0.0 → 2.0.0 (breaking changes)
 → Bump version with `npm version patch/minor/major`
 
 **"GitHub release failed with status: 403"**  
-→ Ensure the workflow includes `permissions: contents: write` and uses `softprops/action-gh-release@v3`.
-
-For more troubleshooting, see [PUBLISHING.md](../../PUBLISHING.md)
+→ Ensure the workflow includes `permissions: contents: write` and uses
+`softprops/action-gh-release@v3`.
 
 ---
 
@@ -206,6 +212,7 @@ For more troubleshooting, see [PUBLISHING.md](../../PUBLISHING.md)
 View workflow runs: [Actions Tab](../../actions)
 
 Add badges to README:
+
 ```markdown
 [![CI](https://github.com/yourusername/debugssy/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/debugssy/actions/workflows/ci.yml)
 [![Publish](https://github.com/yourusername/debugssy/actions/workflows/publish.yml/badge.svg)](https://github.com/yourusername/debugssy/actions/workflows/publish.yml)

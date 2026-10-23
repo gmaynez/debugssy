@@ -569,7 +569,7 @@ for details on risk levels.
 
 - **Issues or bugs:**
   [Open an issue](https://github.com/gmaynez/debugssy/issues)
-- **Questions:** Check [README.md FAQ](./README.md#faq)
+- **Questions:** Check [README.md troubleshooting](../README.md#troubleshooting)
 - **Security concerns:** See [MCP_COMPLIANCE.md](./MCP_COMPLIANCE.md)
 
 ---
