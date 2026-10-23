@@ -8,294 +8,508 @@
 [![Open VSX](https://img.shields.io/open-vsx/v/gamag/debugssy?label=Open%20VSX)](https://open-vsx.org/extension/gamag/debugssy)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 
-**Let your AI assistant drive the debugger.**
+**Give your AI assistant access to the debugger.**
 
-Debugssy connects AI assistants (Cursor, Copilot, Claude Desktop) to VS Code's
-debugging engine via the
-[Model Context Protocol](https://modelcontextprotocol.io). Instead of clicking
-through the debugger UI, describe what you're hunting for.
+Debugssy connects an MCP client to VS Code's debugger through the
+[Model Context Protocol](https://modelcontextprotocol.io). The assistant can set
+breakpoints, inspect variables, and evaluate expressions. You control execution
+by default. Full mode also provides execution tools.
 
 [Install](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy) ·
 [Issues](https://github.com/gmaynez/debugssy/issues) · [Security](./SECURITY.md)
 
 </div>
 
----
+## Prerequisites
 
-## What It Does
+- VS Code 1.128.0 or later, or a compatible editor that supports this
+  extension's VS Code API requirement.
+- An installed debug adapter for your language.
+- A working debug configuration, such as `.vscode/launch.json`.
+- An AI client with MCP tool support and access to local Streamable HTTP
+  servers.
 
-```
-You: "Figure out why users get null when logging in"
+Debugssy uses the installed debug adapter. Language support, expression syntax,
+conditional breakpoints, hit conditions, and logpoints depend on that adapter.
+Confirm that your project can start a debug session in the editor before using
+Debugssy.
 
-AI: Sets breakpoint in auth handler → waits for hit → inspects `user` object →
-    traces call stack → spots missing WHERE clause in the query. Done.
-```
+The server listens on localhost. It returns debug data to the AI client, which
+may send that data to a model provider. See
+[Security and privacy](#security-and-privacy).
 
-The AI gets tools to set breakpoints (with conditions, hit counts, logpoints),
-read variables, walk the call stack, and evaluate expressions—all through MCP.
-You stay in control of _when_ debugging runs, or hand over the reins entirely.
+## Quick start
 
-Works with any language that VS Code can debug: JavaScript, TypeScript, Python,
-Go, Java, C++, Rust, you name it.
+### 1. Install Debugssy
 
-**Recommended models:** Claude 4.5 Haiku or Grok 4.1 Fast (speed + cost).
+1. Open the editor's Extensions view.
+2. Search for **Debugssy**.
+3. Install the extension published by **gamag**.
 
----
+You can also find it on the
+[VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy)
+or [Open VSX](https://open-vsx.org/extension/gamag/debugssy).
 
-## Quick Start
+The MCP server starts when the extension activates if `debugssy.mcp.enabled` is
+`true`, which is the default. Keep the editor open while the AI client uses it.
 
-### 1. Install the Extension
+### 2. Connect your AI client
 
-Search **"Debugssy"** in VS Code's extension panel (`Ctrl+Shift+X`), or grab it
-from:
+Use the instructions for your client under [Client setup](#client-setup). The
+default endpoint is `http://localhost:3000/mcp`.
 
-- [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy)
-- [Open VSX](https://open-vsx.org/extension/gamag/debugssy) (VSCodium, Gitpod,
-  etc.)
+### 3. Inspect a paused program
 
-### 2. Connect Your AI
+1. Open your project in the editor.
+2. Select its debug configuration in **Run and Debug**.
+3. Ask the assistant to set a breakpoint at a specific file and line.
+4. Start debugging with `F5`.
+5. Reproduce the behavior that reaches the breakpoint.
+6. After execution pauses, ask: "Use Debugssy to show the current location and
+   local variables."
 
-**VS Code (Copilot) and Cursor — zero config.** The extension registers its MCP
-server automatically. Just install Debugssy and start chatting. No JSON edits
-needed.
+In assisted mode, use the editor to continue or step. Ask the assistant to check
+`get_debug_state` after an execution change. Debugssy tracks manual execution
+changes through debug adapter messages in both modes.
 
-> If you have an older manual `"debugssy"` entry in your settings, remove it to
-> avoid duplicates.
+## Client setup
 
-**Other MCP clients** (Claude Desktop, Claude Code, OpenCode, etc.) — add this
-to your client's config file:
+These examples use the default port. If you change `debugssy.mcp.port`, update
+manual client entries to use the same port. Merge each example into the relevant
+file without replacing other entries.
+
+The client must reach the loopback interface of the environment where the
+extension runs. A cloud service cannot reach your machine through its own
+`localhost`. Containers, WSL, and remote workspaces can also have separate
+loopback interfaces. Keep this server local; do not expose it through a public
+tunnel.
+
+Debugssy provides a **Streamable HTTP** endpoint. It does not provide a stdio
+launcher. A client that supports only stdio needs a separate local bridge that
+supports Streamable HTTP. Configuration formats are client-specific.
+
+### VS Code with GitHub Copilot
+
+Debugssy registers a server definition when the host exposes
+`vscode.lm.registerMcpServerDefinitionProvider`. The running server must be
+enabled. Registration does not remove the client's trust or tool approval steps.
+
+1. Open the client's MCP server list.
+2. Select **Debugssy AI Debugger**, if it is present.
+3. Review any server trust prompt.
+4. Enable the Debugssy tools for the chat.
+
+If no definition appears, add this entry to `.vscode/mcp.json` in your
+workspace:
 
 ```json
 {
-  "mcpServers": {
-    "debugssy": { "url": "http://localhost:3000/mcp" }
+  "servers": {
+    "debugssy": {
+      "type": "http",
+      "url": "http://localhost:3000/mcp"
+    }
   }
 }
 ```
 
-Config file locations:
+This is the VS Code `mcp.json` format. Other configuration destinations can use
+different keys. See the official
+[VS Code MCP configuration reference](https://code.visualstudio.com/docs/agents/reference/mcp-configuration).
 
-- **Claude Desktop:**
-  `~/Library/Application Support/Claude/claude_desktop_config.json` (Mac) or
-  `%APPDATA%\Claude\claude_desktop_config.json` (Windows)
-- **Claude Code / OpenCode / others:** see your client's docs — the URL is
-  always `http://localhost:3000/mcp`
+### Cursor
 
-### 3. Debug Something
+Debugssy registers the server when the host exposes
+`vscode.cursor.mcp.registerServer`. Check Cursor's MCP settings for
+**debugssy**.
 
-1. Start a debug session in VS Code (`F5`)
-2. Ask your AI: _"Set a breakpoint where user authentication fails and show me
-   what's in the request object"_
-3. Watch it work
+If automatic registration is unavailable, add this entry to `.cursor/mcp.json`
+in your project, or `~/.cursor/mcp.json` for all projects:
 
-Type `/` in chat to see guided workflows like `/debug-crash` or
-`/trace-variable`.
+```json
+{
+  "mcpServers": {
+    "debugssy": {
+      "url": "http://localhost:3000/mcp"
+    }
+  }
+}
+```
 
----
+Enable the server in Cursor's MCP settings. See the official
+[Cursor MCP guide](https://cursor.com/docs/mcp).
 
-## Two Modes
+For either editor, remove an old manual entry only after you confirm that the
+automatically registered server works. Use one entry for each Debugssy instance.
 
-**Assisted (default):** You control execution (F5, step, continue). The AI sets
-breakpoints and inspects state. Good for learning and staying hands-on.
+### Claude Code
 
-**Full automation:** The AI controls everything—starting sessions, continuing
-past breakpoints, the works. Good for "just find the bug" scenarios.
+Prerequisites: the Claude Code CLI is installed, and Debugssy is running in the
+editor on the same local environment.
+
+1. Open a terminal in your project directory.
+2. Register the HTTP server for this project and user:
+
+   ```sh
+   claude mcp add --transport http --scope local debugssy http://localhost:3000/mcp
+   ```
+
+3. Start Claude Code with `claude`.
+4. Use `/mcp` to check the server connection.
+
+The `local` scope keeps this registration private to you for the current
+project. Use `--scope user` instead if you need it across projects. A JSON
+configuration for Claude Code needs `"type": "http"`; a URL alone is not enough.
+See the official [Claude Code MCP guide](https://code.claude.com/docs/en/mcp).
+
+### OpenCode
+
+Add this entry to `opencode.json` in your project root:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "debugssy": {
+      "type": "remote",
+      "url": "http://localhost:3000/mcp",
+      "enabled": true
+    }
+  }
+}
+```
+
+OpenCode uses `remote` for a URL-based connection, even when the URL points to
+localhost. Check the connection with `opencode mcp list`. See the official
+[OpenCode MCP guide](https://opencode.ai/docs/mcp-servers/) and
+[configuration guide](https://opencode.ai/docs/config/).
+
+### Claude Desktop and other clients
+
+Do not copy the Cursor URL-only configuration into Claude Desktop and assume it
+will work. Claude Desktop's local server setup is a separate mechanism from
+Claude's remote connectors. A stdio-based setup needs a local Streamable HTTP
+bridge; Debugssy does not bundle one. See Claude's
+[local MCP setup guide](https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop).
+
+Claude's remote connectors connect from Anthropic's cloud, including when used
+in Claude Desktop. They cannot connect directly to this localhost endpoint. See
+the
+[remote connector guide](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp).
+For a direct local HTTP connection, use one of the client setups above.
+
+For other clients, check their documentation for local Streamable HTTP support.
+MCP elicitation support is also needed to approve expressions that exceed the
+configured validation threshold.
+
+## Automation modes
+
+| Mode                 | Execution control                                  | Assistant tools                               |
+| -------------------- | -------------------------------------------------- | --------------------------------------------- |
+| `assisted` (default) | You start, stop, continue, and step in the editor. | Breakpoints and inspection.                   |
+| `full`               | The assistant can also control execution.          | Breakpoints, inspection, and execution tools. |
+
+To enable full mode, set this editor setting:
 
 ```json
 { "debugssy.automationLevel": "full" }
 ```
 
-Copilot users: restart VS Code after switching modes (it doesn't refresh tools
-dynamically).
+Step tools also require `debugssy.allowStepOperations` to be `true`. Debugssy
+notifies the client when the tool list changes. If the list does not refresh,
+reconnect the MCP server in the client. Reload the editor window if reconnecting
+does not resolve it.
 
----
+Assisted mode limits execution tools. It does not guarantee that evaluated
+expressions or breakpoint expressions are free of side effects.
 
-## Available Tools
+## Available tools
 
-Your AI sees these via MCP:
+Tool availability does not guarantee that a tool can run in every debug state.
+Variables and call stacks normally require a paused program. Adapter support
+also determines which operations succeed.
 
-**Inspection** (always available): `get_debug_state`, `get_variables`,
-`get_call_stack`, `evaluate_expression`, `get_console_output`, `get_threads`
+### Breakpoints: both modes
 
-**Breakpoints** (always available): `set_breakpoint`, `remove_breakpoint`,
-`list_breakpoints`, `toggle_breakpoint`, `remove_all_breakpoints`
+| Tool                     | Purpose                                                                            |
+| ------------------------ | ---------------------------------------------------------------------------------- |
+| `set_breakpoint`         | Set a source breakpoint with an optional condition, hit condition, or log message. |
+| `remove_breakpoint`      | Remove a source breakpoint at a file and line.                                     |
+| `list_breakpoints`       | List workspace breakpoints.                                                        |
+| `inspect_breakpoint`     | Return facts and diagnostic signal IDs for a source breakpoint.                    |
+| `toggle_breakpoint`      | Enable or disable a source breakpoint.                                             |
+| `remove_all_breakpoints` | Remove all workspace breakpoints.                                                  |
 
-`set_breakpoint` supports conditions (`user.role === 'admin'`), hit counts
-(`> 10`), and log messages (logpoints).
+File paths must be absolute. Line numbers start at 1. Condition syntax, hit
+condition syntax, and logpoint interpolation depend on the debug adapter.
+`inspect_breakpoint` reports evidence; it does not generate a diagnosis.
 
-Conditions, hit conditions, and interpolated log messages receive expression
-validation when setting or re-enabling a breakpoint. Risky expressions require
-approval to create or enable the breakpoint; they can execute on every hit,
-including in future debug sessions, until the breakpoint is removed. Evaluation
-approvals for a single debug session do not approve persistent breakpoints.
+### Inspection: both modes
 
-**Execution control** (full mode only): `start_debugging`, `stop_debugging`,
-`continue`, `pause`, `restart`, `wait_for_breakpoint`
+| Tool                   | Purpose                                                                      |
+| ---------------------- | ---------------------------------------------------------------------------- |
+| `get_debug_state`      | Read execution state, the current location when paused, and the stop reason. |
+| `get_variables`        | Read variables, with optional scope and frame filters.                       |
+| `get_call_stack`       | Read stack frames, with an optional maximum depth.                           |
+| `evaluate_expression`  | Evaluate an expression, with an optional frame ID.                           |
+| `get_threads`          | List threads in the active debug session.                                    |
+| `get_console_output`   | Read buffered adapter output, with category, limit, and time filters.        |
+| `clear_console_output` | Clear Debugssy's captured output buffer.                                     |
 
-Step operations (`step_over`, `step_into`, `step_out`) are available in full
-mode if you enable `debugssy.allowStepOperations`. Usually unnecessary—strategic
-breakpoints + continue is faster for AI debugging.
+`get_console_output` can also clear the buffer after reading it with
+`clear: true`. Clearing this buffer does not clear the editor's Debug Console
+display.
 
----
+### Execution: full mode only
+
+| Tool                                 | Purpose                                                                      |
+| ------------------------------------ | ---------------------------------------------------------------------------- |
+| `start_debugging`                    | Start a session with a named launch configuration or a configuration object. |
+| `stop_debugging`                     | Stop the debug session.                                                      |
+| `continue`                           | Resume execution.                                                            |
+| `pause`                              | Pause execution.                                                             |
+| `restart`                            | Restart the active debug session.                                            |
+| `wait_for_breakpoint`                | Wait for a pause, subject to a timeout. Check `get_debug_state` afterward.   |
+| `step_over`, `step_into`, `step_out` | Step through execution when `debugssy.allowStepOperations` is also enabled.  |
+
+### Guided prompts
+
+Debugssy provides `debug-crash`, `trace-variable`, `inspect-function`, and
+`debug-loop`. Full mode also provides `auto-debug-session`. Use your client's
+MCP prompt menu if it supports prompts. Slash-command names and availability
+vary by client.
 
 ## Settings
 
-Open VS Code settings and search "debugssy":
+Open the editor's Settings view and search for `debugssy`.
 
-| Setting                              | Default    | What it does                                                                                            |
-| ------------------------------------ | ---------- | ------------------------------------------------------------------------------------------------------- |
-| `debugssy.mcp.port`                  | `3000`     | Server port. Change if 3000 is taken.                                                                   |
-| `debugssy.automationLevel`           | `assisted` | `assisted` or `full`                                                                                    |
-| `debugssy.expressionValidationLevel` | `moderate` | How paranoid to be about `evaluate_expression`. Options: `strict`, `moderate`, `permissive`, `disabled` |
-| `debugssy.maxExpressionLength`       | `100`      | Max chars for evaluated expressions                                                                     |
-| `debugssy.waitForBreakpointTimeout`  | `5000`     | How long `wait_for_breakpoint` waits (ms)                                                               |
-| `debugssy.allowStepOperations`       | `false`    | Enable step_over/into/out in full mode                                                                  |
+| Setting                              | Default    | Description                                                                                     |
+| ------------------------------------ | ---------- | ----------------------------------------------------------------------------------------------- |
+| `debugssy.mcp.enabled`               | `true`     | Enable the local MCP server.                                                                    |
+| `debugssy.mcp.port`                  | `3000`     | Server port. Integer from 1024 to 65535.                                                        |
+| `debugssy.mcp.minifyResponses`       | `true`     | Compact JSON tool responses to reduce payload size.                                             |
+| `debugssy.automationLevel`           | `assisted` | Choose `assisted` or `full`.                                                                    |
+| `debugssy.expressionValidationLevel` | `moderate` | Choose `strict`, `moderate`, `permissive`, or `disabled`. See the thresholds below.             |
+| `debugssy.maxExpressionLength`       | `100`      | Character limit for evaluations and validated breakpoint fields. Integer from 20 to 400.        |
+| `debugssy.waitForBreakpointTimeout`  | `5000`     | Default wait timeout in milliseconds. Integer from 1000 to 300000. A tool call can override it. |
+| `debugssy.allowStepOperations`       | `false`    | Enable step tools in full mode.                                                                 |
 
-For tighter security, configure an allowlist in your MCP client—see
-[ALLOWLIST_GUIDE.md](./docs/ALLOWLIST_GUIDE.md).
+The Command Palette provides **Debugssy: Start Server**, **Debugssy: Stop
+Server**, and **Debugssy: Restart Server**.
 
----
+## Security and privacy
 
-## Security
+### Local connection and data flow
 
-Debugssy runs on localhost only. Your code never leaves your machine.
+Debugssy binds to localhost. Host and Origin header checks reduce DNS rebinding
+risk. Tool arguments are validated with Zod before processing. These controls do
+not make the debugger a sandbox.
 
-The expression validator blocks obvious injection attempts (`eval`,
-`require('fs')`, `process.exit`, etc.) and asks for confirmation on anything
-suspicious. Four levels of paranoia: `strict` (whitelist only), `moderate`
-(default, blocks known dangerous patterns), `permissive` (blocks only the scary
-stuff), `disabled` (you're on your own).
+The MCP server returns variables, expression results, stack information, file
+paths, and captured program output to the AI client. The client may send those
+results to a model provider. Local transport does not mean that debug data stays
+on your machine. Review the client's data policy before inspecting sensitive
+values.
 
-Best practices for AI-assisted debugging:
+### Expression validation
 
-1. **Start fresh.** Use a new AI conversation for debug sessions to avoid prompt
-   injection from earlier context.
-2. **Skip web searches.** Don't search the web in the same conversation—external
-   content is the main vector for prompt injection.
-3. **Review elicitation prompts.** When the validator asks about an expression,
-   actually read it before approving.
+Validation uses language rules, pattern checks, and allowlists. It is a risk
+filter, not a guarantee that an expression is safe. An expression that passes
+validation runs without a Debugssy approval prompt. If validation flags it, the
+following thresholds apply:
 
-Full details: [SECURITY.md](./SECURITY.md),
-[MCP_COMPLIANCE.md](./docs/MCP_COMPLIANCE.md)
+| Level                | Flagged risks that require approval       |
+| -------------------- | ----------------------------------------- |
+| `strict`             | Low, medium, high, and critical.          |
+| `moderate` (default) | Medium, high, and critical.               |
+| `permissive`         | High and critical, including mutations.   |
+| `disabled`           | No expression risk checks or elicitation. |
 
----
+Typical classifications include getter patterns (low), unknown function calls
+(medium), mutations (high), and system operations (critical). Flags below the
+selected threshold are allowed without elicitation. Allowlisted operations can
+pass even in strict mode.
+
+Expressions at or above the threshold require confirmation through **MCP
+elicitation**. If the client does not support elicitation, or the request fails,
+Debugssy blocks the operation. A denial or cancellation also prevents it.
+
+### Evaluation approvals
+
+For `evaluate_expression`, you can choose **Allow once**, **Always allow for
+this debug session**, or **Deny**. Session approval applies to the same
+normalized expression in that debug session. It is cleared when the session
+terminates. It does not approve other expressions or persistent breakpoints.
+
+The evaluation length limit still applies when risk validation is disabled.
+Overlong expressions are rejected rather than offered for approval.
+
+### Persistent breakpoint approvals
+
+Debugssy validates conditions, hit conditions, and log templates containing
+interpolated expressions when its tools create or re-enable a breakpoint. It
+checks the complete interpolated log template. The configured length limit
+applies to these fields while validation is enabled.
+
+A flagged breakpoint expression at or above the threshold requires approval to
+create or enable the breakpoint. This approval permits persistent use. The
+expression may run on every hit, including in future debug sessions, until the
+breakpoint is removed. There is no session approval option for breakpoints.
+Evaluation approvals do not bypass breakpoint checks.
+
+Review the expression and approval scope before accepting. Use the MCP client's
+tool permissions to limit access. See [SECURITY.md](./SECURITY.md) for the
+threat model and [ALLOWLIST_GUIDE.md](./docs/ALLOWLIST_GUIDE.md) for client
+permissions.
 
 ## Troubleshooting
 
-**"No active debug session"** — Start debugging (`F5`) before asking the AI to
-inspect things. The debugger needs to be running.
+### No active debug session
 
-**Port 3000 in use** — Change `debugssy.mcp.port` to something else (3001, 8080,
-whatever). Or kill whatever's hogging 3000:
+Start the project's debug configuration with `F5`. For variable or stack
+inspection, pause execution at a breakpoint first.
 
-```bash
-# Windows
-netstat -ano | findstr :3000
-taskkill /PID <pid> /F
+### Port already in use
 
-# Mac/Linux
-lsof -ti:3000 | xargs kill -9
+1. Choose an unused port from 1024 to 65535.
+2. Set `debugssy.mcp.port` to that port.
+3. Update any manual MCP client entries with the new port.
+4. Reconnect the client.
+
+Each editor window that runs Debugssy needs its own available port.
+
+### Client cannot connect
+
+1. Check that the editor is open.
+2. Check that `debugssy.mcp.enabled` is `true`.
+3. Open **View → Output → Debugssy** for server errors.
+4. Check server health with `curl http://localhost:3000/health`.
+5. Check that the client uses `http://localhost:3000/mcp` with Streamable HTTP.
+
+Use your configured port in both URLs. A successful health request confirms HTTP
+reachability, not a completed MCP connection. If the client runs in another
+network environment, review [Client setup](#client-setup).
+
+### Variables or stack frames are empty
+
+1. Ask the assistant to check `get_debug_state`.
+2. Pause execution if it is running.
+3. Retry inspection after the pause.
+
+Scope names depend on the adapter. A filter such as `scope: "Local"` can reduce
+output, but a non-matching filter returns no variables. Object previews and
+available frames also depend on the adapter.
+
+### Tools are missing after a setting change
+
+1. Check `debugssy.automationLevel`.
+2. For step tools, check `debugssy.allowStepOperations`.
+3. Reconnect the Debugssy MCP server in the client.
+4. If tools are still missing, reload the editor window or restart the client.
+
+This also applies to GitHub Copilot when its tool list does not refresh.
+
+## Architecture and limitations
+
+```text
+AI client → MCP over local Streamable HTTP → Debugssy
+          → ToolRouter → validation → tools → VS Code Debug API / DAP
 ```
 
-**AI can't connect** — Check the VS Code Output panel
-(`View → Output → Debugssy`). Verify the server's up with
-`curl http://localhost:3000/health`. Make sure your AI config points to
-`http://localhost:3000/mcp`.
+- **One MCP session per server instance.** A valid new initialization replaces
+  the previous connection. Use one AI client at a time for each instance.
+- **Active debug session.** Inspection targets the editor's active debug
+  session. Stack lookup prefers the stopped thread, then the last observed
+  thread. It falls back to thread ID 1 only when no thread is known. Execution
+  commands use the editor's debug controls.
+- **Observed state.** Debugssy tracks adapter messages for manual and automated
+  execution. The accuracy and detail depend on the adapter's messages.
+- **Bounded output.** Debugssy keeps a limited output buffer. Output sent only
+  to a terminal may not appear in adapter output events.
+- **No watch-list management.** Use `evaluate_expression` for individual
+  queries.
+- **Adapter-dependent data.** Object previews and expression results may be
+  abbreviated. Debugssy does not guarantee a complete object expansion.
 
-**Variables empty** — Execution must be paused at a breakpoint. If it's running,
-there's nothing to inspect. Also try `scope: "Local"` to filter out noise.
+Key implementation files:
 
-**Copilot doesn't see new tools** — Restart VS Code. Copilot caches the tool
-list.
+- [src/extension.ts](./src/extension.ts): lifecycle and conditional host
+  registration.
+- [src/MCPServer.ts](./src/MCPServer.ts): HTTP transport and MCP sessions.
+- [src/routing/ToolRouter.ts](./src/routing/ToolRouter.ts): tool dispatch and
+  approvals.
+- [src/security/ExpressionValidator.ts](./src/security/ExpressionValidator.ts):
+  expression risk checks.
+- [src/dap/Client.ts](./src/dap/Client.ts): DAP interception and state tracking.
 
----
+## Building from source
 
-## Architecture
+Prerequisites: Git, Node.js 24 with npm, and a compatible editor.
 
-```
-┌─────────────────────────────────────────────────┐
-│  VS Code Extension                              │
-│                                                 │
-│   MCP Server (localhost:3000)                   │
-│        ↓                                        │
-│   ToolRouter → Security Layer → Tool Registry   │
-│        ↓                                        │
-│   DAP Client ← → VS Code Debug API              │
-└─────────────────────────────────────────────────┘
-        ↑
-        │ HTTP + MCP Protocol
-        ↓
-┌─────────────────────┐
-│   AI Assistant      │
-│ (Cursor/Copilot/    │
-│  Claude Desktop)    │
-└─────────────────────┘
-```
+1. Clone the repository:
 
-The MCP server speaks Streamable HTTP (spec version 2025-06-18). Session IDs are
-`crypto.randomUUID()`. All tool inputs go through Zod validation.
+   ```sh
+   git clone https://github.com/gmaynez/debugssy.git
+   ```
 
-Key files if you're diving in:
+2. Open the repository directory:
 
-- `src/MCPServer.ts` — Server setup and MCP protocol handling
-- `src/routing/ToolRouter.ts` — Tool dispatch
-- `src/security/ExpressionValidator.ts` — The paranoia engine
-- `src/dap/Client.ts` — Debug Adapter Protocol integration
+   ```sh
+   cd debugssy
+   ```
 
----
+3. Install the locked dependencies:
 
-## Building from Source
+   ```sh
+   npm ci
+   ```
 
-```bash
-git clone https://github.com/gmaynez/debugssy.git
-cd debugssy
-npm install
-npm run compile    # Build
-npm run package    # Creates .vsix
-npm test           # Run tests
-```
+4. Compile the extension:
 
-Press `F5` in VS Code to launch the Extension Development Host for live testing.
+   ```sh
+   npm run compile
+   ```
 
----
+Press `F5` in VS Code to launch an Extension Development Host.
 
-## Known Limitations
+| Command                       | Purpose                                                        |
+| ----------------------------- | -------------------------------------------------------------- |
+| `npm run check-types`         | Check TypeScript types.                                        |
+| `npm run lint`                | Check source lint rules.                                       |
+| `npm run format:check`        | Check repository formatting.                                   |
+| `npm test`                    | Compile and run the Vitest tests.                              |
+| `npm run package`             | Build a local VSIX using the current README.md.                |
+| `npm run publish-marketplace` | Build a local VSIX using MARKETPLACE.md as the package README. |
 
-- **Single MCP client at a time.** If multiple AI assistants connect to the same
-  Debugssy instance, the most recent connection takes over.
-- **Copilot caches tools.** Restart VS Code after changing `automationLevel`.
-- **No watch expressions.** Use `evaluate_expression` instead.
-- **Single-threaded assumption.** Defaults to thread ID 1.
-- **Assisted mode is blind to manual steps.** If you click Continue in the UI,
-  the AI doesn't know.
-- **Nested objects get truncated.** Blame the debugger, not us.
+Despite its name, `npm run publish-marketplace` **does not upload a release**.
+It runs `prepare-publish`, `package`, and `restore-publish` in sequence. The
+[preparation script](./scripts/prepare-marketplace.js) backs up both documents
+and temporarily copies MARKETPLACE.md over README.md. The package command runs
+`vsce package`; its prepublish hook builds the production extension. On success,
+the final step restores the documents.
 
----
+If packaging fails after the swap, the chained restore step does not run. Check
+`npm run publish-status` before editing either document. Run
+`npm run restore-publish` to restore the backups before continuing.
 
 ## Contributing
 
-Found a bug? [Open an issue](https://github.com/gmaynez/debugssy/issues).
+Report bugs through [GitHub issues](https://github.com/gmaynez/debugssy/issues).
+For code changes, follow [AGENTS.md](./AGENTS.md) and the existing TypeScript
+style. Add tests for new behavior. Submit changes through a pull request.
 
-Want to contribute? Fork it, make a branch, open a PR. Follow the existing code
-style (TypeScript, ESLint). Add tests for new features.
-
-Check
+Browse
 [good first issues](https://github.com/gmaynez/debugssy/labels/good%20first%20issue)
 for starter tasks.
 
----
+## More documentation
 
-## More Documentation
-
-- [SECURITY.md](./SECURITY.md) — Threat model, security policy
-- [ALLOWLIST_GUIDE.md](./docs/ALLOWLIST_GUIDE.md) — Lock down which tools your
-  AI can use
-- [DEBUGSSY_PROMPT.md](./DEBUGSSY_PROMPT.md) — Detailed guide for AI assistants
-- [MCP Specification](https://modelcontextprotocol.io) — The protocol itself
-- [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/)
-  — What VS Code speaks under the hood
-
----
+- [SECURITY.md](./SECURITY.md): threat model and security policy.
+- [ALLOWLIST_GUIDE.md](./docs/ALLOWLIST_GUIDE.md): MCP client tool permissions.
+- [DEBUGSSY_PROMPT.md](./DEBUGSSY_PROMPT.md): guide for AI assistants.
+- [MCP Specification](https://modelcontextprotocol.io): protocol reference.
+- [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/):
+  debugger integration reference.
 
 ## License
 

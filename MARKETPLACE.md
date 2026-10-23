@@ -3,179 +3,127 @@
 [![VS Code Marketplace](https://vsmarketplacebadges.dev/version-short/gamag.debugssy.svg)](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy)
 [![Open VSX](https://img.shields.io/open-vsx/v/gamag/debugssy?label=Open%20VSX)](https://open-vsx.org/extension/gamag/debugssy)
 
-**Let your AI assistant drive the debugger.**
+**Give your AI assistant access to the debugger.**
 
-Connect Cursor, GitHub Copilot, or Claude Desktop to VS Code's debugging engine
-via [MCP](https://modelcontextprotocol.io). Describe what's broken, let the AI
-poke around.
+Debugssy connects an MCP client to VS Code's debugger. The assistant can set
+breakpoints, inspect variables, read the call stack, and evaluate expressions.
+You control execution by default.
 
----
+## Before you start
 
-## Why This Exists
+You need:
 
-I got tired of the usual debugging loop: guess where the bug might be, set a
-breakpoint, step through, inspect, repeat. Meanwhile I'm already explaining the
-problem to an AI in chat. Why not let it do the clicking?
+- VS Code 1.128.0 or later, or a compatible editor that supports this
+  extension's VS Code API requirement.
+- A debug adapter for your language and a working debug configuration.
+- An AI client that supports MCP tools and local Streamable HTTP connections.
 
-```
-You: "The login function returns null for admin users"
+Debugger features and expression syntax depend on the installed debug adapter.
+Confirm that your project can start a debug session in the editor first.
 
-AI: Sets a breakpoint → inspects the user object → notices the role check fails
-    → traces back to the database query → spots the missing WHERE clause
-```
+## Install
 
-The goal: get from "something is off" to "here's the exact line" without you
-micromanaging every step.
+1. Open the editor's Extensions view.
+2. Search for **Debugssy**.
+3. Install the extension published by **gamag**.
 
----
-
-## Setup (2 minutes)
-
-### 1. Install
-
-Search **Debugssy** in VS Code extensions (`Ctrl+Shift+X`) and install.
-
-Or:
+Available on the
 [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=gamag.debugssy)
-· [Open VSX](https://open-vsx.org/extension/gamag/debugssy)
+and [Open VSX](https://open-vsx.org/extension/gamag/debugssy).
 
-### 2. Connect Your AI
+## Connect your AI client
 
-**GitHub Copilot and Cursor — nothing to configure.** Debugssy registers its MCP
-server automatically. Install the extension and start chatting.
+Keep the editor open. The MCP server starts automatically when the extension
+activates with `debugssy.mcp.enabled` set to `true` (the default).
 
-> Upgrading from an older version? Remove any manual `"debugssy"` entry from
-> your `settings.json` or `mcp.json` to avoid duplicates.
+**GitHub Copilot in VS Code and Cursor:** Debugssy registers the server when the
+host provides the required MCP registration API. Check your client's MCP server
+list for **Debugssy AI Debugger** or **debugssy**. Review any trust prompt.
+Enable the tools for your chat.
 
-**Claude Desktop, Claude Code, OpenCode, and other MCP clients** — add this to
-your client's config:
+If automatic registration is unavailable, use the
+[client-specific setup instructions](https://github.com/gmaynez/debugssy/blob/main/README.md#client-setup).
+Remove an old manual entry only after the automatically registered server works.
 
-```json
-{ "mcpServers": { "debugssy": { "url": "http://localhost:3000/mcp" } } }
+**Claude Code:** With the CLI installed, run this command from your project
+terminal:
+
+```sh
+claude mcp add --transport http --scope local debugssy http://localhost:3000/mcp
 ```
 
-Config file locations vary by client. The URL is always
-`http://localhost:3000/mcp` (or your custom port).
+Start Claude Code with `claude`. Use `/mcp` to check the connection. See the
+[Claude Code MCP guide](https://code.claude.com/docs/en/mcp).
 
-### 3. Debug
+**Other clients:** Configuration formats differ. The client must support
+Streamable HTTP and reach the environment where Debugssy runs. A cloud connector
+cannot reach this server through `localhost`. See the
+[README](https://github.com/gmaynez/debugssy/blob/main/README.md#client-setup)
+for OpenCode setup and Claude Desktop limitations.
 
-Start a debug session (`F5`), then ask your AI something like:
+The default endpoint is `http://localhost:3000/mcp`. If you change
+`debugssy.mcp.port`, update manual client entries with the new port.
 
-> "Debug why users get null when logging in" "Find where cartTotal becomes 0"
-> "Trace why this loop runs 1000x instead of 10x"
+## Try it
 
-Type `/` in chat for guided workflows (`/debug-crash`, `/trace-variable`, etc.)
+1. Open your project in the editor.
+2. Select its debug configuration in **Run and Debug**.
+3. Ask the assistant to set a breakpoint at a specific file and line.
+4. Start debugging with `F5`.
+5. Reproduce the behavior that reaches the breakpoint.
+6. After execution pauses, ask: "Use Debugssy to show the current location and
+   local variables."
 
----
+Use the editor to continue or step. The assistant can read the updated state
+with `get_debug_state`.
 
-## What the AI Gets
+## Choose your level of control
 
-**Breakpoints:** Set, remove, toggle, list. Supports conditions
-(`user.role === 'admin'`), hit counts (`> 10`), and logpoints.
+- **Assisted** (default): You control execution. The assistant manages
+  breakpoints and inspects debug data.
+- **Full**: Set `debugssy.automationLevel` to `full` to add tools for starting,
+  stopping, continuing, pausing, and restarting sessions. Step tools also
+  require `debugssy.allowStepOperations` to be `true`.
 
-**Inspection:** Read variables, evaluate expressions, walk the call stack, read
-console output.
+If the client's tool list does not refresh after a setting change, reconnect the
+MCP server. Reload the editor window if reconnecting does not resolve it.
 
-**Execution control:** Start/stop sessions, continue, step (if you enable it).
-By default, you control execution via VS Code and the AI just inspects.
+## Security and privacy
 
-Two modes:
+Debugssy listens on localhost and checks Host and Origin headers. It returns
+debug data to the AI client, which may send that data to a model provider.
+Review your client's data policy before inspecting sensitive values.
 
-- **Assisted** (default): You press F5, step, continue. AI sets breakpoints and
-  reads state.
-- **Full automation**: AI controls everything. Set `debugssy.automationLevel` to
-  `full`.
+Expression validation requests approval for flagged risks at these thresholds:
+`strict` includes low risks and above; `moderate` (default) includes medium and
+above; `permissive` includes high and critical risks, including mutations.
+`disabled` skips expression risk checks. Validation is a risk filter, not a
+sandbox.
 
-Copilot users: restart VS Code after switching modes.
+Approvals use MCP elicitation. If required confirmation is unavailable, the
+operation is blocked. Evaluation approvals apply once or to the same expression
+for the current debug session. Session approvals end when that session
+terminates. Breakpoint approvals permit repeated execution, including in future
+sessions, until removal. Evaluation approvals do not approve persistent
+breakpoints.
 
----
+See the
+[security reference](https://github.com/gmaynez/debugssy/blob/main/README.md#security-and-privacy)
+for details.
 
-## Examples
+## Need help?
 
-**Crash debugging:**
+- **No active debug session:** Start your debug configuration with `F5`.
+- **Empty variables:** Pause execution before inspection.
+- **Port in use:** Choose an unused port in `debugssy.mcp.port`. Update manual
+  client entries afterward.
+- **Connection failed:** Check **View → Output → Debugssy** for server errors.
 
-```
-You: "Getting 'Cannot read property id of undefined' in UserService.ts"
+The Command Palette includes **Debugssy: Start Server**, **Debugssy: Stop
+Server**, and **Debugssy: Restart Server**.
 
-AI: Sets breakpoint → finds `user` is null → walks call stack → spots
-    database query missing a WHERE clause
-```
-
-**Wrong value:**
-
-```
-You: "cartTotal shows $0 but should be $150"
-
-AI: Sets breakpoints on cartTotal assignments → continues → finds the
-    discount calculation multiplying by 0 instead of subtracting
-```
-
-**Infinite loop:**
-
-```
-You: "Loop running 1000x instead of 10x"
-
-AI: Sets conditional breakpoint `i > 10` → pauses at i=11 → finds
-    `<=` instead of `<`
-```
-
-**Recommended models:** Claude 4.5 Haiku or Grok 4.1 Fast for speed.
-
----
-
-## Settings
-
-Search "debugssy" in VS Code settings. The important ones:
-
-- `debugssy.automationLevel` — `assisted` (default) or `full`
-- `debugssy.mcp.port` — Change if 3000 is taken
-- `debugssy.expressionValidationLevel` — How paranoid to be about evaluated
-  expressions (`strict`, `moderate`, `permissive`, `disabled`)
-
-Commands via `Ctrl+Shift+P`: Start Server, Stop Server, Restart Server.
-
----
-
-## Troubleshooting
-
-**"No active debug session"** — Press F5 first. The debugger needs to be
-running.
-
-**Port in use** — Set `debugssy.mcp.port` to 3001 or whatever's free.
-
-**AI can't connect** — Check `View → Output → Debugssy`. Make sure the URL is
-`http://localhost:3000/mcp`.
-
-**Variables empty** — Execution must be paused at a breakpoint.
-
-**Copilot doesn't see tools** — Restart VS Code after changing settings.
-
-Full docs: [github.com/gmaynez/debugssy](https://github.com/gmaynez/debugssy)
-
----
-
-## Security
-
-Runs on localhost only. Your code never leaves your machine. Expression
-validation blocks obvious injection attempts. Origin validation prevents DNS
-rebinding. Follows
-[MCP security best practices](https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices).
-
----
-
-## Requirements
-
-VS Code 1.128.0+ and an MCP-compatible AI (Copilot, Cursor, Claude Desktop,
-etc.)
-
----
-
-## More
-
-[GitHub](https://github.com/gmaynez/debugssy) ·
-[Security docs](https://github.com/gmaynez/debugssy/blob/main/SECURITY.md) ·
-[MCP spec](https://modelcontextprotocol.io)
-
----
+[Full documentation](https://github.com/gmaynez/debugssy/blob/main/README.md) ·
+[Report an issue](https://github.com/gmaynez/debugssy/issues) ·
+[Security policy](https://github.com/gmaynez/debugssy/blob/main/SECURITY.md)
 
 Apache 2.0 · © 2025-2026 Guillermo Garcia Maynez
