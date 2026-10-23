@@ -47,25 +47,64 @@ class ExtensionContext {
   }
 
   async startMCPServer(port: number): Promise<void> {
+    const server = new MCPServer(port, this.toolRegistry, this.configManager);
+    this.mcpServer = server;
+
     try {
-      this.mcpServer = new MCPServer(port, this.toolRegistry, this.configManager);
-      await this.mcpServer.start();
+      await server.start();
       this.onServerDefinitionChanged?.();
     } catch (error: unknown) {
+      if (this.mcpServer === server) {
+        this.mcpServer = undefined;
+      }
+
+      // A partially started server still owns resources and must be cleaned up.
+      try {
+        await server.stop();
+      } catch (cleanupError: unknown) {
+        Logger.getInstance().warn('Error stopping failed MCP server:', cleanupError);
+      }
+      try {
+        server.dispose();
+      } catch (cleanupError: unknown) {
+        Logger.getInstance().warn('Error disposing failed MCP server:', cleanupError);
+      }
+
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       vscode.window.showErrorMessage(`Failed to start MCP Server: ${errorMessage}`);
-      this.mcpServer = undefined;
+      throw error;
     }
   }
 
   async stopMCPServer(): Promise<void> {
-    if (this.mcpServer) {
-      await this.mcpServer.stop();
-      this.mcpServer.dispose();
-      this.mcpServer = undefined;
-      this.onServerDefinitionChanged?.();
-      vscode.window.showInformationMessage('Debugssy MCP Server stopped');
+    const server = this.mcpServer;
+    if (!server) {
+      return;
     }
+
+    // Clear the reference first so failed cleanup cannot leave a stale running server.
+    this.mcpServer = undefined;
+    let operationError: unknown;
+
+    try {
+      await server.stop();
+    } catch (error: unknown) {
+      operationError = error;
+    }
+
+    try {
+      server.dispose();
+    } catch (error: unknown) {
+      operationError ??= error;
+      Logger.getInstance().warn('Error disposing MCP server:', error);
+    }
+
+    this.onServerDefinitionChanged?.();
+
+    if (operationError) {
+      throw operationError;
+    }
+    vscode.window.showInformationMessage('Debugssy MCP Server stopped');
   }
 
   /**
@@ -82,13 +121,29 @@ class ExtensionContext {
   }
 
   async dispose(): Promise<void> {
-    if (this.mcpServer) {
-      await this.mcpServer.stop();
-      this.mcpServer.dispose(); // Clean up event listeners
+    let firstError: unknown;
+    const attempt = async (operation: () => void | Promise<void>): Promise<void> => {
+      try {
+        await operation();
+      } catch (error: unknown) {
+        firstError ??= error;
+        Logger.getInstance().warn('Error during extension cleanup:', error);
+      }
+    };
+
+    const server = this.mcpServer;
+    this.mcpServer = undefined;
+    if (server) {
+      await attempt(() => server.stop());
+      await attempt(() => server.dispose());
     }
-    this.toolRegistry.dispose(); // Clean up tool registry event listeners
-    this.dapClient.dispose();
-    this.configManager.dispose();
+    await attempt(() => this.toolRegistry.dispose());
+    await attempt(() => this.dapClient.dispose());
+    await attempt(() => this.configManager.dispose());
+
+    if (firstError) {
+      throw firstError;
+    }
   }
 
   /**
@@ -159,6 +214,7 @@ class ExtensionContext {
 }
 
 let extensionContext: ExtensionContext | undefined;
+let configChangeQueue: Promise<void> = Promise.resolve();
 
 export async function activate(context: vscode.ExtensionContext) {
   const logger = Logger.getInstance();
@@ -171,8 +227,19 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Start MCP server if enabled
   const config = configManager.getConfig();
-  if (config.enabled) {
-    await extensionContext.startMCPServer(config.port);
+  try {
+    if (config.enabled) {
+      await extensionContext.startMCPServer(config.port);
+    }
+  } catch (error: unknown) {
+    const failedContext = extensionContext;
+    extensionContext = undefined;
+    try {
+      await failedContext.dispose();
+    } catch (cleanupError: unknown) {
+      logger.warn('Error cleaning up after activation failure:', cleanupError);
+    }
+    throw error;
   }
 
   // --- Host-specific MCP auto-discovery registration ---
@@ -269,14 +336,22 @@ export async function activate(context: vscode.ExtensionContext) {
   // Watch for configuration changes
   let previousConfig = config;
   context.subscriptions.push(
-    configManager.onConfigChange(async (newConfig) => {
-      if (!extensionContext) {
-        logger.error('Extension context is not initialized');
-        return;
-      }
+    configManager.onConfigChange((newConfig) => {
+      // VS Code does not await async event listeners. Chain changes explicitly so a slow
+      // stop/start cannot be overtaken by a newer disable/enable or port configuration.
+      configChangeQueue = configChangeQueue
+        .then(async () => {
+          if (!extensionContext) {
+            return;
+          }
 
-      await extensionContext.handleConfigChange(newConfig, previousConfig);
-      previousConfig = newConfig;
+          await extensionContext.handleConfigChange(newConfig, previousConfig);
+          previousConfig = newConfig;
+        })
+        .catch((error: unknown) => {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+          logger.error('Failed to apply configuration change:', errorMessage);
+        });
     })
   );
 
@@ -389,9 +464,14 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 export async function deactivate() {
-  if (extensionContext) {
-    await extensionContext.dispose();
-    extensionContext = undefined;
+  const contextToDispose = extensionContext;
+  extensionContext = undefined;
+
+  try {
+    // Let an in-flight configuration operation finish before disposing its dependencies.
+    await configChangeQueue;
+    await contextToDispose?.dispose();
+  } finally {
+    Logger.getInstance().dispose();
   }
-  Logger.getInstance().dispose();
 }

@@ -268,6 +268,38 @@ describe('ConfigManager', () => {
       expect(config.port).toBe(3000);
       expect(config.maxExpressionLength).toBe(100);
     });
+
+    it('should preserve valid explicit values when other fields are invalid', () => {
+      vscode.workspace.getConfiguration = vi.fn(
+        () =>
+          ({
+            get: vi.fn((key: string, defaultValue: any) => {
+              const values: Record<string, any> = {
+                'mcp.enabled': false,
+                'mcp.port': 70000,
+                'mcp.minifyResponses': false,
+                automationLevel: 'full',
+                allowStepOperations: true,
+                expressionValidationLevel: 'invalid',
+              };
+              return values[key] ?? defaultValue;
+            }),
+          }) as any
+      );
+
+      const config = configManager.getConfig();
+
+      expect(config).toEqual({
+        enabled: false,
+        port: 3000,
+        automationLevel: 'full',
+        waitForBreakpointTimeout: 5000,
+        allowStepOperations: true,
+        minifyResponses: false,
+        maxExpressionLength: 100,
+        expressionValidationLevel: 'moderate',
+      });
+    });
   });
 
   describe('Resource Cleanup', () => {

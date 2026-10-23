@@ -86,34 +86,43 @@ export class ConfigManager {
       ),
     };
 
-    // Validate configuration using Zod schema
-    const result = DebugConfigurationSchema.safeParse(rawConfig);
+    const defaults: DebugConfiguration = {
+      enabled: true,
+      port: 3000,
+      automationLevel: 'assisted',
+      waitForBreakpointTimeout: DEFAULT_BREAKPOINT_TIMEOUT_MS,
+      allowStepOperations: false,
+      minifyResponses: DEFAULT_MINIFY_MCP_RESPONSES,
+      maxExpressionLength: DEFAULT_MAX_EXPRESSION_LENGTH,
+      expressionValidationLevel: 'moderate',
+    };
+    const validatedConfig: Record<keyof DebugConfiguration, unknown> = { ...defaults };
+    const validationIssues: z.ZodIssue[] = [];
 
-    if (!result.success) {
-      // Log validation errors but return defaults to prevent extension failure
+    // Validate fields independently so one invalid setting does not discard valid explicit values.
+    for (const key of Object.keys(defaults) as Array<keyof DebugConfiguration>) {
+      const result = DebugConfigurationSchema.shape[key].safeParse(rawConfig[key]);
+      if (result.success) {
+        validatedConfig[key] = result.data;
+      } else {
+        validationIssues.push(
+          ...result.error.issues.map((issue) => ({ ...issue, path: [key, ...issue.path] }))
+        );
+      }
+    }
+
+    if (validationIssues.length > 0) {
       const logger = Logger.getInstance();
-      logger.error('Invalid configuration detected:', result.error.issues);
-      const issues = result.error.issues
+      logger.error('Invalid configuration detected:', validationIssues);
+      const issues = validationIssues
         .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
         .join(', ');
       vscode.window.showWarningMessage(
-        `Debugssy: Invalid configuration (${issues}). Using defaults.`
+        `Debugssy: Invalid configuration (${issues}). Using defaults for invalid fields.`
       );
-
-      // Return validated defaults
-      return DebugConfigurationSchema.parse({
-        enabled: true,
-        port: 3000,
-        automationLevel: 'assisted',
-        waitForBreakpointTimeout: DEFAULT_BREAKPOINT_TIMEOUT_MS,
-        allowStepOperations: false,
-        minifyResponses: DEFAULT_MINIFY_MCP_RESPONSES,
-        maxExpressionLength: DEFAULT_MAX_EXPRESSION_LENGTH,
-        expressionValidationLevel: 'moderate',
-      });
     }
 
-    return result.data;
+    return DebugConfigurationSchema.parse(validatedConfig);
   }
 
   dispose(): void {
