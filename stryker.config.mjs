@@ -5,6 +5,7 @@ const config = {
   reporters: ['html', 'clear-text', 'progress'],
   testRunner: 'vitest',
   coverageAnalysis: 'perTest',
+  concurrency: 4,
   mutate: [
     'src/MCPServer.ts',
     'src/extension.ts',

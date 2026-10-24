@@ -36,6 +36,7 @@ All notable changes to the "Debugssy" extension will be documented in this file.
 - Coverage includes every production source file, with global and critical
   per-file thresholds. Release verification includes production audits,
   tag/package/changelog consistency checks, Node 24, and mutation testing.
+- Updated Stryker to 10.1.1 for Vitest 5-compatible mutation runs.
 
 ## [1.7.0] - 2026-10-22
 
