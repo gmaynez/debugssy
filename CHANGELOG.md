@@ -10,7 +10,8 @@ All notable changes to the "Debugssy" extension will be documented in this file.
   spaced-bracket invocation syntax, Ruby/PHP command execution, synchronous Node
   filesystem calls, and ordinary Node HTTP requests.
 - Persistent breakpoint expressions now retain conservative language-specific
-  danger checks in every validation mode. Mutating Go helpers require approval.
+  danger checks in every validation mode. Mutating Go helpers, Ruby block-form
+  mutations, and C# `Clear()` require approval.
 - Updated `body-parser` to 2.4.0 to resolve the compressed-body
   denial-of-service advisory.
 
