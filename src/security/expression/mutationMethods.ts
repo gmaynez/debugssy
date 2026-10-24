@@ -29,6 +29,7 @@ export const MUTATION_METHODS = [
   'Remove',
   'RemoveAt',
   'RemoveAll',
+  'Clear',
   'Insert',
   'Sort',
   'Reverse',

@@ -113,6 +113,19 @@ export function validateRuby(
     };
   }
 
+  // Ruby mutating bang methods and delete_if also accept block/no-parentheses syntax.
+  if (
+    /\.(sort!|reverse!|shuffle!|rotate!|compact!|flatten!|uniq!|map!|select!|reject!|delete_if)(?:\s*\(|\s*\{|\s*$)/i.test(
+      expression
+    )
+  ) {
+    return {
+      allowed: false,
+      reason: 'State Mutation: mutating Ruby method modifies the receiver',
+      riskLevel: 'high',
+    };
+  }
+
   // Block common mutation methods
   const mutationCheck = checkMutationMethods(expression, [
     'push',
