@@ -200,6 +200,44 @@ describe('extension lifecycle', () => {
     expect(serverAt(2).stop).not.toHaveBeenCalled();
   });
 
+  it('does not start a server or advertise discovery when disabled', async () => {
+    configValues['mcp.enabled'] = false;
+    const register = vi.fn((_id: string, _provider: unknown) => ({ dispose: vi.fn() }));
+    vscode.lm = { registerMcpServerDefinitionProvider: register } as any;
+    vscode.cursor = undefined as any;
+
+    await activate(extensionContext as any);
+
+    expect(lifecycle.servers).toHaveLength(0);
+    const provider = register.mock.calls[0]?.[1] as any;
+    expect(await provider.provideMcpServerDefinitions()).toEqual([]);
+  });
+
+  it('starts and stops the server through commands', async () => {
+    configValues['mcp.enabled'] = true;
+    await activate(extensionContext as any);
+
+    await command('debugssy.stopServer')();
+    expect(serverAt(0).stop).toHaveBeenCalledOnce();
+    expect(serverAt(0).dispose).toHaveBeenCalledOnce();
+
+    await command('debugssy.startServer')();
+    expect(lifecycle.servers).toHaveLength(2);
+    expect(serverAt(1).start).toHaveBeenCalledOnce();
+  });
+
+  it('applies automation and step configuration changes', async () => {
+    configValues['mcp.enabled'] = true;
+    await activate(extensionContext as any);
+    configValues = { 'mcp.enabled': true, automationLevel: 'full', allowStepOperations: true };
+
+    fireConfigChange();
+    await flushAsyncOperations();
+
+    expect(serverAt(0).handleAutomationLevelChange).toHaveBeenCalledWith('full');
+    expect(serverAt(0).handleStepOperationsChange).toHaveBeenCalledWith(true);
+  });
+
   it('registers and serves VS Code MCP discovery definitions', async () => {
     configValues['mcp.enabled'] = true;
     const register = vi.fn((_id: string, _provider: unknown) => ({ dispose: vi.fn() }));

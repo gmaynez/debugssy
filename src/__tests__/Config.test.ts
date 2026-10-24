@@ -300,6 +300,41 @@ describe('ConfigManager', () => {
         expressionValidationLevel: 'moderate',
       });
     });
+    it.each([
+      ['mcp.enabled', 'yes'],
+      ['mcp.port', '3000'],
+      ['automationLevel', 'invalid'],
+      ['waitForBreakpointTimeout', 0],
+      ['allowStepOperations', 'yes'],
+      ['mcp.minifyResponses', 'no'],
+      ['maxExpressionLength', 500],
+      ['expressionValidationLevel', 'invalid'],
+    ])('should independently default invalid field %s', (key, invalidValue) => {
+      vscode.workspace.getConfiguration = vi.fn(
+        () =>
+          ({
+            get: vi.fn((requestedKey: string, defaultValue: any) =>
+              requestedKey === key ? invalidValue : defaultValue
+            ),
+          }) as any
+      );
+
+      const config = configManager.getConfig();
+
+      expect(config).toEqual({
+        enabled: true,
+        port: 3000,
+        automationLevel: 'assisted',
+        waitForBreakpointTimeout: 5000,
+        allowStepOperations: false,
+        minifyResponses: true,
+        maxExpressionLength: 100,
+        expressionValidationLevel: 'moderate',
+      });
+      expect(vscode.window.showWarningMessage).toHaveBeenCalledWith(
+        expect.stringContaining('invalid fields')
+      );
+    });
   });
 
   describe('Resource Cleanup', () => {

@@ -4,7 +4,8 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import * as path from 'path';
 import { CompletionProvider } from '../routing/CompletionProvider';
-import { MAX_COMPLETIONS } from '../constants';
+import { MAX_COMPLETIONS, MAX_VARIABLE_COMPLETION_SCOPES } from '../constants';
+import { createMockDebugSession } from './helpers/vscode-mock';
 import { vscode } from './setup';
 
 /**
@@ -226,7 +227,7 @@ describe('CompletionProvider', () => {
         document: { uri: { fsPath: '/test.ts' } },
       } as any;
 
-      vscode.commands.executeCommand = vi.fn().mockImplementation((command) => {
+      vscode.commands.executeCommand = vi.fn().mockImplementation((command: string) => {
         if (command === 'vscode.executeDocumentSymbolProvider') {
           // Return few local functions to trigger workspace search
           return Promise.resolve([createDocumentSymbol('localFunc', vscode.SymbolKind.Function)]);
@@ -314,7 +315,7 @@ describe('CompletionProvider', () => {
     it('should extract variables from active debug session', async () => {
       vscode.debug.activeDebugSession = {
         id: 'test-session',
-        customRequest: vi.fn().mockImplementation((command) => {
+        customRequest: vi.fn().mockImplementation((command: string) => {
           if (command === 'threads') {
             return Promise.resolve({ threads: [{ id: 1 }] });
           }
@@ -345,6 +346,161 @@ describe('CompletionProvider', () => {
 
       expect(result.values).toContain('user');
       expect(result.values).toContain('count');
+    });
+
+    it('should prefer the active frame and bound inexpensive scope queries', async () => {
+      const session = createMockDebugSession('session', 'node');
+      vscode.debug.activeDebugSession = session;
+      vscode.debug.activeStackFrame = { session, id: 42, thread: { id: 7 } } as any;
+      const variableReferences: number[] = [];
+      session.customRequest.mockImplementation((command: string, args: any) => {
+        if (command === 'threads') {
+          return Promise.resolve({ threads: [{ id: 1 }, { id: 7 }] });
+        }
+        if (command === 'stackTrace') {
+          return Promise.resolve({
+            stackFrames: [
+              { id: 42, name: 'selected' },
+              { id: 100, name: 'top' },
+            ],
+          });
+        }
+        if (command === 'scopes') {
+          expect(args.frameId).toBe(42);
+          return Promise.resolve({
+            scopes: [
+              { name: 'Expensive', variablesReference: 90, expensive: true },
+              { name: 'Local', variablesReference: 1, expensive: false },
+              { name: 'Closure', variablesReference: 2, expensive: false },
+              { name: 'Third', variablesReference: 3, expensive: false },
+              { name: 'Fourth', variablesReference: 4, expensive: false },
+              { name: 'Fifth', variablesReference: 5, expensive: false },
+            ],
+          });
+        }
+        if (command === 'variables') {
+          variableReferences.push(args.variablesReference);
+          return Promise.resolve({ variables: [{ name: `scope-${args.variablesReference}` }] });
+        }
+        return Promise.resolve({});
+      });
+
+      const result = await completionProvider.getCompletions('test', 'variableName', '');
+
+      expect(result.values).toEqual(['scope-1', 'scope-2', 'scope-3', 'scope-4']);
+      expect(variableReferences).toEqual([1, 2, 3, 4]);
+      expect(variableReferences).toHaveLength(MAX_VARIABLE_COMPLETION_SCOPES);
+    });
+
+    it('should use the top frame when the active frame ID is unavailable', async () => {
+      const session = createMockDebugSession('session', 'node');
+      vscode.debug.activeDebugSession = session;
+      vscode.debug.activeStackFrame = { session, id: 42, threadId: 7 } as any;
+      session.customRequest.mockImplementation((command: string) => {
+        if (command === 'threads') return Promise.resolve({ threads: [{ id: 7 }] });
+        if (command === 'stackTrace') {
+          return Promise.resolve({ stackFrames: [{ id: 100, name: 'top' }] });
+        }
+        if (command === 'scopes') {
+          return Promise.resolve({
+            scopes: [{ name: 'Local', variablesReference: 1, expensive: false }],
+          });
+        }
+        if (command === 'variables') return Promise.resolve({ variables: [{ name: 'value' }] });
+        return Promise.resolve({});
+      });
+
+      const result = await completionProvider.getCompletions('test', 'variableName', '');
+
+      expect(result.values).toEqual(['value']);
+      expect(session.customRequest).toHaveBeenCalledWith('scopes', { frameId: 100 });
+    });
+
+    it('should continue to another thread after a stack request fails', async () => {
+      const session = createMockDebugSession('session', 'node');
+      vscode.debug.activeDebugSession = session;
+      vscode.debug.activeStackFrame = undefined;
+      session.customRequest.mockImplementation((command: string, args: any) => {
+        if (command === 'threads') return Promise.resolve({ threads: [{ id: 1 }, { id: 2 }] });
+        if (command === 'stackTrace' && args.threadId === 1) {
+          return Promise.reject(new Error('thread stopped'));
+        }
+        if (command === 'stackTrace') {
+          return Promise.resolve({ stackFrames: [{ id: 200, name: 'fallback' }] });
+        }
+        if (command === 'scopes') {
+          expect(args.frameId).toBe(200);
+          return Promise.resolve({
+            scopes: [{ name: 'Local', variablesReference: 1, expensive: false }],
+          });
+        }
+        if (command === 'variables') return Promise.resolve({ variables: [{ name: 'fallback' }] });
+        return Promise.resolve({});
+      });
+
+      const result = await completionProvider.getCompletions('test', 'variableName', '');
+
+      expect(result.values).toEqual(['fallback']);
+    });
+
+    it.each([
+      { name: 'thread lookup fails', threadsError: true },
+      { name: 'no frames are returned', threads: [{ id: 1 }], stackFrames: [] },
+      { name: 'scope response is invalid', threads: [{ id: 1 }], invalidScopes: true },
+      { name: 'no scopes are returned', threads: [{ id: 1 }], scopes: [] },
+    ])('should return no runtime completions when $name', async (scenario: any) => {
+      const session = createMockDebugSession('session', 'node');
+      vscode.debug.activeDebugSession = session;
+      vscode.debug.activeStackFrame = undefined;
+      session.customRequest.mockImplementation((command: string) => {
+        if (command === 'threads') {
+          return scenario.threadsError
+            ? Promise.reject(new Error('threads unavailable'))
+            : Promise.resolve({ threads: scenario.threads });
+        }
+        if (command === 'stackTrace') {
+          return Promise.resolve({ stackFrames: scenario.stackFrames ?? [{ id: 100 }] });
+        }
+        if (command === 'scopes') {
+          return scenario.invalidScopes
+            ? Promise.resolve({})
+            : Promise.resolve({ scopes: scenario.scopes });
+        }
+        return Promise.resolve({});
+      });
+
+      const result = await completionProvider.getCompletions('test', 'variableName', '');
+
+      expect(result).toEqual({ values: [], total: 0, hasMore: false });
+    });
+
+    it('should ignore failed variable requests while retaining other scopes', async () => {
+      const session = createMockDebugSession('session', 'node');
+      vscode.debug.activeDebugSession = session;
+      vscode.debug.activeStackFrame = undefined;
+      session.customRequest.mockImplementation((command: string, args: any) => {
+        if (command === 'threads') return Promise.resolve({ threads: [{ id: 1 }] });
+        if (command === 'stackTrace') {
+          return Promise.resolve({ stackFrames: [{ id: 100 }] });
+        }
+        if (command === 'scopes') {
+          return Promise.resolve({
+            scopes: [
+              { name: 'Broken', variablesReference: 1, expensive: false },
+              { name: 'Local', variablesReference: 2, expensive: false },
+            ],
+          });
+        }
+        if (command === 'variables' && args.variablesReference === 1) {
+          return Promise.reject(new Error('scope unavailable'));
+        }
+        if (command === 'variables') return Promise.resolve({ variables: [{ name: 'available' }] });
+        return Promise.resolve({});
+      });
+
+      const result = await completionProvider.getCompletions('test', 'variableName', '');
+
+      expect(result.values).toEqual(['available']);
     });
 
     it('should fall back to static analysis when no debug session', async () => {
@@ -411,6 +567,87 @@ describe('CompletionProvider', () => {
 
       // Should not call findFiles again (using cache)
       expect((vscode.workspace.findFiles as any).mock.calls.length).toBe(initialCallCount);
+    });
+  });
+
+  describe('File Events and Static Fallbacks', () => {
+    it('should apply file creation and deletion events to the cache', async () => {
+      const folder = createMockWorkspaceFolder('project');
+      vscode.workspace.workspaceFolders = [folder] as any;
+      const initialFile = `${folder.uri.fsPath}/src/a.ts`;
+      const addedFile = `${folder.uri.fsPath}/src/b.ts`;
+      vscode.workspace.findFiles = vi.fn().mockResolvedValue([{ fsPath: initialFile }]);
+      let onCreate: ((uri: { fsPath: string }) => void) | undefined;
+      let onDelete: ((uri: { fsPath: string }) => void) | undefined;
+      vscode.workspace.createFileSystemWatcher = vi.fn(
+        () =>
+          ({
+            onDidCreate: vi.fn((callback: (uri: { fsPath: string }) => void) => {
+              onCreate = callback;
+              return { dispose: vi.fn() };
+            }),
+            onDidDelete: vi.fn((callback: (uri: { fsPath: string }) => void) => {
+              onDelete = callback;
+              return { dispose: vi.fn() };
+            }),
+            dispose: vi.fn(),
+          }) as any
+      );
+
+      await completionProvider.getCompletions('test', 'filePath', '');
+      onCreate?.({ fsPath: addedFile });
+      onCreate?.({ fsPath: addedFile });
+      onCreate?.({ fsPath: `${folder.uri.fsPath}/node_modules/ignored.ts` });
+      let result = await completionProvider.getCompletions('test', 'filePath', '');
+      expect(result.values).toEqual([
+        path.resolve(folder.uri.fsPath, 'src/a.ts'),
+        path.resolve(folder.uri.fsPath, 'src/b.ts'),
+      ]);
+
+      onDelete?.({ fsPath: initialFile });
+      result = await completionProvider.getCompletions('test', 'filePath', '');
+      expect(result.values).toEqual([path.resolve(folder.uri.fsPath, 'src/b.ts')]);
+    });
+
+    it('should retry cache construction after a workspace search failure', async () => {
+      const folder = createMockWorkspaceFolder('project');
+      vscode.workspace.workspaceFolders = [folder] as any;
+      vscode.workspace.findFiles = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('search failed'))
+        .mockResolvedValueOnce([{ fsPath: `${folder.uri.fsPath}/src/retry.ts` }]);
+
+      const failed = await completionProvider.getCompletions('test', 'filePath', '');
+      expect(failed).toEqual({ values: [], total: 0, hasMore: false });
+
+      const retried = await completionProvider.getCompletions('test', 'filePath', '');
+      expect(retried.values).toEqual([path.resolve(folder.uri.fsPath, 'src/retry.ts')]);
+    });
+
+    it('should merge nested editor symbols with workspace variable symbols', async () => {
+      vscode.debug.activeDebugSession = undefined;
+      vscode.window.activeTextEditor = { document: { uri: { fsPath: '/test.ts' } } } as any;
+      vscode.commands.executeCommand = vi.fn().mockImplementation((command: string) => {
+        if (command === 'vscode.executeDocumentSymbolProvider') {
+          return Promise.resolve([
+            createDocumentSymbol('Container', vscode.SymbolKind.Class, [
+              createDocumentSymbol('editorVariable', vscode.SymbolKind.Variable),
+            ]),
+          ]);
+        }
+        if (command === 'vscode.executeWorkspaceSymbolProvider') {
+          return Promise.resolve([
+            createSymbolInfo('editorVariable', vscode.SymbolKind.Variable),
+            createSymbolInfo('workspaceConstant', vscode.SymbolKind.Constant),
+            createSymbolInfo('workspaceFunction', vscode.SymbolKind.Function),
+          ]);
+        }
+        return Promise.resolve([]);
+      });
+
+      const result = await completionProvider.getCompletions('test', 'variableName', '');
+
+      expect(result.values).toEqual(['editorVariable', 'workspaceConstant']);
     });
   });
 
