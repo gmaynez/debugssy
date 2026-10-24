@@ -15,8 +15,8 @@ Quick reference for Debugssy's CI/CD workflows.
 
 1. Verifies tag is on `main` branch
 2. Verifies the tag, `package.json`, and changelog agree on the release version
-3. Runs the shared `npm run verify` suite (build, type-check, lint,
-   format-check, coverage, production audit)
+3. Runs `npm run verify:release` (build, type-check, lint, format-check,
+   coverage, production audit, mutation testing)
 4. Blocks publishing if verification fails
 5. Builds and packages extension
 6. Publishes to **VS Code Marketplace**
@@ -28,6 +28,7 @@ Quick reference for Debugssy's CI/CD workflows.
 - ✅ Shared verification suite passes
 - ✅ Coverage thresholds pass
 - ✅ Production dependencies pass `npm audit`
+- ✅ Mutation score meets the configured floor
 - ✅ Release versions agree
 - ✅ No linting or formatting errors
 - ✅ Build succeeds

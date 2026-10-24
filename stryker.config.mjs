@@ -6,7 +6,11 @@ const config = {
   testRunner: 'vitest',
   coverageAnalysis: 'perTest',
   mutate: [
+    'src/MCPServer.ts',
+    'src/extension.ts',
     'src/routing/ToolRouter.ts',
+    'src/routing/CompletionProvider.ts',
+    'src/routing/ResourceProvider.ts',
     'src/routing/PromptHandler.ts',
     'src/routing/promptTemplates.ts',
     'src/tools/Breakpoints.ts',
@@ -15,8 +19,13 @@ const config = {
     'src/dap/Client.ts',
     'src/security/ExpressionValidator.ts',
     'src/security/McpRequestValidator.ts',
+    'src/security/expression/validators/*.ts',
+    'src/utils/sortByRelevance.ts',
     'src/Config.ts',
   ],
+  thresholds: {
+    break: 70,
+  },
   vitest: {
     configFile: 'vitest.config.mts',
   },

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2025 Guillermo Garcia Maynez
 
 import { vi } from 'vitest';
-import { MockUri, MockPosition, MockLocation } from './vscode-mock';
+import { MockUri, MockPosition, MockRange, MockLocation } from './vscode-mock';
 import type { ToolRegistry } from '../../tools';
 import { CURRENT_MCP_PROTOCOL_VERSION } from '../../constants';
 
@@ -45,11 +45,8 @@ export function createTestFilePath(fileName: string = 'test.js'): string {
 export function createBreakpointLocation(filePath: string, line: number): MockLocation {
   const uri = MockUri.file(filePath);
   const position = new MockPosition(line - 1, 0);
-  const range = new (class {
-    start = position;
-    end = position;
-  })();
-  return new MockLocation(uri, range as any);
+  const range = new MockRange(position, position);
+  return new MockLocation(uri, range);
 }
 
 /**

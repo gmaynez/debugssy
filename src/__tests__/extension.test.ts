@@ -199,4 +199,49 @@ describe('extension lifecycle', () => {
     expect(serverAt(1).stop).toHaveBeenCalledOnce();
     expect(serverAt(2).stop).not.toHaveBeenCalled();
   });
+
+  it('registers and serves VS Code MCP discovery definitions', async () => {
+    configValues['mcp.enabled'] = true;
+    const register = vi.fn((_id: string, _provider: unknown) => ({ dispose: vi.fn() }));
+    vscode.lm = { registerMcpServerDefinitionProvider: register } as any;
+    vscode.cursor = undefined as any;
+
+    await activate(extensionContext as any);
+
+    expect(register).toHaveBeenCalledWith('debugssy', expect.any(Object));
+    const provider = register.mock.calls[0]?.[1] as any;
+    const definitions = await provider.provideMcpServerDefinitions();
+    expect(definitions).toHaveLength(1);
+    expect(definitions[0].uri.toString()).toBe('http://localhost:3000/mcp');
+  });
+
+  it('registers the running server with Cursor MCP discovery', async () => {
+    configValues['mcp.enabled'] = true;
+    const registerServer = vi.fn();
+    const unregisterServer = vi.fn();
+    vscode.lm = undefined as any;
+    vscode.cursor = { mcp: { registerServer, unregisterServer } } as any;
+
+    await activate(extensionContext as any);
+
+    expect(unregisterServer).toHaveBeenCalledWith('debugssy');
+    expect(registerServer).toHaveBeenCalledWith({
+      name: 'debugssy',
+      server: { url: 'http://localhost:3000/mcp' },
+    });
+  });
+
+  it('activates without either host discovery API', async () => {
+    configValues['mcp.enabled'] = true;
+    vscode.lm = undefined as any;
+    vscode.cursor = undefined as any;
+
+    await activate(extensionContext as any);
+
+    expect(lifecycle.servers).toHaveLength(1);
+    expect(vscode.commands.registerCommand).toHaveBeenCalledWith(
+      'debugssy.startServer',
+      expect.any(Function)
+    );
+  });
 });

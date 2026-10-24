@@ -856,28 +856,28 @@ describe('DAPClient', () => {
     });
 
     it('should filter console output by timestamp', () => {
-      const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
-      const now = Date.now();
+      vi.useFakeTimers();
+      try {
+        const tracker = trackerFactory.createDebugAdapterTracker(mockSession);
+        vi.setSystemTime(1000);
+        tracker.onDidSendMessage({
+          type: 'event',
+          event: 'output',
+          body: { category: 'console', output: 'Old log' },
+        });
 
-      tracker.onDidSendMessage({
-        type: 'event',
-        event: 'output',
-        body: { category: 'console', output: 'Old log' },
-      });
+        vi.setSystemTime(2000);
+        tracker.onDidSendMessage({
+          type: 'event',
+          event: 'output',
+          body: { category: 'console', output: 'New log' },
+        });
 
-      // Wait a bit and capture timestamp
-      const futureTimestamp = now + 100;
-
-      tracker.onDidSendMessage({
-        type: 'event',
-        event: 'output',
-        body: { category: 'console', output: 'New log' },
-      });
-
-      const recentOnly = client.getConsoleOutput({
-        since: futureTimestamp,
-      });
-      expect(recentOnly.length).toBeLessThanOrEqual(1);
+        const recentOnly = client.getConsoleOutput({ since: 1500 });
+        expect(recentOnly.map((entry) => entry.output)).toEqual(['New log']);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('should limit console output results', () => {

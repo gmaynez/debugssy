@@ -82,8 +82,8 @@ jobs:
           console.log(`Release metadata agrees on version ${version}.`);
           NODE
 
-      - name: Run shared verification suite
-        run: npm run verify
+      - name: Run release verification and mutation tests
+        run: npm run verify:release
 
       - name: Prepare marketplace README
         run: npm run prepare-publish

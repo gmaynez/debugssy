@@ -4,6 +4,39 @@ All notable changes to the "Debugssy" extension will be documented in this file.
 
 ## [Unreleased]
 
+### Security
+
+- Closed expression-validation bypasses involving parenthesized, optional, and
+  spaced-bracket invocation syntax, Ruby/PHP command execution, synchronous Node
+  filesystem calls, and ordinary Node HTTP requests.
+- Persistent breakpoint expressions now retain conservative language-specific
+  danger checks in every validation mode. Mutating Go helpers require approval.
+- Updated `body-parser` to 2.4.0 to resolve the compressed-body
+  denial-of-service advisory.
+
+### Fixed
+
+- Invalid settings now fall back individually instead of resetting valid
+  settings, including an explicitly disabled MCP server. Server startup,
+  shutdown, restart, and rapid configuration changes clean up and converge
+  reliably.
+- DAP inspection rejects stale execution-generation results, reports adapter
+  failures accurately, marks cached stacks as stale, isolates breakpoint hit
+  history by session, and avoids unnecessary stack lookup for explicit frames.
+- MCP HTTP errors now use valid JSON-RPC error objects. Tool failures preserve
+  error codes and `isError`, and cancellation cleans up breakpoint waits.
+- `start_debugging` rejects unknown workspaces and malformed configuration
+  fields. Console output is bounded by entry size as well as entry count.
+- Completion watchers no longer accumulate listeners or retain removed roots.
+
+### Changed
+
+- File path completions now return absolute paths accepted directly by
+  breakpoint tools.
+- Coverage includes every production source file, with global and critical
+  per-file thresholds. Release verification includes production audits,
+  tag/package/changelog consistency checks, Node 24, and mutation testing.
+
 ## [1.7.0] - 2026-10-22
 
 ### Changed

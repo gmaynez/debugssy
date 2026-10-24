@@ -2,11 +2,7 @@
 // SPDX-FileCopyrightText: 2025 Guillermo Garcia Maynez
 
 import * as vscode from 'vscode';
-import {
-  DEFAULT_THREAD_ID,
-  MAX_CONSOLE_BUFFER_SIZE,
-  MAX_CONSOLE_ENTRY_LENGTH,
-} from '../constants';
+import { DEFAULT_THREAD_ID, MAX_CONSOLE_BUFFER_SIZE, MAX_CONSOLE_ENTRY_LENGTH } from '../constants';
 import { Logger } from '../utils/Logger';
 
 export interface StackFrame {

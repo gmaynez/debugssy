@@ -93,6 +93,29 @@ describe('MCPServer - Integration', () => {
       );
     });
 
+    it.each([
+      { isTransportReady: true, transport: undefined },
+      { isTransportReady: false, transport: {} },
+    ])('should return 503 for partial readiness: %j', async ({ isTransportReady, transport }) => {
+      server = new MCPServer(3000, createMockToolRegistry(), new ConfigManager());
+      (server as any).isTransportReady = isTransportReady;
+      (server as any).transport = transport;
+      const app = (server as any).app as Express;
+      const handler = getRouteHandler(app, '/health');
+      const res = { status: vi.fn().mockReturnThis(), json: vi.fn() } as any;
+
+      await handler?.({ method: 'GET', headers: {}, url: '/health' }, res);
+
+      expect(res.status).toHaveBeenCalledWith(503);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'initializing',
+          transportReady: isTransportReady,
+          transportInitialized: Boolean(transport),
+        })
+      );
+    });
+
     it('should include version and protocol info', async () => {
       server = new MCPServer(3000, createMockToolRegistry(), new ConfigManager());
 
@@ -242,6 +265,36 @@ describe('MCPServer - Integration', () => {
       expect(toolRegistry.inspection.getDebugState).toHaveBeenCalledTimes(1);
     });
 
+    it.each([
+      { minifyResponses: true, pretty: false },
+      { minifyResponses: false, pretty: true },
+    ])('should honor minifyResponses=$minifyResponses', async ({ minifyResponses, pretty }) => {
+      const configManager = new ConfigManager();
+      vi.spyOn(configManager, 'getConfig').mockReturnValue({
+        enabled: true,
+        port: 3000,
+        automationLevel: 'assisted',
+        waitForBreakpointTimeout: 5000,
+        allowStepOperations: false,
+        minifyResponses,
+        maxExpressionLength: 100,
+        expressionValidationLevel: 'moderate',
+      });
+      const toolRegistry = createMockToolRegistry();
+      toolRegistry.inspection.getDebugState = vi.fn().mockResolvedValue({ success: true });
+      server = new MCPServer(3000, toolRegistry, configManager);
+      const handler = getMcpHandler(server, 'tools/call');
+
+      const result = await handler?.({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: TOOL_NAMES.getDebugState, arguments: {} },
+      });
+
+      expect(result.content[0].text.includes('\n')).toBe(pretty);
+    });
+
     it('should mark returned tool failures as errors and preserve their codes', async () => {
       const toolRegistry = createMockToolRegistry();
       toolRegistry.breakpoints.removeBreakpoint = vi.fn().mockResolvedValue({
@@ -293,6 +346,58 @@ describe('MCPServer - Integration', () => {
       expect(payload.code).toBe('AUTOMATION_LEVEL_RESTRICTED');
       expect(payload.error).toContain("requires 'full' automation level");
       expect(toolRegistry.debugControl.stopDebugging).not.toHaveBeenCalled();
+    });
+
+    it('should expose resources and completions through registered handlers', async () => {
+      server = new MCPServer(3000, createMockToolRegistry(), new ConfigManager());
+      const resourceProvider = (server as any).resourceProvider;
+      resourceProvider.listResources = vi
+        .fn()
+        .mockResolvedValue([
+          { uri: 'debugssy://debug-state', name: 'Debug state', mimeType: 'application/json' },
+        ]);
+      resourceProvider.readResource = vi.fn().mockResolvedValue({
+        contents: [{ uri: 'debugssy://debug-state', mimeType: 'application/json', text: '{}' }],
+      });
+      const completionProvider = (server as any).completionProvider;
+      completionProvider.getCompletions = vi.fn().mockResolvedValue({
+        values: ['/workspace/src/index.ts'],
+        total: 1,
+        hasMore: false,
+      });
+
+      const listResources = getMcpHandler(server, 'resources/list');
+      const readResource = getMcpHandler(server, 'resources/read');
+      const complete = getMcpHandler(server, 'completion/complete');
+      const resources = await listResources?.({ method: 'resources/list', params: {} });
+      const contents = await readResource?.({
+        method: 'resources/read',
+        params: { uri: 'debugssy://debug-state' },
+      });
+      const completion = await complete?.({
+        method: 'completion/complete',
+        params: {
+          ref: { type: 'ref/prompt', name: 'debug-crash' },
+          argument: { name: 'filePath', value: 'src' },
+        },
+      });
+      const unsupported = await complete?.({
+        method: 'completion/complete',
+        params: {
+          ref: { type: 'ref/resource', uri: 'debugssy://debug-state' },
+          argument: { name: 'filePath', value: 'src' },
+        },
+      });
+
+      expect(resources.resources).toHaveLength(1);
+      expect(contents.contents[0].text).toBe('{}');
+      expect(completion.completion.values).toEqual(['/workspace/src/index.ts']);
+      expect(completionProvider.getCompletions).toHaveBeenCalledWith(
+        'debug-crash',
+        'filePath',
+        'src'
+      );
+      expect(unsupported.completion).toEqual({ values: [], total: 0, hasMore: false });
     });
 
     it('should expose prompt discovery and prompt content through registered handlers', async () => {

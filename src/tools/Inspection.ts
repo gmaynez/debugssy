@@ -10,13 +10,18 @@ import {
   DEFAULT_MAX_STACK_DEPTH,
   MAX_BREAKPOINT_TIMEOUT_MS,
 } from '../constants';
-import type { DebugStateData, GetVariablesResult } from '../routing/types/toolResults';
+import type {
+  DebugStateData,
+  EvaluateExpressionResult,
+  GetCallStackResult,
+  GetConsoleOutputResult,
+  GetDebugStateResult,
+  GetThreadsResult,
+  GetVariablesResult,
+  ToolResult,
+} from '../routing/types/toolResults';
 
-export interface InspectionResult {
-  success: boolean;
-  data?: unknown;
-  error?: string;
-}
+export type InspectionResult<T = unknown> = ToolResult<T>;
 
 /**
  * Provides tools for inspecting the current debug session state.
@@ -35,7 +40,7 @@ export class InspectionTools {
    * @returns InspectionResult containing session state, execution state (running/paused),
    *          current location if paused, and stop reason
    */
-  async getDebugState(_args?: Record<string, unknown>): Promise<InspectionResult> {
+  async getDebugState(_args?: Record<string, unknown>): Promise<GetDebugStateResult> {
     try {
       const session = vscode.debug.activeDebugSession;
       const executionState = this.dapClient.getExecutionState(session);
@@ -112,7 +117,7 @@ export class InspectionTools {
     timeout?: number;
     automationLevel: 'assisted' | 'full';
     signal?: AbortSignal;
-  }): Promise<InspectionResult> {
+  }): Promise<GetDebugStateResult> {
     try {
       // Check automation level
       if (args.automationLevel !== 'full') {
@@ -139,11 +144,11 @@ export class InspectionTools {
       let disposable: vscode.Disposable | undefined;
       let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
       let abortListener: (() => void) | undefined;
-      let stateCheckPromise: Promise<InspectionResult>;
+      let stateCheckPromise: Promise<GetDebugStateResult>;
 
       try {
         // Set up event listener first
-        const eventPromise = new Promise<InspectionResult>((resolve) => {
+        const eventPromise = new Promise<GetDebugStateResult>((resolve) => {
           disposable = this.dapClient.onStateChange((state) => {
             if (state === 'paused') {
               // Get the current state info
@@ -175,7 +180,7 @@ export class InspectionTools {
         // Store timeout handle to clear it if breakpoint arrives first
         const result = await Promise.race([
           stateCheckPromise,
-          new Promise<InspectionResult>((_, reject) => {
+          new Promise<GetDebugStateResult>((_, reject) => {
             timeoutHandle = setTimeout(
               () => reject(new Error(`Timeout waiting for breakpoint after ${timeout}ms`)),
               timeout
@@ -210,7 +215,7 @@ export class InspectionTools {
    * @param args.frameId - Stack frame ID (defaults to current frame)
    * @returns InspectionResult with variables grouped by scope
    */
-  async getVariables(args: { scope?: string; frameId?: number }): Promise<InspectionResult> {
+  async getVariables(args: { scope?: string; frameId?: number }): Promise<GetVariablesResult> {
     try {
       const session = vscode.debug.activeDebugSession;
       if (!session) {
@@ -279,7 +284,7 @@ export class InspectionTools {
    * @param args.maxDepth - Maximum number of frames to return (default: 20)
    * @returns InspectionResult with stack frames, total count, and truncation flag
    */
-  async getCallStack(args?: { maxDepth?: number }): Promise<InspectionResult> {
+  async getCallStack(args?: { maxDepth?: number }): Promise<GetCallStackResult> {
     try {
       const session = vscode.debug.activeDebugSession;
       if (!session) {
@@ -335,7 +340,7 @@ export class InspectionTools {
   async evaluateExpression(
     args: { expression: string; frameId?: number },
     validatedSession?: vscode.DebugSession
-  ): Promise<InspectionResult> {
+  ): Promise<EvaluateExpressionResult> {
     try {
       const session = validatedSession ?? vscode.debug.activeDebugSession;
       if (!session) {
@@ -379,7 +384,7 @@ export class InspectionTools {
    *
    * @returns InspectionResult with array of thread information
    */
-  async getThreads(_args?: Record<string, unknown>): Promise<InspectionResult> {
+  async getThreads(_args?: Record<string, unknown>): Promise<GetThreadsResult> {
     try {
       const session = vscode.debug.activeDebugSession;
       if (!session) {
@@ -415,7 +420,7 @@ export class InspectionTools {
     limit?: number;
     since?: number;
     clear?: boolean;
-  }): Promise<InspectionResult> {
+  }): Promise<GetConsoleOutputResult> {
     try {
       // Default to DEFAULT_CONSOLE_OUTPUT_LIMIT entries to reduce verbosity
       const limit = args?.limit ?? DEFAULT_CONSOLE_OUTPUT_LIMIT;

@@ -41,13 +41,15 @@ describe('BreakpointTools', () => {
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('Breakpoint set at /test/file.js:10');
-      expect(result.data?.breakpoint).toEqual({
+      expect(result.data?.breakpoint).toMatchObject({
         filePath: args.filePath,
         line: args.line,
         enabled: true,
         condition: undefined,
       });
+      expect(result.data?.breakpoint.id).toEqual(expect.any(String));
       expect(vscode.debug.addBreakpoints).toHaveBeenCalledTimes(1);
+      expect(vscode.debug.breakpoints).toHaveLength(1);
     });
 
     it('should set a conditional breakpoint', async () => {
@@ -170,6 +172,7 @@ describe('BreakpointTools', () => {
 
       expect(result.success).toBe(true);
       expect(vscode.debug.removeBreakpoints).toHaveBeenCalledWith([bp1]);
+      expect(vscode.debug.breakpoints).toEqual([bp2]);
     });
 
     it('should handle errors when removing breakpoint', async () => {

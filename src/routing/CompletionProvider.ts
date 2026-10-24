@@ -215,7 +215,6 @@ export class CompletionProvider {
 
       this.fileWatchers.push(watcher);
     }
-
   }
 
   private onFileCreated(uri: vscode.Uri, folder: vscode.WorkspaceFolder): void {

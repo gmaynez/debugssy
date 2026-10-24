@@ -140,6 +140,8 @@
     "test:watch": "vitest watch",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
+    "test:mutation": "stryker run",
+    "verify:release": "npm run verify && npm run test:mutation",
     "audit:production": "npm audit --omit=dev --audit-level=moderate",
     "verify": "npm run compile && npm run lint && npm run format:check && npm run test:coverage && npm run audit:production",
     "lint": "eslint src",

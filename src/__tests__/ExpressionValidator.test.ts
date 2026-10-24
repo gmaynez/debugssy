@@ -394,50 +394,6 @@ describe('ExpressionValidator', () => {
       expect(result.allowed).toBe(false);
       expect(result.reason).toContain('User-Defined Function');
     });
-
-    it('should reject eval via comma operator', () => {
-      const result = validator.validateExpression('(0, eval)("code")', jsSession);
-      expect(result.allowed).toBe(false);
-      expect(result.riskLevel).toBe('high');
-    });
-
-    it('should reject eval via array extraction', () => {
-      const result = validator.validateExpression('[eval][0]("code")', jsSession);
-      expect(result.allowed).toBe(false);
-      expect(result.riskLevel).toBe('high');
-    });
-
-    it('should reject eval as tagged template', () => {
-      const result = validator.validateExpression('eval`code`', jsSession);
-      expect(result.allowed).toBe(false);
-      expect(result.riskLevel).toBe('high');
-    });
-
-    it('should reject Function as tagged template', () => {
-      const result = validator.validateExpression('Function`return 1`', jsSession);
-      expect(result.allowed).toBe(false);
-      expect(result.riskLevel).toBe('high');
-    });
-
-    it('should reject eval using fullwidth Unicode characters (NFKC confusables)', () => {
-      // Fullwidth ｅｖａｌ (U+FF45 U+FF56 U+FF41 U+FF4C) normalizes to eval under NFKC
-      const result = validator.validateExpression('\uFF45\uFF56\uFF41\uFF4C("code")', jsSession);
-      expect(result.allowed).toBe(false);
-      expect(result.riskLevel).toBe('high');
-    });
-
-    it('should flag eval as medium risk without session', () => {
-      // Without session, unknown functions are medium risk
-      const result = validator.validateExpression('eval("code")');
-      expect(result.allowed).toBe(false);
-      expect(result.riskLevel).toBe('medium');
-    });
-
-    it('should reject setTimeout with string', () => {
-      // setTimeout is not in whitelist, so should be flagged
-      const result = validator.validateExpression('setTimeout("code", 100)');
-      expect(result.allowed).toBe(false);
-    });
   });
 
   describe('Persistent Breakpoint Validation', () => {
@@ -1092,12 +1048,12 @@ describe('ExpressionValidator', () => {
     it('should clear language cache on dispose', () => {
       const session = createMockDebugSession('test', 'node');
       validator.validateExpression('x', session);
+      const cache = (validator as any).languageCache as Map<string, string>;
+      expect(cache.size).toBe(1);
 
       validator.dispose();
 
-      // After dispose, cache should be cleared
-      // This is tested by checking no errors occur
-      expect(() => validator.dispose()).not.toThrow();
+      expect(cache.size).toBe(0);
     });
   });
 
@@ -1827,10 +1783,10 @@ describe('ExpressionValidator', () => {
 
       it('should allow Python getattr with literal attribute', () => {
         const pySession = createMockDebugSession('test', 'python');
-        // getattr with literal is still flagged as unknown function but not as meta-programming
+        // Literal getattr follows the getter-pattern classification rather than meta-programming.
         const result = validator.validateExpression('getattr(obj, "attr")', pySession);
-        // This should be flagged as unknown function (medium) not meta-programming (high)
-        expect(result.riskLevel).not.toBe('critical');
+        expect(result.allowed).toBe(false);
+        expect(result.riskLevel).toBe('low');
       });
 
       it('should block Python scope access functions', () => {

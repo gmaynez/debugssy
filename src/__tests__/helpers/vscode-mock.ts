@@ -97,10 +97,17 @@ export class MockRange {
 
 // Location mock
 export class MockLocation {
+  public range: MockRange;
+
   constructor(
     public uri: MockUri,
-    public range: MockRange
-  ) {}
+    rangeOrPosition: MockRange | MockPosition
+  ) {
+    this.range =
+      rangeOrPosition instanceof MockRange
+        ? rangeOrPosition
+        : new MockRange(rangeOrPosition, rangeOrPosition);
+  }
 }
 
 // SourceBreakpoint mock
@@ -143,25 +150,32 @@ export const createMockDebugSession = (name: string = 'test-session', type: stri
   }) as any;
 
 // Debug API mock
-export const createMockDebugAPI = () => ({
-  activeDebugSession: undefined as any,
-  activeStackFrame: undefined as any,
-  breakpoints: [] as any[],
-  onDidStartDebugSession: vi.fn(() => mockDisposable()),
-  onDidTerminateDebugSession: vi.fn(() => mockDisposable()),
-  onDidChangeActiveDebugSession: vi.fn(() => mockDisposable()),
-  onDidChangeBreakpoints: vi.fn(() => mockDisposable()),
-  addBreakpoints: vi.fn((breakpoints: any[]) => {
-    createMockDebugAPI().breakpoints.push(...breakpoints);
-  }),
-  removeBreakpoints: vi.fn((breakpoints: any[]) => {
-    const mockDebug = createMockDebugAPI();
-    mockDebug.breakpoints = mockDebug.breakpoints.filter((bp) => !breakpoints.includes(bp));
-  }),
-  registerDebugAdapterTrackerFactory: vi.fn(() => mockDisposable()),
-  startDebugging: vi.fn(),
-  stopDebugging: vi.fn(),
-});
+export const createMockDebugAPI = () => {
+  let breakpoints: any[] = [];
+  return {
+    activeDebugSession: undefined as any,
+    activeStackFrame: undefined as any,
+    get breakpoints() {
+      return breakpoints;
+    },
+    set breakpoints(value: any[]) {
+      breakpoints = value;
+    },
+    onDidStartDebugSession: vi.fn(() => mockDisposable()),
+    onDidTerminateDebugSession: vi.fn(() => mockDisposable()),
+    onDidChangeActiveDebugSession: vi.fn(() => mockDisposable()),
+    onDidChangeBreakpoints: vi.fn(() => mockDisposable()),
+    addBreakpoints: vi.fn((added: any[]) => {
+      breakpoints.push(...added);
+    }),
+    removeBreakpoints: vi.fn((removed: any[]) => {
+      breakpoints = breakpoints.filter((bp) => !removed.includes(bp));
+    }),
+    registerDebugAdapterTrackerFactory: vi.fn(() => mockDisposable()),
+    startDebugging: vi.fn(),
+    stopDebugging: vi.fn(),
+  };
+};
 
 // File type enum mock (matches vscode.FileType)
 export const FileType = {
